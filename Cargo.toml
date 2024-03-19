@@ -1,0 +1,32 @@
+[package]
+name = "osc-counect-rs"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cortex-m = "0.7.7"
+cortex-m-rt = "0.7.3"
+cortex-m-semihosting = "0.5.0"
+embedded-graphics = "0.8.1"
+embedded-hal = "1.0.0"
+nb = "1"
+panic-halt = "0.2.0"
+unwrap-infallible = "0.1.5"
+
+#[dependencies.stm32f1]
+#git = "https://github.com/stm32-rs/stm32-rs-nightlies"
+#features = ["stm32f103", "rt"]
+[dependencies.stm32f1xx-hal]
+version = "0.10.0"
+#path = "stm32f1xx-hal"
+features = ["rt", "stm32f103", "high"]
+
+# Target side implementation of the RTT (Real-Time Transfer) I/O protocol
+[dependencies.rtt-target]
+version = "0.5.0"
+
+[dependencies.panic-rtt-target]
+version = "0.1.2"
+features = ["cortex-m"]
