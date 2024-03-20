@@ -1,3 +1,5 @@
+workspace = { members = ["display-interface-fsmc"] }
+
 [package]
 name = "osc-counect-rs"
 version = "0.1.0"
@@ -8,7 +10,6 @@ edition = "2021"
 [dependencies]
 cortex-m = "0.7.7"
 cortex-m-rt = "0.7.3"
-#cortex-m-semihosting = "0.5.0"
 display-interface = "0.4.1"
 embedded-graphics = "0.7.1"
 embedded-graphics-core = "0.3.3"
@@ -38,10 +39,12 @@ version = "0.5.0"
 version = "0.1.2"
 features = ["cortex-m"]
 
+[dependencies.display-interface-fsmc]
+path = "display-interface-fsmc"
+
 #[profile.dev]
 #opt-level = 0
-#
 [profile.release]
 opt-level = 3
-#debug = true
-#lto = true
+debug = true
+lto = true

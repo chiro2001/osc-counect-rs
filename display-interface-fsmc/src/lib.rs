@@ -1,8 +1,7 @@
-use core::ops::Deref;
+#![no_std]
 
-use display_interface::{DataFormat, WriteOnlyDataCommand};
-use ili9341::DisplayError;
-use stm32f1xx_hal::gpio::{GpioExt, IOPinSpeed, OutputSpeed};
+use core::ops::Deref;
+use display_interface::{DataFormat, DisplayError, WriteOnlyDataCommand};
 use stm32f1xx_hal::pac::{FSMC, GPIOD, GPIOE};
 
 /// FSMC NORSRAM Configuration Structure definition
@@ -128,7 +127,7 @@ pub fn fsmc_norsram_init(device: &FSMC, init: &FsmcNorsramInitTypeDef) {
     // let btcr_reg = 0x5010;
     device.deref().bcr1.write(|w| unsafe {
         w.bits((bcr1 & mask) | btcr_reg)
-        // NOT CORRECT ORDER
+        // FIXME: NOT CORRECT FIELDS
         // w.mtyp().bits(init.memory_type as u8);
         // w.mwid().bits(init.memory_data_width as u8);
         // w.bursten().bit(init.burst_access_mode != 0);
@@ -202,6 +201,7 @@ pub fn hal_fsmc_msp_init(gpioe: GPIOE, gpiod: GPIOD) {
         PD5    ------> FSMC_NWE
         PD7    ------> FSMC_NE1
     */
+    // FIXME: not working
     // let mut gpioe = gpioe.split();
     // let mut gpiod = gpiod.split();
     // let _data_pins = (
@@ -287,6 +287,7 @@ pub fn hal_fsmc_msp_init(gpioe: GPIOE, gpiod: GPIOD) {
     //     .into_push_pull_output(&mut gpiod.crl)
     //     .set_speed(&mut gpiod.crl, IOPinSpeed::Mhz50);
 
+    // copied from CubeMX
     gpiod.crl.write(|w| unsafe { w.bits(0xB4BB44BB) });
     gpiod.crh.write(|w| unsafe { w.bits(0xBB44BBBB) });
     // gpiod.idr.write(|w| unsafe { w.bits(0x0000F7FF) });
@@ -305,12 +306,12 @@ impl<'a> FsmcInterface<'a> {
     pub fn new(hsram: SramHandleTypeDef<'a>, gpioe: GPIOE, gpiod: GPIOD) -> Self {
         const LCD_FSMC_NEX: u32 = 1;
         const LCD_FSMC_AX: u32 = 16;
-        const lcd_base: u32 =
+        const LCD_BASE: u32 =
             (0x60000000u32 + (0x4000000u32 * (LCD_FSMC_NEX - 1))) | (((1 << LCD_FSMC_AX) * 2) - 2);
-        let mut s = Self {
+        let s = Self {
             hsram,
-            reg: lcd_base as *mut u16,
-            ram: (lcd_base + 2) as *mut u16,
+            reg: LCD_BASE as *mut u16,
+            ram: (LCD_BASE + 2) as *mut u16,
         };
         hal_fsmc_msp_init(gpioe, gpiod);
         hal_sram_init(&s.hsram, &s.hsram.timing, &s.hsram.ext_timing);

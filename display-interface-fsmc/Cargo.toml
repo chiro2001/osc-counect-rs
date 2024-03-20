@@ -1,0 +1,35 @@
+[package]
+name = "display-interface-fsmc"
+version = "0.1.0"
+edition = "2021"
+authors = ["Chiro <chiro2001@163.com>"]
+description = "A display interface library for STM32F103 FSMC, tested on board counect with ili9341."
+
+[dependencies]
+display-interface = "0.4.1"
+
+[dependencies.stm32f1xx-hal]
+version = "0.10.0"
+features = ["rt", "stm32f103", "high"]
+
+[dev-dependencies]
+cortex-m = "0.7.7"
+cortex-m-rt = "0.7.3"
+display-interface = "0.4.1"
+embedded-graphics = "0.7.1"
+embedded-graphics-core = "0.3.3"
+embedded-hal = "0.2.7"
+format_no_std = "1.0.2"
+fugit = "0.3.7"
+ili9341 = "0.5.0"
+nb = "1"
+panic-halt = "0.2.0"
+unwrap-infallible = "0.1.5"
+
+# Target side implementation of the RTT (Real-Time Transfer) I/O protocol
+[dev-dependencies.rtt-target]
+version = "0.5.0"
+
+[dev-dependencies.panic-rtt-target]
+version = "0.1.2"
+features = ["cortex-m"]

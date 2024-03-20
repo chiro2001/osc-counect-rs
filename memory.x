@@ -1,4 +1,4 @@
-/* Linker script for the STM32F103C8T6 */
+/* Linker script for the STM32F103VC7B */
 MEMORY
 {
   FLASH : ORIGIN = 0x08000000, LENGTH = 256K

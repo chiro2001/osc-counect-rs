@@ -8,7 +8,7 @@ use panic_halt as _;
 
 use cortex_m_rt::entry;
 use embedded_graphics::geometry::Point;
-use embedded_graphics::mono_font::ascii::{FONT_6X9, FONT_9X18_BOLD};
+use embedded_graphics::mono_font::ascii::FONT_6X9;
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::text::{Alignment, Text};
@@ -24,7 +24,7 @@ use display_interface_fsmc as fsmc;
 #[entry]
 fn main() -> ! {
     // Get access to the core peripherals from the cortex-m crate
-    let cp = cortex_m::Peripherals::take().unwrap();
+    let _cp = cortex_m::Peripherals::take().unwrap();
     // Get access to the device specific peripherals from the peripheral access crate
     let dp = pac::Peripherals::take().unwrap();
 
@@ -125,7 +125,7 @@ fn main() -> ! {
         Orientation::PortraitFlipped,
         DisplaySize240x320,
     )
-    .unwrap();
+        .unwrap();
     // Create a new character style
     let style = MonoTextStyle::new(&FONT_6X9, Rgb565::new(0, 255, 255));
 
@@ -146,7 +146,7 @@ fn main() -> ! {
             &update_rect,
             Rgb565::new(0, 0, if cnt % 2 == 0 { 0xff } else { 0 }),
         )
-        .unwrap();
+            .unwrap();
         cnt += 1;
         let now = timer.now().ticks();
         if now < last {

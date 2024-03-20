@@ -104,6 +104,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7517c040926d7b02b111884aa089177db80878533127f7c1b480d852c5fb4112"
 
 [[package]]
+name = "display-interface-fsmc"
+version = "0.1.0"
+dependencies = [
+ "cortex-m",
+ "cortex-m-rt",
+ "display-interface",
+ "embedded-graphics",
+ "embedded-graphics-core",
+ "embedded-hal",
+ "format_no_std",
+ "fugit",
+ "ili9341",
+ "nb 1.1.0",
+ "panic-halt",
+ "panic-rtt-target",
+ "rtt-target 0.5.0",
+ "stm32f1xx-hal",
+ "unwrap-infallible",
+]
+
+[[package]]
 name = "embedded-dma"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -233,6 +254,7 @@ dependencies = [
  "cortex-m",
  "cortex-m-rt",
  "display-interface",
+ "display-interface-fsmc",
  "embedded-graphics",
  "embedded-graphics-core",
  "embedded-hal",
