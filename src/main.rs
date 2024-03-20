@@ -7,6 +7,7 @@
 use panic_halt as _;
 
 use cortex_m_rt::entry;
+use display_interface_fsmc as fsmc;
 use embedded_graphics::geometry::Point;
 use embedded_graphics::mono_font::ascii::FONT_6X9;
 use embedded_graphics::mono_font::MonoTextStyle;
@@ -19,7 +20,6 @@ use embedded_graphics_core::primitives::Rectangle;
 use ili9341::{DisplaySize240x320, Ili9341, Orientation};
 use stm32f1xx_hal::rcc::Enable;
 use stm32f1xx_hal::{pac, prelude::*, rcc};
-use display_interface_fsmc as fsmc;
 
 #[entry]
 fn main() -> ! {
@@ -90,20 +90,20 @@ fn main() -> ! {
     };
     let timing = fsmc::FsmcNorsramTimingTypeDef {
         address_setup_time: 0,
-        address_hold_time: 15,
-        data_setup_time: 15,
+        address_hold_time: 1,
+        data_setup_time: 1,
         bus_turn_around_duration: 0,
-        clk_division: 16,
-        data_latency: 17,
+        clk_division: 1,
+        data_latency: 2,
         access_mode: 0,
     };
     let ext_timing = fsmc::FsmcNorsramTimingTypeDef {
         address_setup_time: 0,
-        address_hold_time: 15,
+        address_hold_time: 1,
         data_setup_time: 1,
         bus_turn_around_duration: 0,
-        clk_division: 16,
-        data_latency: 17,
+        clk_division: 1,
+        data_latency: 2,
         access_mode: 0,
     };
     let hsram = fsmc::SramHandleTypeDef {
@@ -129,7 +129,7 @@ fn main() -> ! {
     // Create a new character style
     let style = MonoTextStyle::new(&FONT_6X9, Rgb565::new(0, 255, 255));
 
-    let mut cnt = 0;
+    let mut cnt = 0u32;
     let cnt_time = 2000;
     timer.start(cnt_time.millis()).unwrap();
     lcd.clear(Rgb565::new(0, 0, 0)).unwrap();
@@ -151,7 +151,11 @@ fn main() -> ! {
         let now = timer.now().ticks();
         if now < last {
             let mut buf = [0u8; 64];
-            let s = format_no_std::show(&mut buf, format_args!("Hello Rust! fps={}", cnt * 1000 / cnt_time)).unwrap();
+            let s = format_no_std::show(
+                &mut buf,
+                format_args!("Hello Rust! fps={}", cnt * 1000 / cnt_time),
+            )
+            .unwrap();
             cnt = 0;
             let text = Text::with_alignment(
                 &s,
