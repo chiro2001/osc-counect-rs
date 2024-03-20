@@ -155,6 +155,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "format_no_std"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d8ca877c98f19024674b6959301d81d3708c417823fa050692b45b54d74fe7d"
+
+[[package]]
 name = "fugit"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -230,6 +236,8 @@ dependencies = [
  "embedded-graphics",
  "embedded-graphics-core",
  "embedded-hal",
+ "format_no_std",
+ "fugit",
  "ili9341",
  "nb 1.1.0",
  "panic-halt",

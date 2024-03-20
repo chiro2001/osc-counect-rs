@@ -13,6 +13,8 @@ display-interface = "0.4.1"
 embedded-graphics = "0.7.1"
 embedded-graphics-core = "0.3.3"
 embedded-hal = "0.2.7"
+format_no_std = "1.0.2"
+fugit = "0.3.7"
 ili9341 = "0.5.0"
 nb = "1"
 panic-halt = "0.2.0"
@@ -35,3 +37,11 @@ version = "0.5.0"
 [dependencies.panic-rtt-target]
 version = "0.1.2"
 features = ["cortex-m"]
+
+#[profile.dev]
+#opt-level = 0
+#
+[profile.release]
+opt-level = 3
+#debug = true
+#lto = true

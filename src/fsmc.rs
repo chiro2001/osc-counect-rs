@@ -111,54 +111,62 @@ pub struct SramHandleTypeDef<'a> {
 }
 
 pub fn fsmc_norsram_init(device: &FSMC, init: &FsmcNorsramInitTypeDef) {
-    let p: *mut u32 = device.deref().bcr1.as_ptr();
-    // Disable NORSRAM Device
-    unsafe {
-        *p = *p & !0x1u32;
-    }
+    let bcr1 = device.deref().bcr1.read().bits();
+    device.deref().bcr1.modify(|_, w| w.mbken().clear_bit());
     let mask = 0xFFF7Fu32;
     let btcr_reg = init.data_address_mux
+        | init.memory_type
+        | init.memory_data_width
         | init.burst_access_mode
         | init.wait_signal_polarity
-        | init.wrap_mode
         | init.wait_signal_active
         | init.write_operation
         | init.wait_signal
         | init.extended_mode
         | init.asynchronous_wait
-        | init.write_burst
-        | init.page_size;
-    unsafe {
-        *p = (*p & mask) | btcr_reg;
-    }
+        | init.write_burst;
+    // let btcr_reg = 0x5010;
+    device.deref().bcr1.write(|w| unsafe {
+        w.bits((bcr1 & mask) | btcr_reg)
+        // NOT CORRECT ORDER
+        // w.mtyp().bits(init.memory_type as u8);
+        // w.mwid().bits(init.memory_data_width as u8);
+        // w.bursten().bit(init.burst_access_mode != 0);
+        // w.waitpol().bit(init.wait_signal_polarity != 0);
+        // w.waiten().bit(init.wait_signal_active != 0);
+        // w.wren().bit(init.write_operation != 0);
+        // w.waiten().bit(init.wait_signal != 0);
+        // w.extmod().bit(init.extended_mode != 0);
+        // w.asyncwait().bit(init.asynchronous_wait != 0);
+        // w.cburstrw().bit(init.write_burst != 0)
+    });
 }
 
 pub fn fsmc_norsram_timing_init(device: &FSMC, timing: &FsmcNorsramTimingTypeDef) {
-    let p: *mut u32 = device.btr1.as_ptr();
-    let mask = 0x3FFFFFFFu32;
-    let btcr_reg = timing.address_setup_time
-        | (timing.address_hold_time << 4)
-        | (timing.data_setup_time << 8)
-        | (timing.bus_turn_around_duration << 16)
-        | ((timing.clk_division - 1) << 20)
-        | ((timing.data_latency - 2) << 24)
-        | (timing.access_mode);
-    unsafe {
-        *p = (*p & mask) | btcr_reg;
-    }
+    device.deref().btr1.write(|w| unsafe {
+        w.addset().bits(timing.address_setup_time as u8);
+        w.addhld().bits(timing.address_hold_time as u8);
+        w.datast().bits(timing.data_setup_time as u8);
+        w.busturn().bits(timing.bus_turn_around_duration as u8);
+        w.clkdiv().bits((timing.clk_division - 1) as u8);
+        w.datlat().bits((timing.data_latency - 2) as u8);
+        w.accmod().bits(timing.access_mode as u8)
+        // w.bits(0x0ff00ff0u32)
+    });
 }
 
 pub fn fsmc_norsram_extended_timing_init(device: &FSMC, timing: &FsmcNorsramTimingTypeDef) {
-    let p: *mut u32 = (device.deref().bcr1.as_ptr() as u32 + 0x00000104u32) as _;
-    let mask = 0x3FFFFFFFu32;
-    let btcr_reg = timing.address_setup_time
-        | (timing.address_hold_time << 4)
-        | (timing.data_setup_time << 8)
-        | (timing.bus_turn_around_duration << 16)
-        | (timing.access_mode);
-    unsafe {
-        *p = (*p & mask) | btcr_reg;
-    }
+    device
+        .deref()
+        .bwtr1
+        .write(|w| unsafe {
+            w.addset().bits(timing.address_setup_time as u8);
+            w.addhld().bits(timing.address_hold_time as u8);
+            w.datast().bits(timing.data_setup_time as u8);
+            w.busturn().bits(timing.bus_turn_around_duration as u8);
+            w.accmod().bits(timing.access_mode as u8)
+            // w.bits(0x0ff001f0u32)
+        });
 }
 
 pub fn hal_sram_init(
@@ -170,10 +178,7 @@ pub fn hal_sram_init(
     fsmc_norsram_timing_init(hsram.device, timing);
     fsmc_norsram_extended_timing_init(hsram.device, ext_timing);
     // enable device
-    let p: *mut u32 = hsram.device.bcr1.as_ptr();
-    unsafe {
-        *p = *p | 0x1u32;
-    }
+    hsram.device.deref().bcr1.modify(|_, w| w.mbken().set_bit());
 }
 
 pub fn hal_fsmc_msp_init(gpioe: GPIOE, gpiod: GPIOD) {
@@ -200,92 +205,97 @@ pub fn hal_fsmc_msp_init(gpioe: GPIOE, gpiod: GPIOD) {
         PD5    ------> FSMC_NWE
         PD7    ------> FSMC_NE1
     */
-    // TODO: implement this function
-    // panic!("hal_fsmc_msp_init not implemented");
-    let mut gpioe = gpioe.split();
-    let mut gpiod = gpiod.split();
-    let _data_pins = (
-        gpiod
-            .pd14
-            .into_push_pull_output(&mut gpiod.crh)
-            .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50),
-        gpiod
-            .pd15
-            .into_push_pull_output(&mut gpiod.crh)
-            .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50),
-        gpiod
-            .pd0
-            .into_push_pull_output(&mut gpiod.crl)
-            .set_speed(&mut gpiod.crl, IOPinSpeed::Mhz50),
-        gpiod
-            .pd1
-            .into_push_pull_output(&mut gpiod.crl)
-            .set_speed(&mut gpiod.crl, IOPinSpeed::Mhz50),
-        gpioe
-            .pe7
-            .into_push_pull_output(&mut gpioe.crl)
-            .set_speed(&mut gpioe.crl, IOPinSpeed::Mhz50),
-        gpioe
-            .pe8
-            .into_push_pull_output(&mut gpioe.crh)
-            .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
-        gpioe
-            .pe9
-            .into_push_pull_output(&mut gpioe.crh)
-            .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
-        gpioe
-            .pe10
-            .into_push_pull_output(&mut gpioe.crh)
-            .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
-        gpioe
-            .pe11
-            .into_push_pull_output(&mut gpioe.crh)
-            .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
-        gpioe
-            .pe12
-            .into_push_pull_output(&mut gpioe.crh)
-            .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
-        gpioe
-            .pe13
-            .into_push_pull_output(&mut gpioe.crh)
-            .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
-        gpioe
-            .pe14
-            .into_push_pull_output(&mut gpioe.crh)
-            .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
-        gpioe
-            .pe15
-            .into_push_pull_output(&mut gpioe.crh)
-            .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
-        gpiod
-            .pd8
-            .into_push_pull_output(&mut gpiod.crh)
-            .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50),
-        gpiod
-            .pd9
-            .into_push_pull_output(&mut gpiod.crh)
-            .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50),
-        gpiod
-            .pd10
-            .into_push_pull_output(&mut gpiod.crh)
-            .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50),
-    );
-    let _rs = gpiod
-        .pd11
-        .into_push_pull_output(&mut gpiod.crh)
-        .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50);
-    let _rd = gpiod
-        .pd4
-        .into_push_pull_output(&mut gpiod.crl)
-        .set_speed(&mut gpiod.crl, IOPinSpeed::Mhz50);
-    let _wr = gpiod
-        .pd5
-        .into_push_pull_output(&mut gpiod.crl)
-        .set_speed(&mut gpiod.crl, IOPinSpeed::Mhz50);
-    let _cs = gpiod
-        .pd7
-        .into_push_pull_output(&mut gpiod.crl)
-        .set_speed(&mut gpiod.crl, IOPinSpeed::Mhz50);
+    // let mut gpioe = gpioe.split();
+    // let mut gpiod = gpiod.split();
+    // let _data_pins = (
+    //     gpiod
+    //         .pd14
+    //         .into_push_pull_output(&mut gpiod.crh)
+    //         .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50),
+    //     gpiod
+    //         .pd15
+    //         .into_push_pull_output(&mut gpiod.crh)
+    //         .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50),
+    //     gpiod
+    //         .pd0
+    //         .into_push_pull_output(&mut gpiod.crl)
+    //         .set_speed(&mut gpiod.crl, IOPinSpeed::Mhz50),
+    //     gpiod
+    //         .pd1
+    //         .into_push_pull_output(&mut gpiod.crl)
+    //         .set_speed(&mut gpiod.crl, IOPinSpeed::Mhz50),
+    //     gpioe
+    //         .pe7
+    //         .into_push_pull_output(&mut gpioe.crl)
+    //         .set_speed(&mut gpioe.crl, IOPinSpeed::Mhz50),
+    //     gpioe
+    //         .pe8
+    //         .into_push_pull_output(&mut gpioe.crh)
+    //         .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
+    //     gpioe
+    //         .pe9
+    //         .into_push_pull_output(&mut gpioe.crh)
+    //         .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
+    //     gpioe
+    //         .pe10
+    //         .into_push_pull_output(&mut gpioe.crh)
+    //         .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
+    //     gpioe
+    //         .pe11
+    //         .into_push_pull_output(&mut gpioe.crh)
+    //         .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
+    //     gpioe
+    //         .pe12
+    //         .into_push_pull_output(&mut gpioe.crh)
+    //         .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
+    //     gpioe
+    //         .pe13
+    //         .into_push_pull_output(&mut gpioe.crh)
+    //         .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
+    //     gpioe
+    //         .pe14
+    //         .into_push_pull_output(&mut gpioe.crh)
+    //         .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
+    //     gpioe
+    //         .pe15
+    //         .into_push_pull_output(&mut gpioe.crh)
+    //         .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
+    //     gpiod
+    //         .pd8
+    //         .into_push_pull_output(&mut gpiod.crh)
+    //         .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50),
+    //     gpiod
+    //         .pd9
+    //         .into_push_pull_output(&mut gpiod.crh)
+    //         .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50),
+    //     gpiod
+    //         .pd10
+    //         .into_push_pull_output(&mut gpiod.crh)
+    //         .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50),
+    // );
+    // let _rs = gpiod
+    //     .pd11
+    //     .into_push_pull_output(&mut gpiod.crh)
+    //     .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50);
+    // let _rd = gpiod
+    //     .pd4
+    //     .into_push_pull_output(&mut gpiod.crl)
+    //     .set_speed(&mut gpiod.crl, IOPinSpeed::Mhz50);
+    // let _wr = gpiod
+    //     .pd5
+    //     .into_push_pull_output(&mut gpiod.crl)
+    //     .set_speed(&mut gpiod.crl, IOPinSpeed::Mhz50);
+    // let _cs = gpiod
+    //     .pd7
+    //     .into_push_pull_output(&mut gpiod.crl)
+    //     .set_speed(&mut gpiod.crl, IOPinSpeed::Mhz50);
+
+    gpiod.crl.write(|w| unsafe { w.bits(0xB4BB44BB) });
+    gpiod.crh.write(|w| unsafe { w.bits(0xBB44BBBB) });
+    // gpiod.idr.write(|w| unsafe { w.bits(0x0000F7FF) });
+    gpioe.crl.write(|w| unsafe { w.bits(0xB4444444) });
+    gpioe.crh.write(|w| unsafe { w.bits(0xBBBBBBBB) });
+    // gpioe.idr.write(|w| unsafe { w.bits(0x0000FFFC) });
 }
 
 pub struct FsmcInterface<'a> {
@@ -304,8 +314,6 @@ impl<'a> FsmcInterface<'a> {
             (0x60000000u32 + (0x4000000u32 * (LCD_FSMC_NEX - 1))) | (((1 << LCD_FSMC_AX) * 2) - 2);
         let mut s = Self {
             hsram,
-            // gpioe,
-            // gpiod,
             reg: lcd_base as *mut u16,
             ram: (lcd_base + 2) as *mut u16,
         };
@@ -317,39 +325,60 @@ impl<'a> FsmcInterface<'a> {
 
 type Result = core::result::Result<(), DisplayError>;
 
+// #[inline(never)]
+#[inline(always)]
+fn small_delay<T>(ptr: *const T) {
+    for _ in 0..1 {
+        unsafe {
+            core::ptr::read_volatile(ptr);
+        }
+    }
+}
+
 impl<'a> WriteOnlyDataCommand for FsmcInterface<'a> {
+    #[inline(always)]
     fn send_commands(&mut self, cmds: DataFormat<'_>) -> Result {
         match cmds {
             DataFormat::U8Iter(iter) => {
                 for cmd in iter {
                     unsafe {
+                        // core::ptr::read_volatile(&cmd);
                         *self.reg = cmd as u16;
+                        // core::ptr::read_volatile(self.reg);
+                        // small_delay(&cmd);
                     }
                 }
             }
             _ => return Err(DisplayError::InvalidFormatError),
         }
+        small_delay(&self);
         Ok(())
     }
 
+    #[inline(always)]
     fn send_data(&mut self, data: DataFormat<'_>) -> Result {
         match data {
             DataFormat::U8Iter(iter) => {
                 for d in iter {
                     unsafe {
+                        // core::ptr::read_volatile(&d);
                         *self.ram = d as u16;
+                        // small_delay(&d);
                     }
                 }
             }
             DataFormat::U16BEIter(iter) => {
                 for d in iter {
                     unsafe {
+                        // core::ptr::read_volatile(&d);
                         *self.ram = d;
+                        // small_delay(&d);
                     }
                 }
             }
             _ => return Err(DisplayError::InvalidFormatError),
         }
+        small_delay(&self);
         Ok(())
     }
 }

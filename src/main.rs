@@ -4,19 +4,23 @@
 #![no_main]
 #![no_std]
 
-mod fsmc;
-
 use panic_halt as _;
 
 use cortex_m_rt::entry;
-use embedded_graphics::Drawable;
 use embedded_graphics::geometry::Point;
-use embedded_graphics::mono_font::ascii::FONT_6X10;
+use embedded_graphics::mono_font::ascii::FONT_9X18_BOLD;
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::text::{Alignment, Text};
+use embedded_graphics::Drawable;
+use embedded_graphics_core::draw_target::DrawTarget;
+use embedded_graphics_core::prelude::*;
+use embedded_graphics_core::primitives::Rectangle;
 use ili9341::{DisplaySize240x320, Ili9341, Orientation};
-use stm32f1xx_hal::{pac, prelude::*, timer::Timer};
+use stm32f1xx_hal::rcc::Enable;
+use stm32f1xx_hal::{pac, prelude::*, rcc};
+
+mod fsmc;
 
 #[entry]
 fn main() -> ! {
@@ -25,18 +29,41 @@ fn main() -> ! {
     // Get access to the device specific peripherals from the peripheral access crate
     let dp = pac::Peripherals::take().unwrap();
 
+    pac::GPIOE::enable(&dp.RCC);
+    pac::GPIOD::enable(&dp.RCC);
+    pac::GPIOC::enable(&dp.RCC);
+    pac::GPIOA::enable(&dp.RCC);
+    pac::FSMC::enable(&dp.RCC);
+    pac::TIM1::enable(&dp.RCC);
+    pac::TIM2::enable(&dp.RCC);
+    pac::TIM3::enable(&dp.RCC);
+
     // Take ownership over the raw flash and rcc devices and convert them into the corresponding
     // HAL structs
     let mut flash = dp.FLASH.constrain();
     let rcc = dp.RCC.constrain();
 
+    pac::NVIC::unpend(pac::Interrupt::FSMC);
+
     // Freeze the configuration of all the clocks in the system and store the frozen frequencies in
     // `clocks`
-    let clocks = rcc.cfgr.freeze(&mut flash.acr);
+    // let clocks = rcc.cfgr.freeze(&mut flash.acr);
+    // Alternative configuration using dividers and multipliers directly
+    let clocks = rcc.cfgr.freeze_with_config(
+        rcc::Config {
+            hse: Some(8_000_000),
+            pllmul: Some(7),
+            hpre: rcc::HPre::Div1,
+            ppre1: rcc::PPre::Div4,
+            ppre2: rcc::PPre::Div1,
+            usbpre: rcc::UsbPre::Div15,
+            adcpre: rcc::AdcPre::Div6,
+        },
+        &mut flash.acr,
+    );
 
     // Configure the syst timer to trigger an update every second
-    let mut timer = Timer::syst(cp.SYST, &clocks).counter_hz();
-    timer.start(1.Hz()).unwrap();
+    let mut timer = dp.TIM3.counter_ms(&clocks);
 
     // test gpio led
     let mut gpioc = dp.GPIOC.split();
@@ -46,9 +73,6 @@ fn main() -> ! {
 
     led.set_high();
 
-    // let mut peripherals = stm32::Peripherals::take().unwrap();
-    // let fsmc: &stm32f1::stm32f103::FSMC = &peripherals.FSMC;
-    let fsmc = &dp.FSMC;
     let init = fsmc::FsmcNorsramInitTypeDef {
         ns_bank: 0,
         data_address_mux: 0,
@@ -60,7 +84,7 @@ fn main() -> ! {
         wait_signal_active: 0,
         write_operation: 0x1000,
         wait_signal: 0,
-        extended_mode: 0x400,
+        extended_mode: 0x4000,
         asynchronous_wait: 0,
         write_burst: 0,
         page_size: 0,
@@ -84,35 +108,51 @@ fn main() -> ! {
         access_mode: 0,
     };
     let hsram = fsmc::SramHandleTypeDef {
-        device: fsmc,
+        device: &dp.FSMC,
         init,
         timing,
         ext_timing,
     };
     let interface = fsmc::FsmcInterface::new(hsram, dp.GPIOE, dp.GPIOD);
-    let mut rst = gpioc.pc9.into_push_pull_output(&mut gpioc.crh);
+    let mut afio = dp.AFIO.constrain();
+    afio.mapr2.mapr2().modify(|_, w| w.fsmc_nadv().set_bit());
+    let rst = gpioc.pc9.into_push_pull_output(&mut gpioc.crh);
     let mut delay = dp.TIM2.delay_us(&clocks);
-    rst.set_low();
-    delay.delay_ms(100u16);
-    rst.set_high();
     let mut lcd = Ili9341::new(
         interface,
         rst,
         &mut delay,
-        Orientation::PortraitFlipped,
+        Orientation::LandscapeFlipped,
         DisplaySize240x320,
-    ).unwrap();
-    // Create a new character style
-    let style = MonoTextStyle::new(&FONT_6X10, Rgb565::new(1, 1, 1));
-
-    // Create a text at position (20, 30) and draw it using the previously defined style
-    Text::with_alignment(
-        "First line\nSecond line",
-        Point::new(20, 30),
-        style,
-        Alignment::Center,
     )
-        .draw(&mut lcd)
-        .unwrap();
-    loop {}
+    .unwrap();
+    // Create a new character style
+    let style = MonoTextStyle::new(&FONT_9X18_BOLD, Rgb565::new(0, 255, 255));
+
+    let mut cnt = 0;
+    timer.start(1000.millis()).unwrap();
+    lcd.clear(Rgb565::new(0, 0, 0)).unwrap();
+    let mut last = 0xffffffu32;
+    let update_rect = Rectangle::new(Point::new(0, 20), Size::new(320, 240 - 20));
+    let text_rect = Rectangle::new(Point::new(0, 0), Size::new(320, 20));
+
+    loop {
+        // lcd.clear(Rgb565::new(0, 0, 0)).unwrap();
+        lcd.fill_solid(&update_rect, Rgb565::new(0, 0, if cnt % 2 == 0 { 0xff } else { 0 }))
+            .unwrap();
+        cnt += 1;
+        let now = timer.now().ticks();
+        if now < last {
+            let mut buf = [0u8; 64];
+            let s = format_no_std::show(&mut buf, format_args!("Hello Rust! fps={}", cnt)).unwrap();
+            cnt = 0;
+            let text = Text::with_alignment(&s, Point::new(0, 12), style, Alignment::Left);
+            lcd.fill_solid(&text_rect, Rgb565::new(0, 0, 0))
+                .unwrap();
+            text.draw(&mut lcd).unwrap();
+            // Text::with_alignment("TEST", Point::new(0, 40), style, Alignment::Left).draw(&mut lcd).unwrap();
+            // delay.delay_ms(1000u16);
+        }
+        last = now;
+    }
 }
