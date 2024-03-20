@@ -15,21 +15,8 @@ use embedded_graphics::mono_font::ascii::FONT_6X10;
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::text::{Alignment, Text};
-use embedded_hal::delay::DelayNs;
 use ili9341::{DisplaySize240x320, Ili9341, Orientation};
-// use stm32f1::stm32f103 as stm32;
-use stm32f1xx_hal::timer::Delay;
 use stm32f1xx_hal::{pac, prelude::*, timer::Timer};
-
-pub struct MyDelay<TIM, const FREQ: u32> {
-    delay: Delay<TIM, FREQ>,
-}
-impl<TIM, const FREQ: u32> DelayNs for MyDelay<TIM, FREQ> {
-    fn delay_ns(&mut self, ns: u32) {
-        // self.delay.delay_us(ns);
-
-    }
-}
 
 #[entry]
 fn main() -> ! {
@@ -104,15 +91,9 @@ fn main() -> ! {
     };
     let interface = fsmc::FsmcInterface::new(hsram, dp.GPIOE, dp.GPIOD);
     let mut rst = gpioc.pc9.into_push_pull_output(&mut gpioc.crh);
-    // let mut delay = dp.TIM2.delay_us(&clocks);
-    // delay.delay_ms()
-    // let mut delay = cortex_m::delay::Delay::new(cp.SYST, clocks);
-    let mut delay = MyDelay {
-        // delay: Delay::new(timer, clocks),
-        delay: dp.TIM2.delay_us(&clocks)
-    };
+    let mut delay = dp.TIM2.delay_us(&clocks);
     rst.set_low();
-    delay.delay_ms(100);
+    delay.delay_ms(100u16);
     rst.set_high();
     let mut lcd = Ili9341::new(
         interface,

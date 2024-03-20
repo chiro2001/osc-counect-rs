@@ -2,6 +2,7 @@ use core::ops::Deref;
 
 use display_interface::{DataFormat, WriteOnlyDataCommand};
 use ili9341::DisplayError;
+use stm32f1xx_hal::gpio::{GpioExt, IOPinSpeed, OutputSpeed};
 use stm32f1xx_hal::pac::{FSMC, GPIOD, GPIOE};
 
 /// FSMC NORSRAM Configuration Structure definition
@@ -200,9 +201,91 @@ pub fn hal_fsmc_msp_init(gpioe: GPIOE, gpiod: GPIOD) {
         PD7    ------> FSMC_NE1
     */
     // TODO: implement this function
-    panic!("hal_fsmc_msp_init not implemented");
-    // let gpioe = &peripherals.GPIOE;
-    // gpioe.odr
+    // panic!("hal_fsmc_msp_init not implemented");
+    let mut gpioe = gpioe.split();
+    let mut gpiod = gpiod.split();
+    let _data_pins = (
+        gpiod
+            .pd14
+            .into_push_pull_output(&mut gpiod.crh)
+            .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50),
+        gpiod
+            .pd15
+            .into_push_pull_output(&mut gpiod.crh)
+            .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50),
+        gpiod
+            .pd0
+            .into_push_pull_output(&mut gpiod.crl)
+            .set_speed(&mut gpiod.crl, IOPinSpeed::Mhz50),
+        gpiod
+            .pd1
+            .into_push_pull_output(&mut gpiod.crl)
+            .set_speed(&mut gpiod.crl, IOPinSpeed::Mhz50),
+        gpioe
+            .pe7
+            .into_push_pull_output(&mut gpioe.crl)
+            .set_speed(&mut gpioe.crl, IOPinSpeed::Mhz50),
+        gpioe
+            .pe8
+            .into_push_pull_output(&mut gpioe.crh)
+            .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
+        gpioe
+            .pe9
+            .into_push_pull_output(&mut gpioe.crh)
+            .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
+        gpioe
+            .pe10
+            .into_push_pull_output(&mut gpioe.crh)
+            .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
+        gpioe
+            .pe11
+            .into_push_pull_output(&mut gpioe.crh)
+            .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
+        gpioe
+            .pe12
+            .into_push_pull_output(&mut gpioe.crh)
+            .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
+        gpioe
+            .pe13
+            .into_push_pull_output(&mut gpioe.crh)
+            .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
+        gpioe
+            .pe14
+            .into_push_pull_output(&mut gpioe.crh)
+            .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
+        gpioe
+            .pe15
+            .into_push_pull_output(&mut gpioe.crh)
+            .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
+        gpiod
+            .pd8
+            .into_push_pull_output(&mut gpiod.crh)
+            .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50),
+        gpiod
+            .pd9
+            .into_push_pull_output(&mut gpiod.crh)
+            .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50),
+        gpiod
+            .pd10
+            .into_push_pull_output(&mut gpiod.crh)
+            .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50),
+    );
+    let _rs = gpiod
+        .pd11
+        .into_push_pull_output(&mut gpiod.crh)
+        .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50);
+    let _rd = gpiod
+        .pd4
+        .into_push_pull_output(&mut gpiod.crl)
+        .set_speed(&mut gpiod.crl, IOPinSpeed::Mhz50);
+    let _wr = gpiod
+        .pd5
+        .into_push_pull_output(&mut gpiod.crl)
+        .set_speed(&mut gpiod.crl, IOPinSpeed::Mhz50);
+    let _cs = gpiod
+        .pd7
+        .into_push_pull_output(&mut gpiod.crl)
+        .set_speed(&mut gpiod.crl, IOPinSpeed::Mhz50);
 }
 
 pub struct FsmcInterface<'a> {
