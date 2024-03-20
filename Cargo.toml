@@ -15,9 +15,11 @@ nb = "1"
 panic-halt = "0.2.0"
 unwrap-infallible = "0.1.5"
 
-#[dependencies.stm32f1]
+[dependencies.stm32f1]
 #git = "https://github.com/stm32-rs/stm32-rs-nightlies"
-#features = ["stm32f103", "rt"]
+#path = "stm32-rs"
+version = "0.15.1"
+features = ["stm32f103", "rt"]
 [dependencies.stm32f1xx-hal]
 version = "0.10.0"
 #path = "stm32f1xx-hal"
