@@ -42,6 +42,11 @@ features = ["cortex-m"]
 [dependencies.display-interface-fsmc]
 path = "display-interface-fsmc"
 
+[dependencies.lvgl]
+version = "0.6.0"
+features = ["embedded-graphics", "unsafe_no_autoinit"]
+default-features = false
+
 #[profile.dev]
 #opt-level = 0
 [profile.release]
