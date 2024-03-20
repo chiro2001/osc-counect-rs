@@ -8,7 +8,7 @@ use panic_halt as _;
 
 use cortex_m_rt::entry;
 use embedded_graphics::geometry::Point;
-use embedded_graphics::mono_font::ascii::{FONT_6X9, FONT_9X18_BOLD};
+use embedded_graphics::mono_font::ascii::FONT_6X9;
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::text::{Alignment, Text};
@@ -24,7 +24,7 @@ use display_interface_fsmc as fsmc;
 #[entry]
 fn main() -> ! {
     // Get access to the core peripherals from the cortex-m crate
-    let cp = cortex_m::Peripherals::take().unwrap();
+    let _cp = cortex_m::Peripherals::take().unwrap();
     // Get access to the device specific peripherals from the peripheral access crate
     let dp = pac::Peripherals::take().unwrap();
 
@@ -121,8 +121,8 @@ fn main() -> ! {
         interface,
         rst,
         &mut delay,
-        // Orientation::LandscapeFlipped,
-        Orientation::PortraitFlipped,
+        Orientation::LandscapeFlipped,
+        // Orientation::PortraitFlipped,
         DisplaySize240x320,
     )
     .unwrap();
@@ -130,7 +130,8 @@ fn main() -> ! {
     let style = MonoTextStyle::new(&FONT_6X9, Rgb565::new(0, 255, 255));
 
     let mut cnt = 0;
-    timer.start(1000.millis()).unwrap();
+    let cnt_time = 2000;
+    timer.start(cnt_time.millis()).unwrap();
     lcd.clear(Rgb565::new(0, 0, 0)).unwrap();
     let mut last = 0xffffffu32;
     let font_height = FONT_6X9.character_size.height;
@@ -141,7 +142,6 @@ fn main() -> ! {
     let text_rect = Rectangle::new(Point::new(0, 0), Size::new(lcd.width() as u32, font_height));
 
     loop {
-        // lcd.clear(Rgb565::new(0, 0, 0)).unwrap();
         lcd.fill_solid(
             &update_rect,
             Rgb565::new(0, 0, if cnt % 2 == 0 { 0xff } else { 0 }),
@@ -151,7 +151,7 @@ fn main() -> ! {
         let now = timer.now().ticks();
         if now < last {
             let mut buf = [0u8; 64];
-            let s = format_no_std::show(&mut buf, format_args!("Hello Rust! fps={}", cnt)).unwrap();
+            let s = format_no_std::show(&mut buf, format_args!("Hello Rust! fps={}", cnt * 1000 / cnt_time)).unwrap();
             cnt = 0;
             let text = Text::with_alignment(
                 &s,
@@ -161,8 +161,6 @@ fn main() -> ! {
             );
             lcd.fill_solid(&text_rect, Rgb565::new(0, 0, 0)).unwrap();
             text.draw(&mut lcd).unwrap();
-            // Text::with_alignment("TEST", Point::new(0, 40), style, Alignment::Left).draw(&mut lcd).unwrap();
-            // delay.delay_ms(1000u16);
         }
         last = now;
     }
