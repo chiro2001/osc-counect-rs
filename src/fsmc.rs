@@ -156,17 +156,14 @@ pub fn fsmc_norsram_timing_init(device: &FSMC, timing: &FsmcNorsramTimingTypeDef
 }
 
 pub fn fsmc_norsram_extended_timing_init(device: &FSMC, timing: &FsmcNorsramTimingTypeDef) {
-    device
-        .deref()
-        .bwtr1
-        .write(|w| unsafe {
-            w.addset().bits(timing.address_setup_time as u8);
-            w.addhld().bits(timing.address_hold_time as u8);
-            w.datast().bits(timing.data_setup_time as u8);
-            w.busturn().bits(timing.bus_turn_around_duration as u8);
-            w.accmod().bits(timing.access_mode as u8)
-            // w.bits(0x0ff001f0u32)
-        });
+    device.deref().bwtr1.write(|w| unsafe {
+        w.addset().bits(timing.address_setup_time as u8);
+        w.addhld().bits(timing.address_hold_time as u8);
+        w.datast().bits(timing.data_setup_time as u8);
+        w.busturn().bits(timing.bus_turn_around_duration as u8);
+        w.accmod().bits(timing.access_mode as u8)
+        // w.bits(0x0ff001f0u32)
+    });
 }
 
 pub fn hal_sram_init(
@@ -300,8 +297,6 @@ pub fn hal_fsmc_msp_init(gpioe: GPIOE, gpiod: GPIOD) {
 
 pub struct FsmcInterface<'a> {
     hsram: SramHandleTypeDef<'a>,
-    // gpioe: GE,
-    // gpiod: GD,
     reg: *mut u16,
     ram: *mut u16,
 }
@@ -325,7 +320,6 @@ impl<'a> FsmcInterface<'a> {
 
 type Result = core::result::Result<(), DisplayError>;
 
-// #[inline(never)]
 #[inline(always)]
 fn small_delay<T>(ptr: *const T) {
     for _ in 0..1 {
@@ -342,10 +336,7 @@ impl<'a> WriteOnlyDataCommand for FsmcInterface<'a> {
             DataFormat::U8Iter(iter) => {
                 for cmd in iter {
                     unsafe {
-                        // core::ptr::read_volatile(&cmd);
                         *self.reg = cmd as u16;
-                        // core::ptr::read_volatile(self.reg);
-                        // small_delay(&cmd);
                     }
                 }
             }
@@ -361,18 +352,14 @@ impl<'a> WriteOnlyDataCommand for FsmcInterface<'a> {
             DataFormat::U8Iter(iter) => {
                 for d in iter {
                     unsafe {
-                        // core::ptr::read_volatile(&d);
                         *self.ram = d as u16;
-                        // small_delay(&d);
                     }
                 }
             }
             DataFormat::U16BEIter(iter) => {
                 for d in iter {
                     unsafe {
-                        // core::ptr::read_volatile(&d);
                         *self.ram = d;
-                        // small_delay(&d);
                     }
                 }
             }
