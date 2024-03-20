@@ -8,18 +8,20 @@ edition = "2021"
 [dependencies]
 cortex-m = "0.7.7"
 cortex-m-rt = "0.7.3"
-cortex-m-semihosting = "0.5.0"
+#cortex-m-semihosting = "0.5.0"
+display-interface = "0.5.0"
 embedded-graphics = "0.8.1"
 embedded-hal = "1.0.0"
+ili9341 = "0.6.0"
 nb = "1"
 panic-halt = "0.2.0"
 unwrap-infallible = "0.1.5"
 
-[dependencies.stm32f1]
-#git = "https://github.com/stm32-rs/stm32-rs-nightlies"
-#path = "stm32-rs"
-version = "0.15.1"
-features = ["stm32f103", "rt"]
+#[dependencies.stm32f1]
+##git = "https://github.com/stm32-rs/stm32-rs-nightlies"
+##path = "stm32-rs"
+#version = "0.15.1"
+#features = ["stm32f103", "rt"]
 [dependencies.stm32f1xx-hal]
 version = "0.10.0"
 #path = "stm32f1xx-hal"

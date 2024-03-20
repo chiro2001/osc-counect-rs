@@ -1,5 +1,8 @@
 use core::ops::Deref;
-use stm32f1::stm32f103::{FSMC, Peripherals};
+
+use display_interface::{DataFormat, WriteOnlyDataCommand};
+use ili9341::DisplayError;
+use stm32f1xx_hal::pac::{FSMC, GPIOD, GPIOE};
 
 /// FSMC NORSRAM Configuration Structure definition
 pub struct FsmcNorsramInitTypeDef {
@@ -100,10 +103,10 @@ pub struct FsmcNorsramTimingTypeDef {
 }
 
 pub struct SramHandleTypeDef<'a> {
-    /// pub instance: &'a mut FsmcBank1TypeDef,
-    /// pub extended: &'a mut FsmcBank1ETypeDef,
     pub device: &'a FSMC,
     pub init: FsmcNorsramInitTypeDef,
+    pub timing: FsmcNorsramTimingTypeDef,
+    pub ext_timing: FsmcNorsramTimingTypeDef,
 }
 
 pub fn fsmc_norsram_init(device: &FSMC, init: &FsmcNorsramInitTypeDef) {
@@ -158,7 +161,7 @@ pub fn fsmc_norsram_extended_timing_init(device: &FSMC, timing: &FsmcNorsramTimi
 }
 
 pub fn hal_sram_init(
-    hsram: &mut SramHandleTypeDef,
+    hsram: &SramHandleTypeDef,
     timing: &FsmcNorsramTimingTypeDef,
     ext_timing: &FsmcNorsramTimingTypeDef,
 ) {
@@ -172,7 +175,7 @@ pub fn hal_sram_init(
     }
 }
 
-pub fn hal_fsmc_msp_init(peripherals: &Peripherals) {
+pub fn hal_fsmc_msp_init(gpioe: GPIOE, gpiod: GPIOD) {
     /*
         FSMC GPIO Configuration
         PE7    ------> FSMC_D4
@@ -200,4 +203,70 @@ pub fn hal_fsmc_msp_init(peripherals: &Peripherals) {
     panic!("hal_fsmc_msp_init not implemented");
     // let gpioe = &peripherals.GPIOE;
     // gpioe.odr
+}
+
+pub struct FsmcInterface<'a> {
+    hsram: SramHandleTypeDef<'a>,
+    // gpioe: GE,
+    // gpiod: GD,
+    reg: *mut u16,
+    ram: *mut u16,
+}
+
+impl<'a> FsmcInterface<'a> {
+    pub fn new(hsram: SramHandleTypeDef<'a>, gpioe: GPIOE, gpiod: GPIOD) -> Self {
+        const LCD_FSMC_NEX: u32 = 1;
+        const LCD_FSMC_AX: u32 = 16;
+        const lcd_base: u32 =
+            (0x60000000u32 + (0x4000000u32 * (LCD_FSMC_NEX - 1))) | (((1 << LCD_FSMC_AX) * 2) - 2);
+        let mut s = Self {
+            hsram,
+            // gpioe,
+            // gpiod,
+            reg: lcd_base as *mut u16,
+            ram: (lcd_base + 2) as *mut u16,
+        };
+        hal_fsmc_msp_init(gpioe, gpiod);
+        hal_sram_init(&s.hsram, &s.hsram.timing, &s.hsram.ext_timing);
+        s
+    }
+}
+
+type Result = core::result::Result<(), DisplayError>;
+
+impl<'a> WriteOnlyDataCommand for FsmcInterface<'a> {
+    fn send_commands(&mut self, cmds: DataFormat<'_>) -> Result {
+        match cmds {
+            DataFormat::U8Iter(iter) => {
+                for cmd in iter {
+                    unsafe {
+                        *self.reg = cmd as u16;
+                    }
+                }
+            }
+            _ => return Err(DisplayError::InvalidFormatError),
+        }
+        Ok(())
+    }
+
+    fn send_data(&mut self, data: DataFormat<'_>) -> Result {
+        match data {
+            DataFormat::U8Iter(iter) => {
+                for d in iter {
+                    unsafe {
+                        *self.ram = d as u16;
+                    }
+                }
+            }
+            DataFormat::U16BEIter(iter) => {
+                for d in iter {
+                    unsafe {
+                        *self.ram = d;
+                    }
+                }
+            }
+            _ => return Err(DisplayError::InvalidFormatError),
+        }
+        Ok(())
+    }
 }
