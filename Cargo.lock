@@ -247,6 +247,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "embedded-alloc-c"
+version = "0.1.0"
+dependencies = [
+ "embedded-alloc",
+]
+
+[[package]]
 name = "embedded-dma"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -521,6 +528,7 @@ dependencies = [
  "display-interface",
  "display-interface-fsmc",
  "embedded-alloc",
+ "embedded-alloc-c",
  "embedded-graphics",
  "embedded-graphics-core",
  "embedded-hal",

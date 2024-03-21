@@ -30,14 +30,14 @@ use stm32f1xx_hal::rcc::Enable;
 use stm32f1xx_hal::{pac, prelude::*, rcc};
 
 use display_interface_fsmc as fsmc;
-// use embedded_alloc_c::*;
+use embedded_alloc_c::*;
 
 // #[global_allocator]
 // static HEAP: Heap = Heap::empty();
 
 #[entry]
 fn main() -> ! {
-    // heap_init!(8 * 1024);
+    heap_init!(8 * 1024);
     // Get access to the core peripherals from the cortex-m crate
     let _cp = cortex_m::Peripherals::take().unwrap();
     // Get access to the device specific peripherals from the peripheral access crate

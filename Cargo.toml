@@ -1,6 +1,9 @@
 workspace = { members = [
     "display-interface-fsmc",
-#    "embedded-alloc-c"
+    "embedded-alloc-c"
+#    "lv_binding_rust/lvgl",
+#    "lv_binding_rust/lvgl-sys",
+#    "lv_binding_rust/lvgl-codegen",
 ] }
 
 [package]
@@ -22,7 +25,7 @@ embedded-hal = "0.2.7"
 format_no_std = "1.0.2"
 fugit = "0.3.7"
 ili9341 = "0.5.0"
-lvgl-sys = "0.6.2"
+#lvgl-sys = "0.6.2"
 nb = "1"
 panic-halt = "0.2.0"
 unwrap-infallible = "0.1.5"
@@ -48,16 +51,23 @@ features = ["cortex-m"]
 [dependencies.display-interface-fsmc]
 path = "display-interface-fsmc"
 
-#[dependencies.embedded-alloc-c]
-#path = "embedded-alloc-c"
+[dependencies.embedded-alloc-c]
+path = "embedded-alloc-c"
 
 [dependencies.lvgl]
-version = "0.6.0"
+version = "0.6.2"
 features = [
     "embedded_graphics", "unsafe_no_autoinit",
-    "alloc", "lvgl_alloc"
+#    "alloc", "lvgl_alloc"
 ]
 default-features = false
+#path = "lv_binding_rust/lvgl"
+
+[dependencies.lvgl-sys]
+#path = "lv_binding_rust/lvgl-sys"
+version = "0.6.2"
+default-features = false
+#features = []
 
 [profile.dev]
 opt-level = 1
@@ -66,6 +76,6 @@ debug = true
 lto = true
 
 [profile.release]
-opt-level = 3
+opt-level = 2
 debug = true
 lto = true

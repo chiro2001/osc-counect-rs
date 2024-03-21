@@ -45,23 +45,23 @@ pub extern "C" fn free(ptr: *mut u8) {
             core::alloc::Layout::from_size_align_unchecked(1, 1),
         );
     }
+}
 
-    #[no_mangle]
-    pub extern "C" fn realloc(ptr: *mut u8, size: usize) -> *mut u8 {
-        if ptr.is_null() {
-            return malloc(size);
-        }
-        if size == 0 {
-            free(ptr);
-            return core::ptr::null_mut();
-        }
-        let p = malloc(size);
-        if !p.is_null() {
-            unsafe {
-                core::ptr::copy_nonoverlapping(ptr, p, size);
-                free(ptr);
-            }
-        }
-        p
+#[no_mangle]
+pub extern "C" fn realloc(ptr: *mut u8, size: usize) -> *mut u8 {
+    if ptr.is_null() {
+        return malloc(size);
     }
+    if size == 0 {
+        free(ptr);
+        return core::ptr::null_mut();
+    }
+    let p = malloc(size);
+    if !p.is_null() {
+        unsafe {
+            core::ptr::copy_nonoverlapping(ptr, p, size);
+            free(ptr);
+        }
+    }
+    p
 }
