@@ -21,10 +21,12 @@ use stm32f1xx_hal::{pac, prelude::*, rcc};
 use stm32f1xx_hal::rcc::Enable;
 
 use display_interface_fsmc as fsmc;
+#[cfg(feature = "custom-alloc")]
 use embedded_alloc_c::*;
 
 #[entry]
 fn main() -> ! {
+    #[cfg(feature = "custom-alloc")]
     heap_init!(32 * 1024);
     // Get access to the core peripherals from the cortex-m crate
     let _cp = cortex_m::Peripherals::take().unwrap();

@@ -30,6 +30,10 @@ nb = "1"
 panic-halt = "0.2.0"
 unwrap-infallible = "0.1.5"
 
+[features]
+default = []
+custom-alloc = ["dep:embedded-alloc-c"]
+
 #[dependencies.stm32f1]
 ##git = "https://github.com/stm32-rs/stm32-rs-nightlies"
 ##path = "stm32-rs"
@@ -53,12 +57,13 @@ path = "display-interface-fsmc"
 
 [dependencies.embedded-alloc-c]
 path = "embedded-alloc-c"
+optional = true
 
 [dependencies.lvgl]
 version = "0.6.2"
 features = [
     "embedded_graphics", "unsafe_no_autoinit",
-#    "alloc", "lvgl_alloc"
+    "alloc", "lvgl_alloc"
 ]
 default-features = false
 #path = "lv_binding_rust/lvgl"
