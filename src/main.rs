@@ -7,8 +7,8 @@
 extern crate alloc;
 
 use panic_halt as _;
-
 use core::time::Duration;
+
 use cortex_m_rt::entry;
 use cstr_core::CString;
 use embedded_graphics_core::prelude::*;
@@ -19,10 +19,9 @@ use lvgl::style::Style;
 use lvgl::widgets::{Bar, Label};
 use stm32f1xx_hal::{pac, prelude::*, rcc};
 use stm32f1xx_hal::rcc::Enable;
+use stm32f1xx_hal::timer::{Channel, Tim3FullRemap};
 
 use display_interface_fsmc as fsmc;
-#[cfg(feature = "custom-alloc")]
-use embedded_alloc_c::*;
 
 #[entry]
 fn main() -> ! {
@@ -41,6 +40,7 @@ fn main() -> ! {
     pac::TIM1::enable(&dp.RCC);
     pac::TIM2::enable(&dp.RCC);
     pac::TIM3::enable(&dp.RCC);
+    pac::TIM4::enable(&dp.RCC);
 
     // Take ownership over the raw flash and rcc devices and convert them into the corresponding
     // HAL structs
@@ -66,23 +66,17 @@ fn main() -> ! {
         &mut flash.acr,
     );
 
-    // // Initialize the allocator BEFORE you use it
-    // {
-    //     use core::mem::MaybeUninit;
-    //     const HEAP_SIZE: usize = 8 * 1024;
-    //     // const HEAP_SIZE: usize = (320 * 240 * 2 / 4 / 8);
-    //     static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
-    //     unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
-    // }
-
     // Configure the syst timer to trigger an update every second
-    let mut timer = dp.TIM3.counter_ms(&clocks);
+    let mut timer = dp.TIM4.counter_ms(&clocks);
 
-    // test gpio led
     let mut gpioc = dp.GPIOC.split();
-    // Configure gpio C pin 8 as a push-pull output. The `crh` register is passed to the function
-    // in order to configure the port. For pins 0-7, crl should be passed instead.
-    let mut bl = gpioc.pc8.into_push_pull_output(&mut gpioc.crh);
+    let bl_pin = gpioc.pc8.into_alternate_push_pull(&mut gpioc.crh);
+    let mut afio = dp.AFIO.constrain();
+    let mut bl = dp
+        .TIM3
+        .pwm_hz::<Tim3FullRemap, _, _>(bl_pin, &mut afio.mapr, 10.kHz(), &clocks);
+    bl.set_duty(Channel::C3, bl.get_max_duty() / 4);
+    bl.enable(Channel::C3);
 
     let init = fsmc::FsmcNorsramInitTypeDef {
         ns_bank: 0,
@@ -125,7 +119,6 @@ fn main() -> ! {
         ext_timing,
     };
     let interface = fsmc::FsmcInterface::new(hsram, dp.GPIOE, dp.GPIOD);
-    let mut afio = dp.AFIO.constrain();
     afio.mapr2.mapr2().modify(|_, w| w.fsmc_nadv().set_bit());
     let rst = gpioc.pc9.into_push_pull_output(&mut gpioc.crh);
     let mut delay = dp.TIM2.delay_us(&clocks);
@@ -138,20 +131,11 @@ fn main() -> ! {
         DisplaySize240x320,
     )
     .unwrap();
-    // Create a new character style
-    // let style = MonoTextStyle::new(&FONT_6X9, Rgb565::new(0, 255, 255));
 
     let mut cnt = 0u32;
     let cnt_time = 2000;
     timer.start(cnt_time.millis()).unwrap();
-    // lcd.clear(Rgb565::new(0, 0, 0)).unwrap();
     let mut last = 0xffffffu32;
-    // let font_height = FONT_6X9.character_size.height;
-    // let update_rect = Rectangle::new(
-    //     Point::new(0, font_height as i32),
-    //     Size::new(lcd.width() as u32, lcd.height() as u32 - font_height),
-    // );
-    // let text_rect = Rectangle::new(Point::new(0, 0), Size::new(lcd.width() as u32, font_height));
 
     unsafe {
         lvgl_sys::lv_init();
@@ -173,34 +157,6 @@ fn main() -> ! {
             .unwrap();
     })
     .unwrap();
-
-    // loop {
-    //     lcd.fill_solid(
-    //         &update_rect,
-    //         Rgb565::new(0, 0, if cnt % 2 == 0 { 0xff } else { 0 }),
-    //     )
-    //     .unwrap();
-    //     cnt += 1;
-    //     let now = timer.now().ticks();
-    //     if now < last {
-    //         let mut buf = [0u8; 64];
-    //         let s = format_no_std::show(
-    //             &mut buf,
-    //             format_args!("Hello Rust! fps={}", cnt * 1000 / cnt_time),
-    //         )
-    //         .unwrap();
-    //         cnt = 0;
-    //         let text = Text::with_alignment(
-    //             &s,
-    //             Point::new(0, (font_height / 2 + 1) as i32),
-    //             style,
-    //             Alignment::Left,
-    //         );
-    //         lcd.fill_solid(&text_rect, Rgb565::new(0, 0, 0)).unwrap();
-    //         text.draw(&mut lcd).unwrap();
-    //     }
-    //     last = now;
-    // }
 
     let mut screen = display.get_scr_act().unwrap();
 
@@ -237,12 +193,8 @@ fn main() -> ! {
         .add_style(Part::Main, &mut loading_style)
         .unwrap();
 
-    bl.set_high();
-
     let mut i = 0;
     loop {
-        // lcd.clear(Rgb565::new(0, 255, 0)).unwrap();
-        // let start = Instant::now();
         let start = timer.now().ticks();
         if i > 100 {
             i = 0;
@@ -250,31 +202,18 @@ fn main() -> ! {
         }
         bar.set_value(i, Animation::ON).unwrap();
         i += 1;
+        bl.set_duty(Channel::C3, (bl.get_max_duty() as i32 * i / 300 + 10) as u16);
         cnt += 1;
 
         lvgl::task_handler();
-        // window.update(&shared_native_display.borrow());
-        //
-        // for event in window.events() {
-        //     match event {
-        //         SimulatorEvent::Quit => break 'running,
-        //         _ => {}
-        //     }
-        // }
-        // sleep(Duration::from_millis(15));
-        // delay.delay_ms(8u16);
-        delay.delay_us(1u16);
+        // delay.delay_us(1u16);
         let now = timer.now().ticks();
         let duration = if now >= start {
             now - start
-            // lvgl::tick_inc(Duration::from_millis((now - start) as u64));
         } else {
-            // overflow
-            // lvgl::tick_inc(Duration::from_millis((start + cnt_time - now) as u64));
             start + cnt_time - now
         };
         lvgl::tick_inc(Duration::from_millis(duration as u64));
-        // lvgl::tick_inc(Duration::from_millis(15));
 
         if now < last {
             let mut buf = [0u8; 64];
@@ -282,9 +221,11 @@ fn main() -> ! {
                 &mut buf,
                 format_args!("Hello lv_binding_rust! fps={}", cnt * 1000 / cnt_time),
             )
-                .unwrap();
+            .unwrap();
             cnt = 0;
-            loading_lbl.set_text(CString::new(s).unwrap().as_c_str()).unwrap();
+            loading_lbl
+                .set_text(CString::new(s).unwrap().as_c_str())
+                .unwrap();
         }
         last = now;
     }
