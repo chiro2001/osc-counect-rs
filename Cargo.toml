@@ -80,7 +80,15 @@ opt-level = 1
 debug = true
 lto = true
 
-[profile.release]
-opt-level = 2
-debug = true
-lto = true
+[profile.release.package."*"]
+#opt-level = 3
+opt-level = "z"
+debug = false
+#lto = true
+strip = true
+
+[profile.release.package.lvgl-sys]
+strip = true
+opt-level = "z"
+debug = false
+#lto = true

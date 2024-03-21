@@ -262,7 +262,7 @@ fn main() -> ! {
         //     }
         // }
         // sleep(Duration::from_millis(15));
-        // delay.delay_ms(15u16);
+        // delay.delay_ms(8u16);
         let now = timer.now().ticks();
         let duration = if now >= start {
             now - start
