@@ -1535,14 +1535,11 @@ dependencies = [
  "format_no_std",
  "fugit",
  "ili9341",
- "nb 1.1.0",
  "panic-halt",
- "panic-rtt-target",
  "rtt-target 0.5.0",
  "slint",
  "slint-build",
  "stm32f1xx-hal",
- "unwrap-infallible",
 ]
 
 [[package]]

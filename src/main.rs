@@ -6,35 +6,31 @@
 
 extern crate alloc;
 
+use cortex_m as _;
+use panic_halt as _;
+
 use alloc::boxed::Box;
 use alloc::rc::Rc;
 use alloc::vec;
 use core::cell::RefCell;
 use core::ops::{Deref, Range};
 use core::time::Duration;
-use cortex_m as _;
-use panic_halt as _;
 
 use cortex_m_rt::entry;
-use display_interface_fsmc as fsmc;
 use embedded_alloc::Heap;
-use embedded_graphics::geometry::Point;
-use embedded_graphics::mono_font::ascii::FONT_6X9;
-use embedded_graphics::mono_font::MonoTextStyle;
-use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::text::{Alignment, Text};
 use embedded_graphics::Drawable;
+use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics_core::draw_target::DrawTarget;
 use embedded_graphics_core::prelude::*;
-use embedded_graphics_core::primitives::Rectangle;
 use ili9341::{DisplaySize240x320, Ili9341, Orientation};
-use stm32f1xx_hal::rcc::Enable;
-use stm32f1xx_hal::{pac, prelude::*, rcc};
-
+use slint::platform::{Platform, software_renderer as renderer, WindowAdapter};
 use renderer::Rgb565Pixel;
-use slint::platform::{software_renderer as renderer, Platform, WindowAdapter};
 use slint::PlatformError;
+use stm32f1xx_hal::{pac, prelude::*, rcc};
+use stm32f1xx_hal::rcc::Enable;
 use stm32f1xx_hal::timer::CounterMs;
+
+use display_interface_fsmc as fsmc;
 
 slint::include_modules!();
 
@@ -252,7 +248,9 @@ fn main() -> ! {
         timer,
     }))
     .unwrap();
-    let window = HelloWorld::new().unwrap();
+    // let window = HelloWorld::new().unwrap();
+    // let window = MainWindow::new().unwrap();
+    let window = Counter::new().unwrap();
     window.run().unwrap();
     loop {}
 }
