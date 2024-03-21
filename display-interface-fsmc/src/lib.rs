@@ -102,8 +102,8 @@ pub struct FsmcNorsramTimingTypeDef {
     pub access_mode: u32,
 }
 
-pub struct SramHandleTypeDef<'a> {
-    pub device: &'a FSMC,
+pub struct SramHandleTypeDef {
+    pub device: FSMC,
     pub init: FsmcNorsramInitTypeDef,
     pub timing: FsmcNorsramTimingTypeDef,
     pub ext_timing: FsmcNorsramTimingTypeDef,
@@ -170,9 +170,9 @@ pub fn hal_sram_init(
     timing: &FsmcNorsramTimingTypeDef,
     ext_timing: &FsmcNorsramTimingTypeDef,
 ) {
-    fsmc_norsram_init(hsram.device, &hsram.init);
-    fsmc_norsram_timing_init(hsram.device, timing);
-    fsmc_norsram_extended_timing_init(hsram.device, ext_timing);
+    fsmc_norsram_init(&hsram.device, &hsram.init);
+    fsmc_norsram_timing_init(&hsram.device, timing);
+    fsmc_norsram_extended_timing_init(&hsram.device, ext_timing);
     // enable device
     hsram.device.deref().bcr1.modify(|_, w| w.mbken().set_bit());
 }
@@ -296,14 +296,14 @@ pub fn hal_fsmc_msp_init(gpioe: GPIOE, gpiod: GPIOD) {
     // gpioe.idr.write(|w| unsafe { w.bits(0x0000FFFC) });
 }
 
-pub struct FsmcInterface<'a> {
-    hsram: SramHandleTypeDef<'a>,
+pub struct FsmcInterface {
+    hsram: SramHandleTypeDef,
     reg: *mut u16,
     ram: *mut u16,
 }
 
-impl<'a> FsmcInterface<'a> {
-    pub fn new(hsram: SramHandleTypeDef<'a>, gpioe: GPIOE, gpiod: GPIOD) -> Self {
+impl FsmcInterface {
+    pub fn new(hsram: SramHandleTypeDef, gpioe: GPIOE, gpiod: GPIOD) -> Self {
         const LCD_FSMC_NEX: u32 = 1;
         const LCD_FSMC_AX: u32 = 16;
         const LCD_BASE: u32 =
@@ -330,7 +330,7 @@ fn small_delay<T>(ptr: *const T) {
     }
 }
 
-impl<'a> WriteOnlyDataCommand for FsmcInterface<'a> {
+impl WriteOnlyDataCommand for FsmcInterface {
     #[inline(always)]
     fn send_commands(&mut self, cmds: DataFormat<'_>) -> Result {
         match cmds {

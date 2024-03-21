@@ -4,10 +4,20 @@
 #![no_main]
 #![no_std]
 
+extern crate alloc;
+
+use alloc::boxed::Box;
+use alloc::rc::Rc;
+use alloc::vec;
+use core::cell::RefCell;
+use core::ops::{Deref, Range};
+use core::time::Duration;
+use cortex_m as _;
 use panic_halt as _;
 
 use cortex_m_rt::entry;
 use display_interface_fsmc as fsmc;
+use embedded_alloc::Heap;
 use embedded_graphics::geometry::Point;
 use embedded_graphics::mono_font::ascii::FONT_6X9;
 use embedded_graphics::mono_font::MonoTextStyle;
@@ -21,8 +31,108 @@ use ili9341::{DisplaySize240x320, Ili9341, Orientation};
 use stm32f1xx_hal::rcc::Enable;
 use stm32f1xx_hal::{pac, prelude::*, rcc};
 
+use renderer::Rgb565Pixel;
+use slint::platform::{software_renderer as renderer, Platform, WindowAdapter};
+use slint::PlatformError;
+use stm32f1xx_hal::timer::CounterMs;
+
+slint::include_modules!();
+
+#[global_allocator]
+pub static HEAP: Heap = Heap::empty();
+
+macro_rules! heap_init {
+    ($SZ:expr) => {
+        static mut HEAP_MEM: [core::mem::MaybeUninit<u8>; $SZ] =
+            [core::mem::MaybeUninit::uninit(); $SZ];
+        unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, $SZ) }
+    };
+}
+
+pub type TargetPixel = Rgb565Pixel;
+// pub type TargetPixel = u16;
+
+struct DrawBuffer<Display> {
+    pub display: Display,
+    pub buffer: &'static mut [TargetPixel],
+}
+
+impl<R> renderer::LineBufferProvider for &mut DrawBuffer<Ili9341<fsmc::FsmcInterface, R>> {
+    type TargetPixel = TargetPixel;
+
+    fn process_line(
+        &mut self,
+        line: usize,
+        range: Range<usize>,
+        render_fn: impl FnOnce(&mut [Self::TargetPixel]),
+    ) {
+        render_fn(&mut self.buffer[range.clone()]);
+        self.display
+            .draw_raw_iter(
+                range.start as u16,
+                line as u16,
+                range.end as u16,
+                line as u16 + 1,
+                self.buffer[range.clone()].into_iter().map(|x| x.0),
+            )
+            .unwrap();
+    }
+}
+
+struct McuBackend<DrawBuffer, TIM> {
+    window: RefCell<Option<Rc<renderer::MinimalSoftwareWindow>>>,
+    buffer_provider: RefCell<DrawBuffer>,
+    timer: CounterMs<TIM>,
+}
+
+impl<R, TIM> Platform for McuBackend<DrawBuffer<Ili9341<fsmc::FsmcInterface, R>>, TIM>
+where
+    TIM: stm32f1xx_hal::timer::Instance,
+{
+    fn create_window_adapter(&self) -> Result<Rc<dyn WindowAdapter>, PlatformError> {
+        let window =
+            renderer::MinimalSoftwareWindow::new(renderer::RepaintBufferType::ReusedBuffer);
+        self.window.replace(Some(window.clone()));
+        // self.timer.start(2000.millis()).unwrap();
+        Ok(window)
+    }
+
+    fn run_event_loop(&self) -> Result<(), PlatformError> {
+        self.window
+            .borrow()
+            .as_ref()
+            .unwrap()
+            .set_size(slint::PhysicalSize::new(
+                self.buffer_provider.borrow().display.width() as _,
+                self.buffer_provider.borrow().display.height() as _,
+            ));
+        loop {
+            slint::platform::update_timers_and_animations();
+
+            if let Some(window) = self.window.borrow().clone() {
+                window.draw_if_needed(|renderer| {
+                    let mut buffer_provider = self.buffer_provider.borrow_mut();
+                    renderer.render_by_line(&mut *buffer_provider);
+                });
+            }
+        }
+    }
+
+    fn duration_since_start(&self) -> Duration {
+        let counter = self.timer.now().ticks();
+        core::time::Duration::from_micros(counter as u64)
+    }
+}
+
+// slint::include_modules!();
+
+// slint::slint! {
+//     import { HelloWorld } from "ui/simple.slint";
+// }
+
 #[entry]
 fn main() -> ! {
+    heap_init!(52 * 1024);
     // Get access to the core peripherals from the cortex-m crate
     let _cp = cortex_m::Peripherals::take().unwrap();
     // Get access to the device specific peripherals from the peripheral access crate
@@ -107,7 +217,7 @@ fn main() -> ! {
         access_mode: 0,
     };
     let hsram = fsmc::SramHandleTypeDef {
-        device: &dp.FSMC,
+        device: dp.FSMC,
         init,
         timing,
         ext_timing,
@@ -126,46 +236,23 @@ fn main() -> ! {
         DisplaySize240x320,
     )
     .unwrap();
-    // Create a new character style
-    let style = MonoTextStyle::new(&FONT_6X9, Rgb565::new(0, 255, 255));
 
-    let mut cnt = 0u32;
-    let cnt_time = 2000;
-    timer.start(cnt_time.millis()).unwrap();
+    // timer.start(cnt_time.millis()).unwrap();
+    timer.start(2000.millis()).unwrap();
     lcd.clear(Rgb565::new(0, 0, 0)).unwrap();
-    let mut last = 0xffffffu32;
-    let font_height = FONT_6X9.character_size.height;
-    let update_rect = Rectangle::new(
-        Point::new(0, font_height as i32),
-        Size::new(lcd.width() as u32, lcd.height() as u32 - font_height),
-    );
-    let text_rect = Rectangle::new(Point::new(0, 0), Size::new(lcd.width() as u32, font_height));
 
-    loop {
-        lcd.fill_solid(
-            &update_rect,
-            Rgb565::new(0, 0, if cnt % 2 == 0 { 0xff } else { 0 }),
-        )
-        .unwrap();
-        cnt += 1;
-        let now = timer.now().ticks();
-        if now < last {
-            let mut buf = [0u8; 64];
-            let s = format_no_std::show(
-                &mut buf,
-                format_args!("Hello Rust! fps={}", cnt * 1000 / cnt_time),
-            )
-            .unwrap();
-            cnt = 0;
-            let text = Text::with_alignment(
-                &s,
-                Point::new(0, (font_height / 2 + 1) as i32),
-                style,
-                Alignment::Left,
-            );
-            lcd.fill_solid(&text_rect, Rgb565::new(0, 0, 0)).unwrap();
-            text.draw(&mut lcd).unwrap();
-        }
-        last = now;
-    }
+    let width = lcd.width();
+    let buffer_provider = DrawBuffer {
+        display: lcd,
+        buffer: vec![Default::default(); width as _].leak(),
+    };
+    slint::platform::set_platform(Box::new(McuBackend {
+        window: Default::default(),
+        buffer_provider: buffer_provider.into(),
+        timer,
+    }))
+    .unwrap();
+    let window = HelloWorld::new().unwrap();
+    window.run().unwrap();
+    loop {}
 }

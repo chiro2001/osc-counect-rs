@@ -8,9 +8,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cortex-m = "0.7.7"
 cortex-m-rt = "0.7.3"
+cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
 display-interface = "0.4.1"
+embedded-alloc = "0.5.1"
 embedded-graphics = "0.7.1"
 embedded-graphics-core = "0.3.3"
 embedded-hal = "0.2.7"
@@ -41,6 +42,18 @@ features = ["cortex-m"]
 
 [dependencies.display-interface-fsmc]
 path = "display-interface-fsmc"
+
+[dependencies.slint]
+version = "1.5.1"
+default-features = false
+features = [
+    "compat-1-2", "renderer-software",
+    "libm", "unsafe-single-threaded",
+#    "software-renderer-systemfonts"
+]
+
+[build-dependencies]
+slint-build = "1.5.1"
 
 #[profile.dev]
 #opt-level = 0
