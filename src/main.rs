@@ -4,25 +4,40 @@
 #![no_main]
 #![no_std]
 
+extern crate alloc;
+
+use core::time::Duration;
 use panic_halt as _;
 
 use cortex_m_rt::entry;
-use display_interface_fsmc as fsmc;
+use cstr_core::CString;
+use embedded_alloc::Heap;
 use embedded_graphics::geometry::Point;
 use embedded_graphics::mono_font::ascii::FONT_6X9;
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::text::{Alignment, Text};
 use embedded_graphics::Drawable;
 use embedded_graphics_core::draw_target::DrawTarget;
 use embedded_graphics_core::prelude::*;
 use embedded_graphics_core::primitives::Rectangle;
+use fugit::Instant;
 use ili9341::{DisplaySize240x320, Ili9341, Orientation};
+use lvgl::input_device::InputDriver;
+use lvgl::style::Style;
+use lvgl::widgets::{Bar, Label};
+use lvgl::{Align, Animation, Color, Display, DrawBuffer, Event, Part, Widget};
 use stm32f1xx_hal::rcc::Enable;
 use stm32f1xx_hal::{pac, prelude::*, rcc};
 
+use display_interface_fsmc as fsmc;
+// use embedded_alloc_c::*;
+
+// #[global_allocator]
+// static HEAP: Heap = Heap::empty();
+
 #[entry]
 fn main() -> ! {
+    // heap_init!(8 * 1024);
     // Get access to the core peripherals from the cortex-m crate
     let _cp = cortex_m::Peripherals::take().unwrap();
     // Get access to the device specific peripherals from the peripheral access crate
@@ -60,6 +75,15 @@ fn main() -> ! {
         },
         &mut flash.acr,
     );
+
+    // // Initialize the allocator BEFORE you use it
+    // {
+    //     use core::mem::MaybeUninit;
+    //     const HEAP_SIZE: usize = 8 * 1024;
+    //     // const HEAP_SIZE: usize = (320 * 240 * 2 / 4 / 8);
+    //     static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
+    //     unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
+    // }
 
     // Configure the syst timer to trigger an update every second
     let mut timer = dp.TIM3.counter_ms(&clocks);
@@ -127,44 +151,149 @@ fn main() -> ! {
     )
     .unwrap();
     // Create a new character style
-    let style = MonoTextStyle::new(&FONT_6X9, Rgb565::new(0, 255, 255));
+    // let style = MonoTextStyle::new(&FONT_6X9, Rgb565::new(0, 255, 255));
 
     let mut cnt = 0u32;
     let cnt_time = 2000;
     timer.start(cnt_time.millis()).unwrap();
-    lcd.clear(Rgb565::new(0, 0, 0)).unwrap();
+    // lcd.clear(Rgb565::new(0, 0, 0)).unwrap();
     let mut last = 0xffffffu32;
-    let font_height = FONT_6X9.character_size.height;
-    let update_rect = Rectangle::new(
-        Point::new(0, font_height as i32),
-        Size::new(lcd.width() as u32, lcd.height() as u32 - font_height),
-    );
-    let text_rect = Rectangle::new(Point::new(0, 0), Size::new(lcd.width() as u32, font_height));
+    // let font_height = FONT_6X9.character_size.height;
+    // let update_rect = Rectangle::new(
+    //     Point::new(0, font_height as i32),
+    //     Size::new(lcd.width() as u32, lcd.height() as u32 - font_height),
+    // );
+    // let text_rect = Rectangle::new(Point::new(0, 0), Size::new(lcd.width() as u32, font_height));
 
-    loop {
-        lcd.fill_solid(
-            &update_rect,
-            Rgb565::new(0, 0, if cnt % 2 == 0 { 0xff } else { 0 }),
-        )
+    unsafe {
+        lvgl_sys::lv_init();
+    }
+
+    const BUFFER_SZ: usize = 320 * 10;
+
+    let buffer = DrawBuffer::<BUFFER_SZ>::default();
+    let display = Display::register(buffer, lcd.width() as u32, lcd.height() as u32, |refresh| {
+        let area = &refresh.area;
+        let rc = Rectangle::new(
+            Point::new(area.x1 as i32, area.y1 as i32),
+            Size::new(
+                (area.x2 - area.x1 + 1) as u32,
+                (area.y2 - area.y1 + 1) as u32,
+            ),
+        );
+        lcd.fill_contiguous(&rc, refresh.colors.into_iter().map(|p| p.into()))
+            .unwrap();
+    })
+    .unwrap();
+
+    // loop {
+    //     lcd.fill_solid(
+    //         &update_rect,
+    //         Rgb565::new(0, 0, if cnt % 2 == 0 { 0xff } else { 0 }),
+    //     )
+    //     .unwrap();
+    //     cnt += 1;
+    //     let now = timer.now().ticks();
+    //     if now < last {
+    //         let mut buf = [0u8; 64];
+    //         let s = format_no_std::show(
+    //             &mut buf,
+    //             format_args!("Hello Rust! fps={}", cnt * 1000 / cnt_time),
+    //         )
+    //         .unwrap();
+    //         cnt = 0;
+    //         let text = Text::with_alignment(
+    //             &s,
+    //             Point::new(0, (font_height / 2 + 1) as i32),
+    //             style,
+    //             Alignment::Left,
+    //         );
+    //         lcd.fill_solid(&text_rect, Rgb565::new(0, 0, 0)).unwrap();
+    //         text.draw(&mut lcd).unwrap();
+    //     }
+    //     last = now;
+    // }
+
+    let mut screen = display.get_scr_act().unwrap();
+
+    let mut screen_style = Style::default();
+    screen_style.set_bg_color(Color::from_rgb((255, 255, 255)));
+    screen_style.set_radius(0);
+    screen.add_style(Part::Main, &mut screen_style).unwrap();
+
+    // Create the bar object
+    let mut bar = Bar::create(&mut screen).unwrap();
+    bar.set_size(175, 20).unwrap();
+    bar.set_align(Align::Center, 0, 0).unwrap();
+    bar.set_range(0, 100).unwrap();
+    bar.on_event(|_b, _e| {
+        // println!("Completed!");
+        // lcd.clear(Rgb565::new(255, 255, 0)).unwrap();
+    })
+    .unwrap();
+
+    // Set the indicator style for the bar object
+    let mut ind_style = Style::default();
+    ind_style.set_bg_color(Color::from_rgb((100, 245, 100)));
+    bar.add_style(Part::Any, &mut ind_style).unwrap();
+
+    let mut loading_lbl = Label::create(&mut screen).unwrap();
+    loading_lbl
+        .set_text(CString::new("Testing bar...").unwrap().as_c_str())
         .unwrap();
+    loading_lbl.set_align(Align::OutTopMid, 0, 20).unwrap();
+
+    let mut loading_style = Style::default();
+    loading_style.set_text_color(Color::from_rgb((0, 0, 0)));
+    loading_lbl
+        .add_style(Part::Main, &mut loading_style)
+        .unwrap();
+
+    let mut i = 0;
+    'running: loop {
+        // lcd.clear(Rgb565::new(0, 255, 0)).unwrap();
+        // let start = Instant::now();
+        let start = timer.now().ticks();
+        if i > 100 {
+            i = 0;
+            lvgl::event_send(&mut bar, Event::Clicked).unwrap();
+        }
+        bar.set_value(i, Animation::ON).unwrap();
+        i += 1;
         cnt += 1;
+
+        lvgl::task_handler();
+        // window.update(&shared_native_display.borrow());
+        //
+        // for event in window.events() {
+        //     match event {
+        //         SimulatorEvent::Quit => break 'running,
+        //         _ => {}
+        //     }
+        // }
+        // sleep(Duration::from_millis(15));
+        // delay.delay_ms(15u16);
         let now = timer.now().ticks();
+        let duration = if now >= start {
+            now - start
+            // lvgl::tick_inc(Duration::from_millis((now - start) as u64));
+        } else {
+            // overflow
+            // lvgl::tick_inc(Duration::from_millis((start + cnt_time - now) as u64));
+            start + cnt_time - now
+        };
+        lvgl::tick_inc(Duration::from_millis(duration as u64));
+        // lvgl::tick_inc(Duration::from_millis(15));
+
         if now < last {
             let mut buf = [0u8; 64];
             let s = format_no_std::show(
                 &mut buf,
-                format_args!("Hello Rust! fps={}", cnt * 1000 / cnt_time),
+                format_args!("Hello lv_binding_rust! fps={}", cnt * 1000 / cnt_time),
             )
-            .unwrap();
+                .unwrap();
             cnt = 0;
-            let text = Text::with_alignment(
-                &s,
-                Point::new(0, (font_height / 2 + 1) as i32),
-                style,
-                Alignment::Left,
-            );
-            lcd.fill_solid(&text_rect, Rgb565::new(0, 0, 0)).unwrap();
-            text.draw(&mut lcd).unwrap();
+            loading_lbl.set_text(CString::new(s).unwrap().as_c_str()).unwrap();
         }
         last = now;
     }
