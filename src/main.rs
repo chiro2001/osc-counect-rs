@@ -6,38 +6,26 @@
 
 extern crate alloc;
 
-use core::time::Duration;
 use panic_halt as _;
 
+use core::time::Duration;
 use cortex_m_rt::entry;
 use cstr_core::CString;
-use embedded_alloc::Heap;
-use embedded_graphics::geometry::Point;
-use embedded_graphics::mono_font::ascii::FONT_6X9;
-use embedded_graphics::mono_font::MonoTextStyle;
-use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::Drawable;
-use embedded_graphics_core::draw_target::DrawTarget;
 use embedded_graphics_core::prelude::*;
 use embedded_graphics_core::primitives::Rectangle;
-use fugit::Instant;
 use ili9341::{DisplaySize240x320, Ili9341, Orientation};
-use lvgl::input_device::InputDriver;
+use lvgl::{Align, Animation, Color, Display, DrawBuffer, Event, Part, Widget};
 use lvgl::style::Style;
 use lvgl::widgets::{Bar, Label};
-use lvgl::{Align, Animation, Color, Display, DrawBuffer, Event, Part, Widget};
-use stm32f1xx_hal::rcc::Enable;
 use stm32f1xx_hal::{pac, prelude::*, rcc};
+use stm32f1xx_hal::rcc::Enable;
 
 use display_interface_fsmc as fsmc;
 use embedded_alloc_c::*;
 
-// #[global_allocator]
-// static HEAP: Heap = Heap::empty();
-
 #[entry]
 fn main() -> ! {
-    heap_init!(8 * 1024);
+    heap_init!(32 * 1024);
     // Get access to the core peripherals from the cortex-m crate
     let _cp = cortex_m::Peripherals::take().unwrap();
     // Get access to the device specific peripherals from the peripheral access crate
@@ -250,7 +238,7 @@ fn main() -> ! {
         .unwrap();
 
     let mut i = 0;
-    'running: loop {
+    loop {
         // lcd.clear(Rgb565::new(0, 255, 0)).unwrap();
         // let start = Instant::now();
         let start = timer.now().ticks();

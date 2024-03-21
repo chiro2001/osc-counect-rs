@@ -358,10 +358,15 @@ impl<'a> WriteOnlyDataCommand for FsmcInterface<'a> {
                 }
             }
             DataFormat::U16BEIter(iter) => {
-                let buf = unsafe { core::slice::from_raw_parts_mut(self.ram, 1) };
+                // let buf = unsafe { core::slice::from_raw_parts_mut(self.ram, 1) };
+                // for d in iter {
+                //     // better performance...why?
+                //     buf[0] = d;
+                // }
                 for d in iter {
-                    // better performance...why?
-                    buf[0] = d;
+                    unsafe {
+                        *self.ram = d;
+                    }
                 }
             }
             _ => return Err(DisplayError::InvalidFormatError),
