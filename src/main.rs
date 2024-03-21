@@ -84,8 +84,6 @@ fn main() -> ! {
     // in order to configure the port. For pins 0-7, crl should be passed instead.
     let mut bl = gpioc.pc8.into_push_pull_output(&mut gpioc.crh);
 
-    bl.set_high();
-
     let init = fsmc::FsmcNorsramInitTypeDef {
         ns_bank: 0,
         data_address_mux: 0,
@@ -239,6 +237,8 @@ fn main() -> ! {
         .add_style(Part::Main, &mut loading_style)
         .unwrap();
 
+    bl.set_high();
+
     let mut i = 0;
     loop {
         // lcd.clear(Rgb565::new(0, 255, 0)).unwrap();
@@ -263,6 +263,7 @@ fn main() -> ! {
         // }
         // sleep(Duration::from_millis(15));
         // delay.delay_ms(8u16);
+        delay.delay_us(1u16);
         let now = timer.now().ticks();
         let duration = if now >= start {
             now - start
