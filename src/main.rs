@@ -4,79 +4,54 @@
 #![no_main]
 #![no_std]
 
-extern crate alloc;
+// extern crate alloc;
 
-use panic_halt as _;
 use core::time::Duration;
+use defmt::*;
+use embedded_graphics::pixelcolor::Rgb565;
+use {defmt_rtt as _, panic_probe as _};
 
-use cortex_m_rt::entry;
-use cstr_core::CString;
+// use cstr_core::CString;
 use embedded_graphics_core::prelude::*;
 use embedded_graphics_core::primitives::Rectangle;
 use ili9341::{DisplaySize240x320, Ili9341, Orientation};
-use lvgl::{Align, Animation, Color, Display, DrawBuffer, Event, Part, Widget};
-use lvgl::style::Style;
-use lvgl::widgets::{Bar, Label};
-use stm32f1xx_hal::{pac, prelude::*, rcc};
-use stm32f1xx_hal::rcc::Enable;
-use stm32f1xx_hal::timer::{Channel, Tim3FullRemap};
+// use lvgl::style::Style;
+// use lvgl::widgets::{Bar, Label};
+// use lvgl::{Align, Animation, Color, Display, DrawBuffer, Event, Part, Widget};
+
+use embassy_executor::Spawner;
+use embassy_stm32::gpio::{Level, Output, Speed};
+use embassy_stm32::time::Hertz;
+use embassy_stm32::{pac, Config};
+use embassy_time::{Delay, Timer};
 
 use display_interface_fsmc as fsmc;
 
-#[entry]
-fn main() -> ! {
-    #[cfg(feature = "custom-alloc")]
-    heap_init!(32 * 1024);
-    // Get access to the core peripherals from the cortex-m crate
-    let _cp = cortex_m::Peripherals::take().unwrap();
-    // Get access to the device specific peripherals from the peripheral access crate
-    let dp = pac::Peripherals::take().unwrap();
+#[embassy_executor::main]
+async fn main(_spawner: Spawner) {
+    // #[cfg(feature = "custom-alloc")]
+    // heap_init!(32 * 1024);
+    let mut config = Config::default();
+    {
+        use embassy_stm32::rcc::*;
+        config.rcc.hse = Some(Hse {
+            freq: Hertz(8_000_000),
+            // Oscillator for bluepill, Bypass for nucleos.
+            mode: HseMode::Oscillator,
+        });
+        config.rcc.pll = Some(Pll {
+            src: PllSource::HSE,
+            prediv: PllPreDiv::DIV1,
+            mul: PllMul::MUL7,
+        });
+        config.rcc.sys = Sysclk::PLL1_P;
+        config.rcc.ahb_pre = AHBPrescaler::DIV1;
+        config.rcc.apb1_pre = APBPrescaler::DIV2;
+        config.rcc.apb2_pre = APBPrescaler::DIV1;
+    }
+    let mut p = embassy_stm32::init(config);
 
-    pac::GPIOE::enable(&dp.RCC);
-    pac::GPIOD::enable(&dp.RCC);
-    pac::GPIOC::enable(&dp.RCC);
-    pac::GPIOA::enable(&dp.RCC);
-    pac::FSMC::enable(&dp.RCC);
-    pac::TIM1::enable(&dp.RCC);
-    pac::TIM2::enable(&dp.RCC);
-    pac::TIM3::enable(&dp.RCC);
-    pac::TIM4::enable(&dp.RCC);
-
-    // Take ownership over the raw flash and rcc devices and convert them into the corresponding
-    // HAL structs
-    let mut flash = dp.FLASH.constrain();
-    let rcc = dp.RCC.constrain();
-
-    pac::NVIC::unpend(pac::Interrupt::FSMC);
-
-    // Freeze the configuration of all the clocks in the system and store the frozen frequencies in
-    // `clocks`
-    // let clocks = rcc.cfgr.freeze(&mut flash.acr);
-    // Alternative configuration using dividers and multipliers directly
-    let clocks = rcc.cfgr.freeze_with_config(
-        rcc::Config {
-            hse: Some(8_000_000),
-            pllmul: Some(7),
-            hpre: rcc::HPre::Div1,
-            ppre1: rcc::PPre::Div4,
-            ppre2: rcc::PPre::Div1,
-            usbpre: rcc::UsbPre::Div15,
-            adcpre: rcc::AdcPre::Div6,
-        },
-        &mut flash.acr,
-    );
-
-    // Configure the syst timer to trigger an update every second
-    let mut timer = dp.TIM4.counter_ms(&clocks);
-
-    let mut gpioc = dp.GPIOC.split();
-    let bl_pin = gpioc.pc8.into_alternate_push_pull(&mut gpioc.crh);
-    let mut afio = dp.AFIO.constrain();
-    let mut bl = dp
-        .TIM3
-        .pwm_hz::<Tim3FullRemap, _, _>(bl_pin, &mut afio.mapr, 10.kHz(), &clocks);
-    bl.set_duty(Channel::C3, bl.get_max_duty() / 4);
-    bl.enable(Channel::C3);
+    let bl_pin = Output::new(p.PC8, Level::High, Speed::Low);
 
     let init = fsmc::FsmcNorsramInitTypeDef {
         ns_bank: 0,
@@ -112,25 +87,22 @@ fn main() -> ! {
         data_latency: 2,
         access_mode: 0,
     };
-    // let hsram = fsmc::SramHandleTypeDef {
-    //     device: &dp.FSMC,
-    //     init,
-    //     timing,
-    //     ext_timing,
-    // };
-    let hsram = fsmc::SramHandleTypeDef::new(
-        init,
-        timing,
-        ext_timing,
-    );
-    dp.GPIOD.crl.write(|w| unsafe { w.bits(0xB4BB44BB) });
-    dp.GPIOD.crh.write(|w| unsafe { w.bits(0xBB44BBBB) });
-    dp.GPIOE.crl.write(|w| unsafe { w.bits(0xB4444444) });
-    dp.GPIOE.crh.write(|w| unsafe { w.bits(0xBBBBBBBB) });
+    let hsram = fsmc::SramHandleTypeDef::new(init, timing, ext_timing);
+    pac::GPIOD
+        .cr(0)
+        .write_value(pac::gpio::regs::Cr(0xB4BB44BB));
+    pac::GPIOD
+        .cr(1)
+        .write_value(pac::gpio::regs::Cr(0xBB44BBBB));
+    pac::GPIOE
+        .cr(0)
+        .write_value(pac::gpio::regs::Cr(0xB4444444));
+    pac::GPIOE
+        .cr(1)
+        .write_value(pac::gpio::regs::Cr(0xBBBBBBBB));
     let interface = fsmc::FsmcInterface::new(hsram);
-    // afio.mapr2.mapr2().modify(|_, w| w.fsmc_nadv().set_bit());
-    let rst = gpioc.pc9.into_push_pull_output(&mut gpioc.crh);
-    let mut delay = dp.TIM2.delay_us(&clocks);
+    let rst = Output::new(p.PC9, Level::Low, Speed::Low);
+    let mut delay = Delay {};
     let mut lcd = Ili9341::new(
         interface,
         rst,
@@ -140,102 +112,106 @@ fn main() -> ! {
         DisplaySize240x320,
     )
     .unwrap();
+    lcd.clear(Rgb565::new(0, 255, 255)).unwrap();
+
+    info!("OK!");
 
     let mut cnt = 0u32;
     let cnt_time = 2000;
-    timer.start(cnt_time.millis()).unwrap();
     let mut last = 0xffffffu32;
 
-    unsafe {
-        lvgl_sys::lv_init();
-    }
+    loop {}
 
-    const BUFFER_SZ: usize = 320 * 10;
+    // unsafe {
+    //     lvgl_sys::lv_init();
+    // }
 
-    let buffer = DrawBuffer::<BUFFER_SZ>::default();
-    let display = Display::register(buffer, lcd.width() as u32, lcd.height() as u32, |refresh| {
-        let area = &refresh.area;
-        let rc = Rectangle::new(
-            Point::new(area.x1 as i32, area.y1 as i32),
-            Size::new(
-                (area.x2 - area.x1 + 1) as u32,
-                (area.y2 - area.y1 + 1) as u32,
-            ),
-        );
-        lcd.fill_contiguous(&rc, refresh.colors.into_iter().map(|p| p.into()))
-            .unwrap();
-    })
-    .unwrap();
+    // const BUFFER_SZ: usize = 320 * 10;
 
-    let mut screen = display.get_scr_act().unwrap();
+    // let buffer = DrawBuffer::<BUFFER_SZ>::default();
+    // let display = Display::register(buffer, lcd.width() as u32, lcd.height() as u32, |refresh| {
+    //     let area = &refresh.area;
+    //     let rc = Rectangle::new(
+    //         Point::new(area.x1 as i32, area.y1 as i32),
+    //         Size::new(
+    //             (area.x2 - area.x1 + 1) as u32,
+    //             (area.y2 - area.y1 + 1) as u32,
+    //         ),
+    //     );
+    //     lcd.fill_contiguous(&rc, refresh.colors.into_iter().map(|p| p.into()))
+    //         .unwrap();
+    // })
+    // .unwrap();
 
-    let mut screen_style = Style::default();
-    screen_style.set_bg_color(Color::from_rgb((255, 255, 255)));
-    screen_style.set_radius(0);
-    screen.add_style(Part::Main, &mut screen_style).unwrap();
+    // let mut screen = display.get_scr_act().unwrap();
 
-    // Create the bar object
-    let mut bar = Bar::create(&mut screen).unwrap();
-    bar.set_size(175, 20).unwrap();
-    bar.set_align(Align::Center, 0, 0).unwrap();
-    bar.set_range(0, 100).unwrap();
-    bar.on_event(|_b, _e| {
-        // println!("Completed!");
-        // lcd.clear(Rgb565::new(255, 255, 0)).unwrap();
-    })
-    .unwrap();
+    // let mut screen_style = Style::default();
+    // screen_style.set_bg_color(Color::from_rgb((255, 255, 255)));
+    // screen_style.set_radius(0);
+    // screen.add_style(Part::Main, &mut screen_style).unwrap();
 
-    // Set the indicator style for the bar object
-    let mut ind_style = Style::default();
-    ind_style.set_bg_color(Color::from_rgb((100, 245, 100)));
-    bar.add_style(Part::Any, &mut ind_style).unwrap();
+    // // Create the bar object
+    // let mut bar = Bar::create(&mut screen).unwrap();
+    // bar.set_size(175, 20).unwrap();
+    // bar.set_align(Align::Center, 0, 0).unwrap();
+    // bar.set_range(0, 100).unwrap();
+    // bar.on_event(|_b, _e| {
+    //     // println!("Completed!");
+    //     // lcd.clear(Rgb565::new(255, 255, 0)).unwrap();
+    // })
+    // .unwrap();
 
-    let mut loading_lbl = Label::create(&mut screen).unwrap();
-    loading_lbl
-        .set_text(CString::new("Testing bar...").unwrap().as_c_str())
-        .unwrap();
-    loading_lbl.set_align(Align::OutTopMid, 0, 20).unwrap();
+    // // Set the indicator style for the bar object
+    // let mut ind_style = Style::default();
+    // ind_style.set_bg_color(Color::from_rgb((100, 245, 100)));
+    // bar.add_style(Part::Any, &mut ind_style).unwrap();
 
-    let mut loading_style = Style::default();
-    loading_style.set_text_color(Color::from_rgb((0, 0, 0)));
-    loading_lbl
-        .add_style(Part::Main, &mut loading_style)
-        .unwrap();
+    // let mut loading_lbl = Label::create(&mut screen).unwrap();
+    // loading_lbl
+    //     .set_text(CString::new("Testing bar...").unwrap().as_c_str())
+    //     .unwrap();
+    // loading_lbl.set_align(Align::OutTopMid, 0, 20).unwrap();
 
-    let mut i = 0;
-    loop {
-        let start = timer.now().ticks();
-        if i > 100 {
-            i = 0;
-            lvgl::event_send(&mut bar, Event::Clicked).unwrap();
-        }
-        bar.set_value(i, Animation::ON).unwrap();
-        i += 1;
-        // bl.set_duty(Channel::C3, (bl.get_max_duty() as i32 * i / 300 + 10) as u16);
-        cnt += 1;
+    // let mut loading_style = Style::default();
+    // loading_style.set_text_color(Color::from_rgb((0, 0, 0)));
+    // loading_lbl
+    //     .add_style(Part::Main, &mut loading_style)
+    //     .unwrap();
 
-        lvgl::task_handler();
-        // delay.delay_us(1u16);
-        let now = timer.now().ticks();
-        let duration = if now >= start {
-            now - start
-        } else {
-            start + cnt_time - now
-        };
-        lvgl::tick_inc(Duration::from_millis(duration as u64));
+    // let mut i = 0;
+    // loop {
+    //     let start = timer.now().ticks();
+    //     if i > 100 {
+    //         i = 0;
+    //         lvgl::event_send(&mut bar, Event::Clicked).unwrap();
+    //     }
+    //     bar.set_value(i, Animation::ON).unwrap();
+    //     i += 1;
+    //     // bl.set_duty(Channel::C3, (bl.get_max_duty() as i32 * i / 300 + 10) as u16);
+    //     cnt += 1;
 
-        if now < last {
-            let mut buf = [0u8; 64];
-            let s = format_no_std::show(
-                &mut buf,
-                format_args!("Hello lv_binding_rust! fps={}", cnt * 1000 / cnt_time),
-            )
-            .unwrap();
-            cnt = 0;
-            loading_lbl
-                .set_text(CString::new(s).unwrap().as_c_str())
-                .unwrap();
-        }
-        last = now;
-    }
+    //     lvgl::task_handler();
+    //     // delay.delay_us(1u16);
+    //     let now = timer.now().ticks();
+    //     let duration = if now >= start {
+    //         now - start
+    //     } else {
+    //         start + cnt_time - now
+    //     };
+    //     lvgl::tick_inc(Duration::from_millis(duration as u64));
+
+    //     if now < last {
+    //         let mut buf = [0u8; 64];
+    //         let s = format_no_std::show(
+    //             &mut buf,
+    //             format_args!("Hello lv_binding_rust! fps={}", cnt * 1000 / cnt_time),
+    //         )
+    //         .unwrap();
+    //         cnt = 0;
+    //         loading_lbl
+    //             .set_text(CString::new(s).unwrap().as_c_str())
+    //             .unwrap();
+    //     }
+    //     last = now;
+    // }
 }

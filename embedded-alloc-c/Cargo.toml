@@ -1,7 +1,0 @@
-[package]
-name = "embedded-alloc-c"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-embedded-alloc = { version = "0.5.1", features = ["allocator_api"] }

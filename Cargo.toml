@@ -1,6 +1,6 @@
 workspace = { members = [
     "display-interface-fsmc",
-    "embedded-alloc-c"
+    # "embedded-alloc-c"
 #    "lv_binding_rust/lvgl",
 #    "lv_binding_rust/lvgl-sys",
 #    "lv_binding_rust/lvgl-codegen",
@@ -14,9 +14,23 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+embassy-stm32 = { version = "0.1.0", path = "./embassy/embassy-stm32", features = [ "defmt", "stm32f103vc", "unstable-pac", "memory-x", "time-driver-any" ]  }
+embassy-sync = { version = "0.5.0", path = "./embassy/embassy-sync", features = ["defmt"] }
+embassy-executor = { version = "0.5.0", path = "./embassy/embassy-executor", features = ["arch-cortex-m", "executor-thread", "defmt", "integrated-timers"] }
+embassy-time = { version = "0.3.0", path = "./embassy/embassy-time", features = ["defmt", "defmt-timestamp-uptime", "tick-hz-32_768"] }
+embassy-usb = { version = "0.1.0", path = "./embassy/embassy-usb", features = ["defmt"] }
+embassy-futures = { version = "0.1.0", path = "./embassy/embassy-futures" }
+
+defmt = "0.3"
+defmt-rtt = "0.4"
+
+panic-probe = { version = "0.3", features = ["print-defmt"] }
+futures = { version = "0.3.17", default-features = false, features = ["async-await"] }
+heapless = { version = "0.8", default-features = false }
+
 cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
 cortex-m-rt = "0.7.3"
-cstr_core = "0.2.6"
+# cstr_core = "0.2.6"
 display-interface = "0.4.1"
 embedded-alloc = "0.5.1"
 embedded-graphics = "0.7.1"
@@ -27,68 +41,58 @@ fugit = "0.3.7"
 ili9341 = "0.5.0"
 #lvgl-sys = "0.6.2"
 nb = "1"
-panic-halt = "0.2.0"
-unwrap-infallible = "0.1.5"
+# panic-halt = "0.2.0"
+# unwrap-infallible = "0.1.5"
 
-[features]
-default = []
-custom-alloc = ["dep:embedded-alloc-c"]
-
-#[dependencies.stm32f1]
-##git = "https://github.com/stm32-rs/stm32-rs-nightlies"
-##path = "stm32-rs"
-#version = "0.15.1"
-#features = ["stm32f103", "rt"]
-[dependencies.stm32f1xx-hal]
-version = "0.10.0"
-#path = "stm32f1xx-hal"
-features = ["rt", "stm32f103", "high"]
+# [features]
+# default = []
+# custom-alloc = ["dep:embedded-alloc-c"]
 
 # Target side implementation of the RTT (Real-Time Transfer) I/O protocol
-[dependencies.rtt-target]
-version = "0.5.0"
+# [dependencies.rtt-target]
+# version = "0.5.0"
 
-[dependencies.panic-rtt-target]
-version = "0.1.2"
-features = ["cortex-m"]
+# [dependencies.panic-rtt-target]
+# version = "0.1.2"
+# features = ["cortex-m"]
 
 [dependencies.display-interface-fsmc]
 path = "display-interface-fsmc"
 
-[dependencies.embedded-alloc-c]
-path = "embedded-alloc-c"
-optional = true
+# [dependencies.embedded-alloc-c]
+# path = "embedded-alloc-c"
+# optional = true
 
-[dependencies.lvgl]
-version = "0.6.2"
-features = [
-    "embedded_graphics", "unsafe_no_autoinit",
-    "alloc", "lvgl_alloc"
-]
-default-features = false
-#path = "lv_binding_rust/lvgl"
+# [dependencies.lvgl]
+# version = "0.6.2"
+# features = [
+#     "embedded_graphics", "unsafe_no_autoinit",
+#     "alloc", "lvgl_alloc"
+# ]
+# default-features = false
+# #path = "lv_binding_rust/lvgl"
 
-[dependencies.lvgl-sys]
-#path = "lv_binding_rust/lvgl-sys"
-version = "0.6.2"
-default-features = false
-#features = []
+# [dependencies.lvgl-sys]
+# #path = "lv_binding_rust/lvgl-sys"
+# version = "0.6.2"
+# default-features = false
+# #features = []
 
-[profile.dev]
-opt-level = 1
-#opt-level = 0
-debug = true
-lto = true
+# [profile.dev]
+# opt-level = 1
+# #opt-level = 0
+# debug = true
+# lto = true
 
-[profile.release.package."*"]
-#opt-level = 3
-opt-level = "z"
-debug = false
-#lto = true
-strip = true
+# [profile.release.package."*"]
+# #opt-level = 3
+# opt-level = "z"
+# debug = false
+# #lto = true
+# strip = true
 
-[profile.release.package.lvgl-sys]
-strip = true
-opt-level = "z"
-debug = false
-#lto = true
+# [profile.release.package.lvgl-sys]
+# strip = true
+# opt-level = "z"
+# debug = false
+# #lto = true
