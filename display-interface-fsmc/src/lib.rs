@@ -212,7 +212,7 @@ pub fn fsmc_norsram_init(device: &mut FSMC, init: &FsmcNorsramInitTypeDef) {
     *p_bcr1 = (bcr1 & mask) | btcr_reg;
 }
 
-pub fn fsmc_norsram_timing_init(device: &mut FSMC, timing: &FsmcNorsramTimingTypeDef) {
+pub fn fsmc_norsram_timing_init(device: &mut FSMC, _timing: &FsmcNorsramTimingTypeDef) {
     // device.deref().btr1.write(|w| unsafe {
     //     w.addset().bits(timing.address_setup_time as u8);
     //     w.addhld().bits(timing.address_hold_time as u8);
@@ -226,7 +226,7 @@ pub fn fsmc_norsram_timing_init(device: &mut FSMC, timing: &FsmcNorsramTimingTyp
     device.btr1 = 0x0ff00ff0u32;
 }
 
-pub fn fsmc_norsram_extended_timing_init(device: &mut FSMC, timing: &FsmcNorsramTimingTypeDef) {
+pub fn fsmc_norsram_extended_timing_init(device: &mut FSMC, _timing: &FsmcNorsramTimingTypeDef) {
     // device.deref().bwtr1.write(|w| unsafe {
     //     w.addset().bits(timing.address_setup_time as u8);
     //     w.addhld().bits(timing.address_hold_time as u8);

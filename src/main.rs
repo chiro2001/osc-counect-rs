@@ -23,7 +23,7 @@ use embassy_executor::Spawner;
 use embassy_stm32::gpio::{Level, Output, Speed};
 use embassy_stm32::time::Hertz;
 use embassy_stm32::{pac, Config};
-use embassy_time::{Delay, Timer, Instant};
+use embassy_time::{Delay, Instant, Timer};
 
 use display_interface_fsmc as fsmc;
 
@@ -42,16 +42,19 @@ async fn main(_spawner: Spawner) {
         config.rcc.pll = Some(Pll {
             src: PllSource::HSE,
             prediv: PllPreDiv::DIV1,
-            mul: PllMul::MUL7,
+            mul: PllMul::MUL9,
         });
         config.rcc.sys = Sysclk::PLL1_P;
         config.rcc.ahb_pre = AHBPrescaler::DIV1;
         config.rcc.apb1_pre = APBPrescaler::DIV2;
         config.rcc.apb2_pre = APBPrescaler::DIV1;
     }
-    let mut p = embassy_stm32::init(config);
+    let p = embassy_stm32::init(config);
 
-    let bl_pin = Output::new(p.PC8, Level::High, Speed::Low);
+    info!("System launched!");
+
+    let mut bl_pin = Output::new(p.PC8, Level::High, Speed::Low);
+    bl_pin.set_high();
 
     let init = fsmc::FsmcNorsramInitTypeDef {
         ns_bank: 0,
@@ -113,19 +116,18 @@ async fn main(_spawner: Spawner) {
         DisplaySize240x320,
     )
     .unwrap();
-    lcd.clear(Rgb565::new(0, 255, 255)).unwrap();
-
+    info!("Clearing...");
+    lcd.clear(Rgb565::new(0, 0, 0)).unwrap();
     info!("OK!");
 
     let mut cnt = 0u32;
     let cnt_time = 2000;
-    let mut last = 0xffffffu64;
 
     unsafe {
         lvgl_sys::lv_init();
     }
 
-    const BUFFER_SZ: usize = 320 * 10;
+    const BUFFER_SZ: usize = 320 * 8;
 
     let buffer = DrawBuffer::<BUFFER_SZ>::default();
     let display = Display::register(buffer, lcd.width() as u32, lcd.height() as u32, |refresh| {
@@ -155,7 +157,7 @@ async fn main(_spawner: Spawner) {
     bar.set_align(Align::Center, 0, 0).unwrap();
     bar.set_range(0, 100).unwrap();
     bar.on_event(|_b, _e| {
-        info!("Completed!");
+        // info!("Completed!");
     })
     .unwrap();
 
@@ -177,40 +179,41 @@ async fn main(_spawner: Spawner) {
         .unwrap();
 
     let mut i = 0;
+    let mut last = Instant::now().as_ticks();
     loop {
-        let start = Instant::now().as_ticks();
+        let start = Instant::now().as_millis();
         if i > 100 {
             i = 0;
             lvgl::event_send(&mut bar, Event::Clicked).unwrap();
         }
         bar.set_value(i, Animation::ON).unwrap();
         i += 1;
-        // bl.set_duty(Channel::C3, (bl.get_max_duty() as i32 * i / 300 + 10) as u16);
         cnt += 1;
 
         lvgl::task_handler();
-        // delay.delay_ms(15u32);
-        Timer::after_millis(15).await;
-        let now = Instant::now().as_ticks();
-        let duration = if now >= start {
-            now - start
-        } else {
-            start + cnt_time - now
-        };
+        // Timer::after_millis(1).await;
+        let now = Instant::now().as_millis();
+        let duration = now - start;
         lvgl::tick_inc(Duration::from_millis(duration as u64));
+        debug!("duration: {}, now: {}, last: {}", duration, now, last);
 
-        if now < last {
+        if now - last > cnt_time {
             let mut buf = [0u8; 64];
+            let fps = (cnt * 1000) as u64 / cnt_time;
             let s = format_no_std::show(
                 &mut buf,
-                format_args!("Hello lv_binding_rust! fps={}", (cnt * 1000) as u64 / cnt_time),
+                format_args!(
+                    "Hello lv_binding_rust! fps={}",
+                    fps
+                ),
             )
             .unwrap();
+            info!("fps {}, output: {}", fps, s);
             cnt = 0;
             loading_lbl
                 .set_text(CString::new(s).unwrap().as_c_str())
                 .unwrap();
+            last = now;
         }
-        last = now;
     }
 }

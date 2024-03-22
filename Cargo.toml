@@ -55,13 +55,10 @@ features = [
     "alloc", "lvgl_alloc"
 ]
 default-features = false
-#path = "lv_binding_rust/lvgl"
 
 [dependencies.lvgl-sys]
-#path = "lv_binding_rust/lvgl-sys"
 version = "0.6.2"
 default-features = false
-#features = []
 
 [profile.dev]
 opt-level = 1
@@ -74,10 +71,10 @@ lto = true
 opt-level = "z"
 debug = false
 #lto = true
-strip = true
+strip = false
 
 [profile.release.package.lvgl-sys]
-strip = true
+strip = false
 opt-level = "z"
 debug = false
 #lto = true
