@@ -127,7 +127,7 @@ async fn main(_spawner: Spawner) {
         lvgl_sys::lv_init();
     }
 
-    const BUFFER_SZ: usize = 320 * 8;
+    const BUFFER_SZ: usize = 320 * 6;
 
     let buffer = DrawBuffer::<BUFFER_SZ>::default();
     let display = Display::register(buffer, lcd.width() as u32, lcd.height() as u32, |refresh| {
@@ -197,22 +197,23 @@ async fn main(_spawner: Spawner) {
         lvgl::tick_inc(Duration::from_millis(duration as u64));
         debug!("duration: {}, now: {}, last: {}", duration, now, last);
 
-        if now - last > cnt_time {
-            let mut buf = [0u8; 64];
-            let fps = (cnt * 1000) as u64 / cnt_time;
-            let s = format_no_std::show(
-                &mut buf,
-                format_args!(
-                    "Hello lv_binding_rust! fps={}",
-                    fps
-                ),
-            )
-            .unwrap();
-            info!("fps {}, output: {}", fps, s);
-            cnt = 0;
-            loading_lbl
-                .set_text(CString::new(s).unwrap().as_c_str())
+        if now >= last {
+            if now - last > cnt_time {
+                let mut buf = [0u8; 64];
+                let fps = (cnt * 1000) as u64 / cnt_time;
+                let s = format_no_std::show(
+                    &mut buf,
+                    format_args!("Hello lv_binding_rust! fps={}", fps),
+                )
                 .unwrap();
+                info!("fps {}, output: {}", fps, s);
+                cnt = 0;
+                loading_lbl
+                    .set_text(CString::new(s).unwrap().as_c_str())
+                    .unwrap();
+                last = now;
+            }
+        } else {
             last = now;
         }
     }
