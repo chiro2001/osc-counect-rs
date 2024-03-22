@@ -4,73 +4,57 @@
 #![no_main]
 #![no_std]
 
-use panic_halt as _;
+// extern crate alloc;
 
-use cortex_m_rt::entry;
-use display_interface_fsmc as fsmc;
-use embedded_graphics::geometry::Point;
-use embedded_graphics::mono_font::ascii::FONT_6X9;
-use embedded_graphics::mono_font::MonoTextStyle;
+use core::time::Duration;
+use defmt::*;
 use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::text::{Alignment, Text};
-use embedded_graphics::Drawable;
-use embedded_graphics_core::draw_target::DrawTarget;
+use {defmt_rtt as _, panic_probe as _};
+
+use cstr_core::CString;
 use embedded_graphics_core::prelude::*;
 use embedded_graphics_core::primitives::Rectangle;
 use ili9341::{DisplaySize240x320, Ili9341, Orientation};
-use stm32f1xx_hal::rcc::Enable;
-use stm32f1xx_hal::{pac, prelude::*, rcc};
+use lvgl::style::Style;
+use lvgl::widgets::{Bar, Label};
+use lvgl::{Align, Animation, Color, Display, DrawBuffer, Event, Part, Widget};
 
-#[entry]
-fn main() -> ! {
-    // Get access to the core peripherals from the cortex-m crate
-    let _cp = cortex_m::Peripherals::take().unwrap();
-    // Get access to the device specific peripherals from the peripheral access crate
-    let dp = pac::Peripherals::take().unwrap();
+use embassy_executor::Spawner;
+use embassy_stm32::gpio::{Level, Output, Speed};
+use embassy_stm32::time::Hertz;
+use embassy_stm32::{pac, Config};
+use embassy_time::{Delay, Instant, Timer};
 
-    pac::GPIOE::enable(&dp.RCC);
-    pac::GPIOD::enable(&dp.RCC);
-    pac::GPIOC::enable(&dp.RCC);
-    pac::GPIOA::enable(&dp.RCC);
-    pac::FSMC::enable(&dp.RCC);
-    pac::TIM1::enable(&dp.RCC);
-    pac::TIM2::enable(&dp.RCC);
-    pac::TIM3::enable(&dp.RCC);
+use display_interface_fsmc as fsmc;
 
-    // Take ownership over the raw flash and rcc devices and convert them into the corresponding
-    // HAL structs
-    let mut flash = dp.FLASH.constrain();
-    let rcc = dp.RCC.constrain();
+#[embassy_executor::main]
+async fn main(_spawner: Spawner) {
+    // #[cfg(feature = "custom-alloc")]
+    // heap_init!(32 * 1024);
+    let mut config = Config::default();
+    {
+        use embassy_stm32::rcc::*;
+        config.rcc.hse = Some(Hse {
+            freq: Hertz(8_000_000),
+            // Oscillator for bluepill, Bypass for nucleos.
+            mode: HseMode::Oscillator,
+        });
+        config.rcc.pll = Some(Pll {
+            src: PllSource::HSE,
+            prediv: PllPreDiv::DIV1,
+            mul: PllMul::MUL9,
+        });
+        config.rcc.sys = Sysclk::PLL1_P;
+        config.rcc.ahb_pre = AHBPrescaler::DIV1;
+        config.rcc.apb1_pre = APBPrescaler::DIV2;
+        config.rcc.apb2_pre = APBPrescaler::DIV1;
+    }
+    let p = embassy_stm32::init(config);
 
-    pac::NVIC::unpend(pac::Interrupt::FSMC);
+    info!("System launched!");
 
-    // Freeze the configuration of all the clocks in the system and store the frozen frequencies in
-    // `clocks`
-    // let clocks = rcc.cfgr.freeze(&mut flash.acr);
-    // Alternative configuration using dividers and multipliers directly
-    let clocks = rcc.cfgr.freeze_with_config(
-        rcc::Config {
-            hse: Some(8_000_000),
-            pllmul: Some(7),
-            hpre: rcc::HPre::Div1,
-            ppre1: rcc::PPre::Div4,
-            ppre2: rcc::PPre::Div1,
-            usbpre: rcc::UsbPre::Div15,
-            adcpre: rcc::AdcPre::Div6,
-        },
-        &mut flash.acr,
-    );
-
-    // Configure the syst timer to trigger an update every second
-    let mut timer = dp.TIM3.counter_ms(&clocks);
-
-    // test gpio led
-    let mut gpioc = dp.GPIOC.split();
-    // Configure gpio C pin 8 as a push-pull output. The `crh` register is passed to the function
-    // in order to configure the port. For pins 0-7, crl should be passed instead.
-    let mut bl = gpioc.pc8.into_push_pull_output(&mut gpioc.crh);
-
-    bl.set_high();
+    let mut bl_pin = Output::new(p.PC8, Level::High, Speed::Low);
+    bl_pin.set_high();
 
     let init = fsmc::FsmcNorsramInitTypeDef {
         ns_bank: 0,
@@ -106,17 +90,23 @@ fn main() -> ! {
         data_latency: 2,
         access_mode: 0,
     };
-    let hsram = fsmc::SramHandleTypeDef {
-        device: &dp.FSMC,
-        init,
-        timing,
-        ext_timing,
-    };
-    let interface = fsmc::FsmcInterface::new(hsram, dp.GPIOE, dp.GPIOD);
-    let mut afio = dp.AFIO.constrain();
-    afio.mapr2.mapr2().modify(|_, w| w.fsmc_nadv().set_bit());
-    let rst = gpioc.pc9.into_push_pull_output(&mut gpioc.crh);
-    let mut delay = dp.TIM2.delay_us(&clocks);
+    let hsram = fsmc::SramHandleTypeDef::new(init, timing, ext_timing);
+    pac::GPIOD
+        .cr(0)
+        .write_value(pac::gpio::regs::Cr(0xB4BB44BB));
+    pac::GPIOD
+        .cr(1)
+        .write_value(pac::gpio::regs::Cr(0xBB44BBBB));
+    pac::GPIOE
+        .cr(0)
+        .write_value(pac::gpio::regs::Cr(0xB4444444));
+    pac::GPIOE
+        .cr(1)
+        .write_value(pac::gpio::regs::Cr(0xBBBBBBBB));
+    pac::RCC.ahbenr().modify(|w| w.set_fsmcen(true));
+    let interface = fsmc::FsmcInterface::new(hsram);
+    let rst = Output::new(p.PC9, Level::Low, Speed::Low);
+    let mut delay = Delay {};
     let mut lcd = Ili9341::new(
         interface,
         rst,
@@ -126,46 +116,105 @@ fn main() -> ! {
         DisplaySize240x320,
     )
     .unwrap();
-    // Create a new character style
-    let style = MonoTextStyle::new(&FONT_6X9, Rgb565::new(0, 255, 255));
+    info!("Clearing...");
+    lcd.clear(Rgb565::new(0, 0, 0)).unwrap();
+    info!("OK!");
 
     let mut cnt = 0u32;
     let cnt_time = 2000;
-    timer.start(cnt_time.millis()).unwrap();
-    lcd.clear(Rgb565::new(0, 0, 0)).unwrap();
-    let mut last = 0xffffffu32;
-    let font_height = FONT_6X9.character_size.height;
-    let update_rect = Rectangle::new(
-        Point::new(0, font_height as i32),
-        Size::new(lcd.width() as u32, lcd.height() as u32 - font_height),
-    );
-    let text_rect = Rectangle::new(Point::new(0, 0), Size::new(lcd.width() as u32, font_height));
 
-    loop {
-        lcd.fill_solid(
-            &update_rect,
-            Rgb565::new(0, 0, if cnt % 2 == 0 { 0xff } else { 0 }),
-        )
-        .unwrap();
-        cnt += 1;
-        let now = timer.now().ticks();
-        if now < last {
-            let mut buf = [0u8; 64];
-            let s = format_no_std::show(
-                &mut buf,
-                format_args!("Hello Rust! fps={}", cnt * 1000 / cnt_time),
-            )
+    unsafe {
+        lvgl_sys::lv_init();
+    }
+
+    const BUFFER_SZ: usize = 320 * 6;
+
+    let buffer = DrawBuffer::<BUFFER_SZ>::default();
+    let display = Display::register(buffer, lcd.width() as u32, lcd.height() as u32, |refresh| {
+        let area = &refresh.area;
+        let rc = Rectangle::new(
+            Point::new(area.x1 as i32, area.y1 as i32),
+            Size::new(
+                (area.x2 - area.x1 + 1) as u32,
+                (area.y2 - area.y1 + 1) as u32,
+            ),
+        );
+        lcd.fill_contiguous(&rc, refresh.colors.into_iter().map(|p| p.into()))
             .unwrap();
-            cnt = 0;
-            let text = Text::with_alignment(
-                &s,
-                Point::new(0, (font_height / 2 + 1) as i32),
-                style,
-                Alignment::Left,
-            );
-            lcd.fill_solid(&text_rect, Rgb565::new(0, 0, 0)).unwrap();
-            text.draw(&mut lcd).unwrap();
+    })
+    .unwrap();
+
+    let mut screen = display.get_scr_act().unwrap();
+
+    let mut screen_style = Style::default();
+    screen_style.set_bg_color(Color::from_rgb((255, 255, 255)));
+    screen_style.set_radius(0);
+    screen.add_style(Part::Main, &mut screen_style).unwrap();
+
+    // Create the bar object
+    let mut bar = Bar::create(&mut screen).unwrap();
+    bar.set_size(175, 20).unwrap();
+    bar.set_align(Align::Center, 0, 0).unwrap();
+    bar.set_range(0, 100).unwrap();
+    bar.on_event(|_b, _e| {
+        // info!("Completed!");
+    })
+    .unwrap();
+
+    // Set the indicator style for the bar object
+    let mut ind_style = Style::default();
+    ind_style.set_bg_color(Color::from_rgb((100, 245, 100)));
+    bar.add_style(Part::Any, &mut ind_style).unwrap();
+
+    let mut loading_lbl = Label::create(&mut screen).unwrap();
+    loading_lbl
+        .set_text(CString::new("Testing bar...").unwrap().as_c_str())
+        .unwrap();
+    loading_lbl.set_align(Align::OutTopMid, 0, 20).unwrap();
+
+    let mut loading_style = Style::default();
+    loading_style.set_text_color(Color::from_rgb((0, 0, 0)));
+    loading_lbl
+        .add_style(Part::Main, &mut loading_style)
+        .unwrap();
+
+    let mut i = 0;
+    let mut last = Instant::now().as_ticks();
+    loop {
+        let start = Instant::now().as_millis();
+        if i > 100 {
+            i = 0;
+            lvgl::event_send(&mut bar, Event::Clicked).unwrap();
         }
-        last = now;
+        bar.set_value(i, Animation::ON).unwrap();
+        i += 1;
+        cnt += 1;
+
+        lvgl::task_handler();
+        // Timer::after_millis(1).await;
+        let now = Instant::now().as_millis();
+        let duration = now - start;
+        lvgl::tick_inc(Duration::from_millis(duration as u64));
+        debug!("duration: {}, now: {}, last: {}", duration, now, last);
+
+        if now >= last {
+            if now - last > cnt_time {
+                let mut buf = [0u8; 64];
+                let fps = (cnt * 1000) as u64 / cnt_time;
+                let s = format_no_std::show(
+                    &mut buf,
+                    format_args!("Hello lv_binding_rust! fps={}", fps),
+                )
+                .unwrap();
+                info!("fps {}, output: {}", fps, s);
+                cnt = 0;
+                loading_lbl
+                    .set_text(CString::new(s).unwrap().as_c_str())
+                    .unwrap();
+                last = now;
+            }
+        } else {
+            last = now;
+        }
     }
 }
