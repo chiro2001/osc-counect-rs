@@ -70,7 +70,7 @@ pub struct FSMC {
     pub bwtr4: u32,
 }
 
-const _FSMC_SZ: [u8; (0x11c + 4)] = [0; core::mem::size_of::<FSMC>()];
+const _FSMC_SZ: [u8; 0x11c + 4] = [0; core::mem::size_of::<FSMC>()];
 
 const FSMC_DEV_ADDR: usize = 0xa000_0000u32 as usize;
 
