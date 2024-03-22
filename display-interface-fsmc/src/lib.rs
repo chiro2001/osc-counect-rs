@@ -1,8 +1,78 @@
 #![no_std]
 
-use core::ops::Deref;
 use display_interface::{DataFormat, DisplayError, WriteOnlyDataCommand};
-use stm32f1xx_hal::pac::{FSMC, GPIOD, GPIOE};
+
+#[doc = r"FSMC Register block"]
+#[repr(C)]
+pub struct FSMC {
+    #[doc = "0x00 - SRAM/NOR-Flash chip-select control register 1"]
+    pub bcr1: u32,
+    #[doc = "0x04 - SRAM/NOR-Flash chip-select timing register 1"]
+    pub btr1: u32,
+    #[doc = "0x08 - SRAM/NOR-Flash chip-select control register 2"]
+    pub bcr2: u32,
+    #[doc = "0x0c - SRAM/NOR-Flash chip-select timing register 1"]
+    pub btr2: u32,
+    #[doc = "0x10 - SRAM/NOR-Flash chip-select control register 2"]
+    pub bcr3: u32,
+    #[doc = "0x14 - SRAM/NOR-Flash chip-select timing register 1"]
+    pub btr3: u32,
+    #[doc = "0x18 - SRAM/NOR-Flash chip-select control register 2"]
+    pub bcr4: u32,
+    #[doc = "0x1c - SRAM/NOR-Flash chip-select timing register 1"]
+    pub btr4: u32,
+    _reserved8: [u8; 0x40],
+    #[doc = "0x60 - PC Card/NAND Flash control register 2"]
+    pub pcr2: u32,
+    #[doc = "0x64 - FIFO status and interrupt register 2"]
+    pub sr2: u32,
+    #[doc = "0x68 - Common memory space timing register 2"]
+    pub pmem2: u32,
+    #[doc = "0x6c - Attribute memory space timing register 2"]
+    pub patt2: u32,
+    _reserved12: [u8; 0x04],
+    #[doc = "0x74 - ECC result register 2"]
+    pub eccr2: u32,
+    _reserved13: [u8; 0x08],
+    #[doc = "0x80 - PC Card/NAND Flash control register 3"]
+    pub pcr3: u32,
+    #[doc = "0x84 - FIFO status and interrupt register 3"]
+    pub sr3: u32,
+    #[doc = "0x88 - Common memory space timing register 3"]
+    pub pmem3: u32,
+    #[doc = "0x8c - Attribute memory space timing register 3"]
+    pub patt3: u32,
+    _reserved17: [u8; 0x04],
+    #[doc = "0x94 - ECC result register 3"]
+    pub eccr3: u32,
+    _reserved18: [u8; 0x08],
+    #[doc = "0xa0 - PC Card/NAND Flash control register 4"]
+    pub pcr4: u32,
+    #[doc = "0xa4 - FIFO status and interrupt register 4"]
+    pub sr4: u32,
+    #[doc = "0xa8 - Common memory space timing register 4"]
+    pub pmem4: u32,
+    #[doc = "0xac - Attribute memory space timing register 4"]
+    pub patt4: u32,
+    #[doc = "0xb0 - I/O space timing register 4"]
+    pub pio4: u32,
+    _reserved23: [u8; 0x50],
+    #[doc = "0x104 - SRAM/NOR-Flash write timing registers 1"]
+    pub bwtr1: u32,
+    _reserved24: [u8; 0x04],
+    #[doc = "0x10c - SRAM/NOR-Flash write timing registers 1"]
+    pub bwtr2: u32,
+    _reserved25: [u8; 0x04],
+    #[doc = "0x114 - SRAM/NOR-Flash write timing registers 1"]
+    pub bwtr3: u32,
+    _reserved26: [u8; 0x04],
+    #[doc = "0x11c - SRAM/NOR-Flash write timing registers 1"]
+    pub bwtr4: u32,
+}
+
+const _FSMC_SZ: [u8; (0x11c + 4)] = [0; core::mem::size_of::<FSMC>()];
+
+const FSMC_DEV_ADDR: usize = 0xa000_0000u32 as usize;
 
 /// FSMC NORSRAM Configuration Structure definition
 pub struct FsmcNorsramInitTypeDef {
@@ -102,16 +172,30 @@ pub struct FsmcNorsramTimingTypeDef {
     pub access_mode: u32,
 }
 
-pub struct SramHandleTypeDef<'a> {
-    pub device: &'a FSMC,
+pub struct SramHandleTypeDef {
+    pub device: &'static mut FSMC,
     pub init: FsmcNorsramInitTypeDef,
     pub timing: FsmcNorsramTimingTypeDef,
     pub ext_timing: FsmcNorsramTimingTypeDef,
 }
 
-pub fn fsmc_norsram_init(device: &FSMC, init: &FsmcNorsramInitTypeDef) {
-    let bcr1 = device.deref().bcr1.read().bits();
-    device.deref().bcr1.modify(|_, w| w.mbken().clear_bit());
+impl SramHandleTypeDef {
+    pub fn new(init: FsmcNorsramInitTypeDef,
+               timing: FsmcNorsramTimingTypeDef,
+               ext_timing: FsmcNorsramTimingTypeDef) -> Self {
+        Self {
+            device: unsafe { &mut *(FSMC_DEV_ADDR as *mut FSMC) },
+            init,
+            timing,
+            ext_timing,
+        }
+    }
+}
+
+pub fn fsmc_norsram_init(device: &mut FSMC, init: &FsmcNorsramInitTypeDef) {
+    let p_bcr1 = &mut device.bcr1;
+    let bcr1 = *p_bcr1;
+    *p_bcr1 = bcr1 & !0x1u32;
     let mask = 0xFFF7Fu32;
     let btcr_reg = init.data_address_mux
         | init.memory_type
@@ -125,59 +209,106 @@ pub fn fsmc_norsram_init(device: &FSMC, init: &FsmcNorsramInitTypeDef) {
         | init.asynchronous_wait
         | init.write_burst;
     // let btcr_reg = 0x5010;
-    device.deref().bcr1.write(|w| unsafe {
-        w.bits((bcr1 & mask) | btcr_reg)
-        // FIXME: NOT CORRECT FIELDS
-        // w.mtyp().bits(init.memory_type as u8);
-        // w.mwid().bits(init.memory_data_width as u8);
-        // w.bursten().bit(init.burst_access_mode != 0);
-        // w.waitpol().bit(init.wait_signal_polarity != 0);
-        // w.waiten().bit(init.wait_signal_active != 0);
-        // w.wren().bit(init.write_operation != 0);
-        // w.waiten().bit(init.wait_signal != 0);
-        // w.extmod().bit(init.extended_mode != 0);
-        // w.asyncwait().bit(init.asynchronous_wait != 0);
-        // w.cburstrw().bit(init.write_burst != 0)
-    });
+    *p_bcr1 = (bcr1 & mask) | btcr_reg;
 }
 
-pub fn fsmc_norsram_timing_init(device: &FSMC, timing: &FsmcNorsramTimingTypeDef) {
-    device.deref().btr1.write(|w| unsafe {
-        w.addset().bits(timing.address_setup_time as u8);
-        w.addhld().bits(timing.address_hold_time as u8);
-        w.datast().bits(timing.data_setup_time as u8);
-        w.busturn().bits(timing.bus_turn_around_duration as u8);
-        w.clkdiv().bits((timing.clk_division - 1) as u8);
-        w.datlat().bits((timing.data_latency - 2) as u8);
-        w.accmod().bits(timing.access_mode as u8)
-        // w.bits(0x0ff00ff0u32)
-    });
+pub fn fsmc_norsram_timing_init(device: &mut FSMC, timing: &FsmcNorsramTimingTypeDef) {
+    // device.deref().btr1.write(|w| unsafe {
+    //     w.addset().bits(timing.address_setup_time as u8);
+    //     w.addhld().bits(timing.address_hold_time as u8);
+    //     w.datast().bits(timing.data_setup_time as u8);
+    //     w.busturn().bits(timing.bus_turn_around_duration as u8);
+    //     w.clkdiv().bits((timing.clk_division - 1) as u8);
+    //     w.datlat().bits((timing.data_latency - 2) as u8);
+    //     w.accmod().bits(timing.access_mode as u8)
+    //     // w.bits(0x0ff00ff0u32)
+    // });
+    device.btr1 = 0x0ff00ff0u32;
 }
 
-pub fn fsmc_norsram_extended_timing_init(device: &FSMC, timing: &FsmcNorsramTimingTypeDef) {
-    device.deref().bwtr1.write(|w| unsafe {
-        w.addset().bits(timing.address_setup_time as u8);
-        w.addhld().bits(timing.address_hold_time as u8);
-        w.datast().bits(timing.data_setup_time as u8);
-        w.busturn().bits(timing.bus_turn_around_duration as u8);
-        w.accmod().bits(timing.access_mode as u8)
-        // w.bits(0x0ff001f0u32)
-    });
+pub fn fsmc_norsram_extended_timing_init(device: &mut FSMC, timing: &FsmcNorsramTimingTypeDef) {
+    // device.deref().bwtr1.write(|w| unsafe {
+    //     w.addset().bits(timing.address_setup_time as u8);
+    //     w.addhld().bits(timing.address_hold_time as u8);
+    //     w.datast().bits(timing.data_setup_time as u8);
+    //     w.busturn().bits(timing.bus_turn_around_duration as u8);
+    //     w.accmod().bits(timing.access_mode as u8)
+    //     // w.bits(0x0ff001f0u32)
+    // });
+    device.bwtr1 = 0x0ff001f0u32;
 }
 
 pub fn hal_sram_init(
-    hsram: &SramHandleTypeDef,
-    timing: &FsmcNorsramTimingTypeDef,
-    ext_timing: &FsmcNorsramTimingTypeDef,
+    hsram: &mut SramHandleTypeDef,
 ) {
-    fsmc_norsram_init(hsram.device, &hsram.init);
-    fsmc_norsram_timing_init(hsram.device, timing);
-    fsmc_norsram_extended_timing_init(hsram.device, ext_timing);
+    // fsmc_norsram_init(hsram.device, &hsram.init);
+    // fsmc_norsram_timing_init(hsram.device, &hsram.timing);
+    // fsmc_norsram_extended_timing_init(hsram.device, &hsram.ext_timing);
+
+    /*
+        Peripheral, Register, Value, Fields
+        FSMC, BCR1, 0x0000705B, MBKEN: 0b1; MUXEN: 0b1; MTYP: 0b10; MWID: 0b01; FACCEN: 0b1; BURSTEN: 0b0; WAITPOL: 0b0; WAITCFG: 0b0; WREN: 0b1; WAITEN: 0b1; EXTMOD: 0b1; ASYNCWAIT: 0b0; CBURSTRW: 0b0
+        FSMC, BTR1, 0x00000110, ADDSET: 0b0000; ADDHLD: 0b0001; DATAST: 0b00000001; BUSTURN: 0b0000; CLKDIV: 0b0000; DATLAT: 0b0000; ACCMOD: 0b00
+        FSMC, BCR2, 0x000030D2, MBKEN: 0b0; MUXEN: 0b1; MTYP: 0b00; MWID: 0b01; FACCEN: 0b1; BURSTEN: 0b0; WAITPOL: 0b0; WRAPMOD: 0b0; WAITCFG: 0b0; WREN: 0b1; WAITEN: 0b1; EXTMOD: 0b0; ASYNCWAIT: 0b0; CBURSTRW: 0b0
+        FSMC, BTR2, 0x0FFFFFFF, ADDSET: 0b1111; ADDHLD: 0b1111; DATAST: 0b11111111; BUSTURN: 0b1111; CLKDIV: 0b1111; DATLAT: 0b1111; ACCMOD: 0b00
+        FSMC, BCR3, 0x000030D2, MBKEN: 0b0; MUXEN: 0b1; MTYP: 0b00; MWID: 0b01; FACCEN: 0b1; BURSTEN: 0b0; WAITPOL: 0b0; WRAPMOD: 0b0; WAITCFG: 0b0; WREN: 0b1; WAITEN: 0b1; EXTMOD: 0b0; ASYNCWAIT: 0b0; CBURSTRW: 0b0
+        FSMC, BTR3, 0x0FFFFFFF, ADDSET: 0b1111; ADDHLD: 0b1111; DATAST: 0b11111111; BUSTURN: 0b1111; CLKDIV: 0b1111; DATLAT: 0b1111; ACCMOD: 0b00
+        FSMC, BCR4, 0x000030D2, MBKEN: 0b0; MUXEN: 0b1; MTYP: 0b00; MWID: 0b01; FACCEN: 0b1; BURSTEN: 0b0; WAITPOL: 0b0; WRAPMOD: 0b0; WAITCFG: 0b0; WREN: 0b1; WAITEN: 0b1; EXTMOD: 0b0; ASYNCWAIT: 0b0; CBURSTRW: 0b0
+        FSMC, BTR4, 0x0FFFFFFF, ADDSET: 0b1111; ADDHLD: 0b1111; DATAST: 0b11111111; BUSTURN: 0b1111; CLKDIV: 0b1111; DATLAT: 0b1111; ACCMOD: 0b00
+        FSMC, PCR2, 0x00000018, PWAITEN: 0b0; PBKEN: 0b0; PTYP: 0b1; PWID: 0b01; ECCEN: 0b0; TCLR: 0b0000; TAR: 0b0000; ECCPS: 0b000
+        FSMC, SR2, 0x00000040, IRS: 0b0; ILS: 0b0; IFS: 0b0; IREN: 0b0; ILEN: 0b0; IFEN: 0b0; FEMPT: 0b1
+        FSMC, PMEM2, 0xFCFCFCFC, MEMSETx: 0b11111100; MEMWAITx: 0b11111100; MEMHOLDx: 0b11111100; MEMHIZx: 0b11111100
+        FSMC, PATT2, 0xFCFCFCFC, ATTSETx: 0b11111100; ATTWAITx: 0b11111100; ATTHOLDx: 0b11111100; ATTHIZx: 0b11111100
+        FSMC, ECCR2, 0x00000000, ECCx: 0b00000000000000000000000000000000
+        FSMC, PCR3, 0x00000018, PWAITEN: 0b0; PBKEN: 0b0; PTYP: 0b1; PWID: 0b01; ECCEN: 0b0; TCLR: 0b0000; TAR: 0b0000; ECCPS: 0b000
+        FSMC, SR3, 0x00000040, IRS: 0b0; ILS: 0b0; IFS: 0b0; IREN: 0b0; ILEN: 0b0; IFEN: 0b0; FEMPT: 0b1
+        FSMC, PMEM3, 0xFCFCFCFC, MEMSETx: 0b11111100; MEMWAITx: 0b11111100; MEMHOLDx: 0b11111100; MEMHIZx: 0b11111100
+        FSMC, PATT3, 0xFCFCFCFC, ATTSETx: 0b11111100; ATTWAITx: 0b11111100; ATTHOLDx: 0b11111100; ATTHIZx: 0b11111100
+        FSMC, ECCR3, 0x00000000, ECCx: 0b00000000000000000000000000000000
+        FSMC, PCR4, 0x00000018, PWAITEN: 0b0; PBKEN: 0b0; PTYP: 0b1; PWID: 0b01; ECCEN: 0b0; TCLR: 0b0000; TAR: 0b0000; ECCPS: 0b000
+        FSMC, SR4, 0x00000040, IRS: 0b0; ILS: 0b0; IFS: 0b0; IREN: 0b0; ILEN: 0b0; IFEN: 0b0; FEMPT: 0b1
+        FSMC, PMEM4, 0xFCFCFCFC, MEMSETx: 0b11111100; MEMWAITx: 0b11111100; MEMHOLDx: 0b11111100; MEMHIZx: 0b11111100
+        FSMC, PATT4, 0xFCFCFCFC, ATTSETx: 0b11111100; ATTWAITx: 0b11111100; ATTHOLDx: 0b11111100; ATTHIZx: 0b11111100
+        FSMC, PIO4, 0xFCFCFCFC, IOSETx: 0b11111100; IOWAITx: 0b11111100; IOHOLDx: 0b11111100; IOHIZx: 0b11111100
+        FSMC, BWTR1, 0x0FF00110, ADDSET: 0b0000; ADDHLD: 0b0001; DATAST: 0b00000001; CLKDIV: 0b1111; DATLAT: 0b1111; ACCMOD: 0b00
+        FSMC, BWTR2, 0x0FFFFFFF, ADDSET: 0b1111; ADDHLD: 0b1111; DATAST: 0b11111111; CLKDIV: 0b1111; DATLAT: 0b1111; ACCMOD: 0b00
+        FSMC, BWTR3, 0x0FFFFFFF, ADDSET: 0b1111; ADDHLD: 0b1111; DATAST: 0b11111111; CLKDIV: 0b1111; DATLAT: 0b1111; ACCMOD: 0b00
+        FSMC, BWTR4, 0x0FFFFFFF, ADDSET: 0b1111; ADDHLD: 0b1111; DATAST: 0b11111111; CLKDIV: 0b1111; DATLAT: 0b1111; ACCMOD: 0b00
+    */
+    let d = &mut hsram.device;
+    d.bcr1 = 0x0000705B & !0x1u32;
+    d.btr1 = 0x00000110;
+    d.bcr2 = 0x000030d2;
+    d.btr2 = 0x0fffffff;
+    d.bcr3 = 0x000030d2;
+    d.btr3 = 0x0fffffff;
+    d.bcr4 = 0x000030d2;
+    d.btr4 = 0x0fffffff;
+    d.pcr2 = 0x00000018;
+    d.sr2 = 0x00000040;
+    d.pmem2 = 0xfcfcfcfc;
+    d.patt2 = 0xfcfcfcfc;
+    d.eccr2 = 0x00000000;
+    d.pcr3 = 0x00000018;
+    d.sr3 = 0x00000040;
+    d.pmem3 = 0xfcfcfcfc;
+    d.patt3 = 0xfcfcfcfc;
+    d.eccr3 = 0x00000000;
+    d.pcr4 = 0x00000018;
+    d.sr4 = 0x00000040;
+    d.pmem4 = 0xfcfcfcfc;
+    d.patt4 = 0xfcfcfcfc;
+    d.pio4 = 0xfcfcfcfc;
+    d.bwtr1 = 0x0ff00110;
+    d.bwtr2 = 0x0fffffff;
+    d.bwtr3 = 0x0fffffff;
+    d.bwtr4 = 0x0fffffff;
+
     // enable device
-    hsram.device.deref().bcr1.modify(|_, w| w.mbken().set_bit());
+    d.bcr1 = d.bcr1 | 1u32;
 }
 
-pub fn hal_fsmc_msp_init(gpioe: GPIOE, gpiod: GPIOD) {
+pub fn hal_fsmc_msp_init() {
     /*
         FSMC GPIO Configuration
         PE7    ------> FSMC_D4
@@ -201,120 +332,35 @@ pub fn hal_fsmc_msp_init(gpioe: GPIOE, gpiod: GPIOD) {
         PD5    ------> FSMC_NWE
         PD7    ------> FSMC_NE1
     */
-    // FIXME: not working
-    // let mut gpioe = gpioe.split();
-    // let mut gpiod = gpiod.split();
-    // let _data_pins = (
-    //     gpiod
-    //         .pd14
-    //         .into_push_pull_output(&mut gpiod.crh)
-    //         .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50),
-    //     gpiod
-    //         .pd15
-    //         .into_push_pull_output(&mut gpiod.crh)
-    //         .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50),
-    //     gpiod
-    //         .pd0
-    //         .into_push_pull_output(&mut gpiod.crl)
-    //         .set_speed(&mut gpiod.crl, IOPinSpeed::Mhz50),
-    //     gpiod
-    //         .pd1
-    //         .into_push_pull_output(&mut gpiod.crl)
-    //         .set_speed(&mut gpiod.crl, IOPinSpeed::Mhz50),
-    //     gpioe
-    //         .pe7
-    //         .into_push_pull_output(&mut gpioe.crl)
-    //         .set_speed(&mut gpioe.crl, IOPinSpeed::Mhz50),
-    //     gpioe
-    //         .pe8
-    //         .into_push_pull_output(&mut gpioe.crh)
-    //         .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
-    //     gpioe
-    //         .pe9
-    //         .into_push_pull_output(&mut gpioe.crh)
-    //         .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
-    //     gpioe
-    //         .pe10
-    //         .into_push_pull_output(&mut gpioe.crh)
-    //         .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
-    //     gpioe
-    //         .pe11
-    //         .into_push_pull_output(&mut gpioe.crh)
-    //         .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
-    //     gpioe
-    //         .pe12
-    //         .into_push_pull_output(&mut gpioe.crh)
-    //         .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
-    //     gpioe
-    //         .pe13
-    //         .into_push_pull_output(&mut gpioe.crh)
-    //         .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
-    //     gpioe
-    //         .pe14
-    //         .into_push_pull_output(&mut gpioe.crh)
-    //         .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
-    //     gpioe
-    //         .pe15
-    //         .into_push_pull_output(&mut gpioe.crh)
-    //         .set_speed(&mut gpioe.crh, IOPinSpeed::Mhz50),
-    //     gpiod
-    //         .pd8
-    //         .into_push_pull_output(&mut gpiod.crh)
-    //         .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50),
-    //     gpiod
-    //         .pd9
-    //         .into_push_pull_output(&mut gpiod.crh)
-    //         .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50),
-    //     gpiod
-    //         .pd10
-    //         .into_push_pull_output(&mut gpiod.crh)
-    //         .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50),
-    // );
-    // let _rs = gpiod
-    //     .pd11
-    //     .into_push_pull_output(&mut gpiod.crh)
-    //     .set_speed(&mut gpiod.crh, IOPinSpeed::Mhz50);
-    // let _rd = gpiod
-    //     .pd4
-    //     .into_push_pull_output(&mut gpiod.crl)
-    //     .set_speed(&mut gpiod.crl, IOPinSpeed::Mhz50);
-    // let _wr = gpiod
-    //     .pd5
-    //     .into_push_pull_output(&mut gpiod.crl)
-    //     .set_speed(&mut gpiod.crl, IOPinSpeed::Mhz50);
-    // let _cs = gpiod
-    //     .pd7
-    //     .into_push_pull_output(&mut gpiod.crl)
-    //     .set_speed(&mut gpiod.crl, IOPinSpeed::Mhz50);
-
-    // copied from CubeMX
-    gpiod.crl.write(|w| unsafe { w.bits(0xB4BB44BB) });
-    gpiod.crh.write(|w| unsafe { w.bits(0xBB44BBBB) });
-    // gpiod.idr.write(|w| unsafe { w.bits(0x0000F7FF) });
-    gpioe.crl.write(|w| unsafe { w.bits(0xB4444444) });
-    gpioe.crh.write(|w| unsafe { w.bits(0xBBBBBBBB) });
-    // gpioe.idr.write(|w| unsafe { w.bits(0x0000FFFC) });
+    // // copied from CubeMX
+    // gpiod.crl.write(|w| unsafe { w.bits(0xB4BB44BB) });
+    // gpiod.crh.write(|w| unsafe { w.bits(0xBB44BBBB) });
+    // // gpiod.idr.write(|w| unsafe { w.bits(0x0000F7FF) });
+    // gpioe.crl.write(|w| unsafe { w.bits(0xB4444444) });
+    // gpioe.crh.write(|w| unsafe { w.bits(0xBBBBBBBB) });
+    // // gpioe.idr.write(|w| unsafe { w.bits(0x0000FFFC) });
+    // FIXME: Init GPIO outside plz.
 }
 
-pub struct FsmcInterface<'a> {
-    hsram: SramHandleTypeDef<'a>,
+pub struct FsmcInterface {
+    hsram: SramHandleTypeDef,
     reg: *mut u16,
     ram: *mut u16,
 }
 
-impl<'a> FsmcInterface<'a> {
-    pub fn new(hsram: SramHandleTypeDef<'a>, gpioe: GPIOE, gpiod: GPIOD) -> Self {
+impl FsmcInterface {
+    pub fn new(hsram: SramHandleTypeDef) -> Self {
         const LCD_FSMC_NEX: u32 = 1;
         const LCD_FSMC_AX: u32 = 16;
-        const LCD_BASE: u32 =
+        let lcd_base: u32 =
             (0x60000000u32 + (0x4000000u32 * (LCD_FSMC_NEX - 1))) | (((1 << LCD_FSMC_AX) * 2) - 2);
-        let s = Self {
+        let mut s = Self {
             hsram,
-            reg: LCD_BASE as *mut u16,
-            ram: (LCD_BASE + 2) as *mut u16,
+            reg: lcd_base as *mut u16,
+            ram: (lcd_base + 2) as *mut u16,
         };
-        hal_fsmc_msp_init(gpioe, gpiod);
-        hal_sram_init(&s.hsram, &s.hsram.timing, &s.hsram.ext_timing);
+        hal_fsmc_msp_init();
+        hal_sram_init(&mut s.hsram);
         s
     }
 }
@@ -330,7 +376,7 @@ fn small_delay<T>(ptr: *const T) {
     }
 }
 
-impl<'a> WriteOnlyDataCommand for FsmcInterface<'a> {
+impl WriteOnlyDataCommand for FsmcInterface {
     #[inline(always)]
     fn send_commands(&mut self, cmds: DataFormat<'_>) -> Result {
         match cmds {

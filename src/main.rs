@@ -112,14 +112,23 @@ fn main() -> ! {
         data_latency: 2,
         access_mode: 0,
     };
-    let hsram = fsmc::SramHandleTypeDef {
-        device: &dp.FSMC,
+    // let hsram = fsmc::SramHandleTypeDef {
+    //     device: &dp.FSMC,
+    //     init,
+    //     timing,
+    //     ext_timing,
+    // };
+    let hsram = fsmc::SramHandleTypeDef::new(
         init,
         timing,
         ext_timing,
-    };
-    let interface = fsmc::FsmcInterface::new(hsram, dp.GPIOE, dp.GPIOD);
-    afio.mapr2.mapr2().modify(|_, w| w.fsmc_nadv().set_bit());
+    );
+    dp.GPIOD.crl.write(|w| unsafe { w.bits(0xB4BB44BB) });
+    dp.GPIOD.crh.write(|w| unsafe { w.bits(0xBB44BBBB) });
+    dp.GPIOE.crl.write(|w| unsafe { w.bits(0xB4444444) });
+    dp.GPIOE.crh.write(|w| unsafe { w.bits(0xBBBBBBBB) });
+    let interface = fsmc::FsmcInterface::new(hsram);
+    // afio.mapr2.mapr2().modify(|_, w| w.fsmc_nadv().set_bit());
     let rst = gpioc.pc9.into_push_pull_output(&mut gpioc.crh);
     let mut delay = dp.TIM2.delay_us(&clocks);
     let mut lcd = Ili9341::new(
@@ -202,7 +211,7 @@ fn main() -> ! {
         }
         bar.set_value(i, Animation::ON).unwrap();
         i += 1;
-        bl.set_duty(Channel::C3, (bl.get_max_duty() as i32 * i / 300 + 10) as u16);
+        // bl.set_duty(Channel::C3, (bl.get_max_duty() as i32 * i / 300 + 10) as u16);
         cnt += 1;
 
         lvgl::task_handler();
