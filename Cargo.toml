@@ -27,9 +27,19 @@ embassy-time = { version = "0.3.0", path = "./embassy/embassy-time", features = 
     "defmt-timestamp-uptime",
     "tick-hz-32_768",
 ] }
-# embassy-usb = { version = "0.1.0", path = "./embassy/embassy-usb", features = [
-#     "defmt",
-# ] }
+embassy-usb = { version = "0.1.0", path = "./embassy/embassy-usb", features = [
+    "defmt",
+] }
+embassy-usb-dfu = { version = "0.1.0", path = "./embassy/embassy-usb-dfu", features = [
+    "dfu",
+] }
+embassy-boot = { version = "0.2.0", path = "./embassy/embassy-boot", features = [
+    "defmt",
+] }
+embassy-boot-stm32 = { version = "0.2.0", path = "./embassy/embassy-boot-stm32", features = [
+    "defmt",
+] }
+embassy-usb-driver = { version = "0.1.0", path = "./embassy/embassy-usb-driver" }
 embassy-futures = { version = "0.1.0", path = "./embassy/embassy-futures" }
 
 defmt = "0.3"
