@@ -4,7 +4,7 @@
 #![no_main]
 #![no_std]
 
-// extern crate alloc;
+extern crate alloc;
 
 use core::time::Duration;
 use defmt::*;
@@ -19,11 +19,12 @@ use lvgl::style::Style;
 use lvgl::widgets::{Bar, Label};
 use lvgl::{Align, Animation, Color, Display, DrawBuffer, Event, Part, Widget};
 
+use alloc::vec::Vec;
 use embassy_executor::Spawner;
 use embassy_stm32::{
     gpio::{Flex, OutputType, Pull},
     time::Hertz,
-    timer::Channel,
+    timer::{CaptureCompare16bitInstance, Channel},
 };
 use embassy_stm32::{
     gpio::{Level, Output, Speed},
@@ -63,6 +64,37 @@ impl<'d> InoutPin for DioPin<'d> {
 
     fn is_low(&self) -> bool {
         self.pin.is_low()
+    }
+}
+
+struct Buzzer<'d, T> {
+    pwm: SimplePwm<'d, T>,
+    channel: Channel,
+    delay_ms: u64,
+    freqs: [Hertz; 3],
+}
+impl<'d, T> Buzzer<'d, T>
+where
+    T: CaptureCompare16bitInstance,
+{
+    pub fn new(pwm: SimplePwm<'d, T>, channel: Channel, delay_ms: u64) -> Self {
+        Self {
+            pwm,
+            channel,
+            delay_ms,
+            freqs: [Hertz::hz(523), Hertz::hz(659), Hertz::hz(784)],
+        }
+    }
+
+    pub async fn beep(&mut self) {
+        // self.pwm.set_duty(self.channel, self.pwm.get_max_duty() / 2);
+        self.pwm.set_duty(self.channel, 0);
+        self.pwm.enable(self.channel);
+        for f in self.freqs.iter() {
+            self.pwm.set_frequency(*f);
+            Timer::after_millis(self.delay_ms).await;
+        }
+        self.pwm.disable(self.channel);
     }
 }
 
@@ -172,6 +204,29 @@ async fn main(_spawner: Spawner) {
     );
     bl.enable(Channel::Ch3);
     bl.set_duty(Channel::Ch3, bl.get_max_duty() / 2);
+    let beep = SimplePwm::new(
+        p.TIM3,
+        None,
+        None,
+        None,
+        Some(PwmPin::new_ch4(p.PB1, OutputType::PushPull)),
+        Hertz::hz(523),
+        Default::default(),
+    );
+    // beep.set_duty(Channel::Ch4, beep.get_max_duty() / 2);
+    // let do_beep = || {
+    //     beep.enable(Channel::Ch4);
+    //     beep.set_frequency(Hertz::hz(523));
+    //     Timer::after_millis(50).await;
+    //     beep.set_frequency(Hertz::hz(659));
+    //     Timer::after_millis(50).await;
+    //     beep.set_frequency(Hertz::hz(784));
+    //     Timer::after_millis(50).await;
+    //     beep.disable(Channel::Ch4);
+    // };
+    // do_beep();
+    let mut buzzer = Buzzer::new(beep, Channel::Ch4, 50);
+    buzzer.beep().await;
 
     // init keyboard
     let stb = Output::new(p.PE2, Level::Low, Speed::Low);
@@ -234,11 +289,16 @@ async fn main(_spawner: Spawner) {
         .unwrap();
     loading_lbl.set_align(Align::OutTopMid, 0, 20).unwrap();
 
-    let mut loading_style = Style::default();
-    loading_style.set_text_color(Color::from_rgb((0, 0, 0)));
-    loading_lbl
-        .add_style(Part::Main, &mut loading_style)
+    let mut keys_lbl = Label::create(&mut screen).unwrap();
+    keys_lbl
+        .set_text(CString::new("Testing key...").unwrap().as_c_str())
         .unwrap();
+    keys_lbl.set_align(Align::OutTopMid, 0, 40).unwrap();
+
+    let mut style = Style::default();
+    style.set_text_color(Color::from_rgb((0, 0, 0)));
+    loading_lbl.add_style(Part::Main, &mut style).unwrap();
+    let mut last_keys = Vec::new();
 
     let mut i = 0;
     let mut last = Instant::now().as_ticks();
@@ -253,10 +313,36 @@ async fn main(_spawner: Spawner) {
         cnt += 1;
 
         kbd.read_decode_keys(&mut kbd_decoded);
+        let mut keys = Vec::new();
+        let mut has_keys = false;
         for k in 0..kbd_decoded.len() {
             if kbd_decoded[k] {
-                info!("Key {} [{}] pressed", kbd.code_to_key(k), k);
+                // info!("Key {} [{}] pressed", kbd.code_to_key(k), k);
+                has_keys = true;
+                keys.push(kbd.code_to_key(k));
             }
+        }
+        let mut buf = [0u8; 64];
+        if has_keys {
+            if keys != last_keys {
+                buzzer.beep().await;
+                let s = format_no_std::show(&mut buf, format_args!("keys: {:?}", keys)).unwrap();
+                keys_lbl
+                    .set_text(CString::new(s).unwrap().as_c_str())
+                    .unwrap();
+                let s = format_no_std::show(
+                    &mut buf,
+                    format_args!("keys: {:?}, last_keys: {:?}", keys, last_keys),
+                )
+                .unwrap();
+                info!("{}", s);
+                last_keys = keys;
+            }
+        } else {
+            keys_lbl
+                .set_text(CString::new("No keys pressed").unwrap().as_c_str())
+                .unwrap();
+            last_keys.clear();
         }
 
         lvgl::task_handler();
@@ -268,7 +354,6 @@ async fn main(_spawner: Spawner) {
 
         if now >= last {
             if now - last > cnt_time {
-                let mut buf = [0u8; 64];
                 let fps = (cnt * 1000) as u64 / cnt_time;
                 let s = format_no_std::show(
                     &mut buf,
