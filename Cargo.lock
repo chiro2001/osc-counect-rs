@@ -503,23 +503,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "embassy-boot-stm32"
-version = "0.2.0"
-dependencies = [
- "cfg-if",
- "cortex-m",
- "cortex-m-rt",
- "defmt",
- "defmt-rtt",
- "embassy-boot",
- "embassy-stm32",
- "embassy-sync",
- "embedded-storage",
- "embedded-storage-async",
- "log",
-]
-
-[[package]]
 name = "embassy-embedded-hal"
 version = "0.1.0"
 dependencies = [
@@ -1438,8 +1421,6 @@ dependencies = [
  "defmt-rtt",
  "display-interface",
  "display-interface-fsmc",
- "embassy-boot",
- "embassy-boot-stm32",
  "embassy-executor",
  "embassy-futures",
  "embassy-stm32",
