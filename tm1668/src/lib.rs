@@ -2,6 +2,8 @@
 
 extern crate alloc;
 
+pub mod group;
+
 use alloc::boxed::Box;
 use core::{convert::Infallible, mem::MaybeUninit};
 use defmt::*;
@@ -143,25 +145,6 @@ where
         }
         data
     }
-
-    extern "C" fn kbd_read_input(
-        drv: *mut lvgl_sys::lv_indev_drv_t,
-        data: *mut lvgl_sys::lv_indev_data_t,
-    ) {
-        let kbd = unsafe { &mut *((*drv).user_data as *mut Self) };
-        let data = unsafe { &mut *data };
-        let mut keys = [false; 20];
-        kbd.read_decode_keys(&mut keys);
-        data.state = lvgl_sys::lv_indev_state_t_LV_INDEV_STATE_RELEASED;
-        for i in 0..keys.len() {
-            // let key = kbd.code_to_key(i);
-            if keys[i] {
-                data.key = i as u32;
-                data.state = lvgl_sys::lv_indev_state_t_LV_INDEV_STATE_PRESSED;
-                break;
-            }
-        }
-    }
 }
 
 pub struct KeypadDriver {
@@ -179,25 +162,52 @@ unsafe extern "C" fn read_input<F>(
     let user_closure = &mut *((*indev_drv).user_data as *mut F);
     // call user data
     let info: BufferStatus = user_closure();
-    match info {
-        BufferStatus::Once(input) => match input {
-            lvgl::input_device::InputState::Released(Data::Pointer(PointerInputData::Key(key))) => {
-                debug!("Released key {}", key);
-            }
-            lvgl::input_device::InputState::Pressed(Data::Pointer(PointerInputData::Key(key))) => {
-                info!("Pressed key {}", key);
-            }
-            _ => {}
-        },
-        BufferStatus::Buffered(_) => {
-            info!("Buffered");
+    (*data).continue_reading = match info {
+        BufferStatus::Once(input) => {
+            match input {
+                lvgl::input_device::InputState::Released(Data::Pointer(PointerInputData::Key(
+                    key,
+                ))) => {
+                    debug!("Released key {}", key);
+                    let code = KEY_MAP[key as usize];
+                    let act_key = match code {
+                        "F1" => Some(lvgl_sys::LV_KEY_LEFT),
+                        "F2" => Some(lvgl_sys::LV_KEY_UP),
+                        "F3" => Some(lvgl_sys::LV_KEY_DOWN),
+                        "F4" => Some(lvgl_sys::LV_KEY_RIGHT),
+                        "OK" => Some(lvgl_sys::LV_KEY_ENTER),
+                        _ => None,
+                    };
+                    if let Some(k) = act_key {
+                        (*data).key = k;
+                    }
+                }
+                lvgl::input_device::InputState::Pressed(Data::Pointer(PointerInputData::Key(
+                    key,
+                ))) => {
+                    info!("Pressed key {}", key);
+                }
+                _ => {}
+            };
+            false
         }
+        BufferStatus::Buffered(_input) => {
+            info!("Buffered");
+            true
+        }
+    };
+}
+
+#[cfg(feature = "lvgl")]
+impl KeypadDriver {
+    pub fn get_descriptor(&self) -> Option<*mut lvgl_sys::lv_indev_t> {
+        self.descriptor
     }
 }
 
 #[cfg(feature = "lvgl")]
 impl InputDriver<KeypadDriver> for KeypadDriver {
-    fn register<F>(handler: F, display: &lvgl::Display) -> lvgl::LvResult<Self>
+    fn register<F>(handler: F, _display: &lvgl::Display) -> lvgl::LvResult<Self>
     where
         F: Fn() -> lvgl::input_device::BufferStatus,
     {
@@ -236,7 +246,7 @@ impl InputDriver<KeypadDriver> for KeypadDriver {
             unsafe extern "C" fn(*mut lvgl_sys::lv_indev_drv_t, *mut lvgl_sys::lv_indev_data_t),
         >,
         feedback_cb: Option<unsafe extern "C" fn(*mut lvgl_sys::lv_indev_drv_t, u8)>,
-        display: &lvgl::Display,
+        _display: &lvgl::Display,
     ) -> lvgl::LvResult<KeypadDriver> {
         let driver = unsafe {
             let mut indev_drv = MaybeUninit::uninit();

@@ -6,7 +6,7 @@
 
 extern crate alloc;
 
-use core::{cell::RefCell, mem::MaybeUninit, time::Duration};
+use core::{cell::RefCell, time::Duration};
 use defmt::*;
 use embedded_graphics::pixelcolor::Rgb565;
 use {defmt_rtt as _, panic_probe as _};
@@ -15,7 +15,7 @@ use cstr_core::CString;
 use embedded_graphics_core::prelude::*;
 use embedded_graphics_core::primitives::Rectangle;
 use ili9341::{DisplaySize240x320, Ili9341, Orientation};
-use lvgl::widgets::{Bar, Label};
+use lvgl::widgets::{Bar, Btn, Label};
 use lvgl::{
     input_device::{pointer::PointerInputData, BufferStatus, Data, InputDriver, InputState},
     style::Style,
@@ -37,7 +37,7 @@ use embassy_time::{Delay, Instant, Timer};
 
 use display_interface_fsmc as fsmc;
 
-use tm1668::InoutPin;
+use tm1668::{group::Group, InoutPin};
 
 mod osc;
 
@@ -274,7 +274,7 @@ async fn main(_spawner: Spawner) {
     .unwrap();
 
     let kbd = RefCell::new(tm1668::TM1668::new(stb, clk, dio, &mut delay));
-    let _keypad_drv = tm1668::KeypadDriver::register(
+    let mut keypad_drv = tm1668::KeypadDriver::register(
         || {
             let mut kbd_decoded = [false; 20];
             kbd.borrow_mut().read_decode_keys(&mut kbd_decoded);
@@ -326,6 +326,15 @@ async fn main(_spawner: Spawner) {
     style.set_text_color(Color::from_rgb((255, 255, 255)));
 
     loading_lbl.add_style(Part::Main, &mut style).unwrap();
+
+    let mut group = Group::default();
+    group.set_indev(&mut keypad_drv).unwrap();
+    let mut btn = Btn::create(&mut screen).unwrap();
+    btn.on_event(|_b, _e| {
+        info!("Button clicked!");
+    })
+    .unwrap();
+    group.add_obj(&btn).unwrap();
 
     let mut i = 0;
     let mut last = Instant::now().as_ticks();
