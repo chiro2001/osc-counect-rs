@@ -86,13 +86,13 @@ default-features = false
 [profile.dev]
 opt-level = 1
 #opt-level = 0
-debug = true
+debug = 2
 lto = true
 
 [profile.release.package."*"]
 #opt-level = 3
 opt-level = "z"
-debug = false
+debug = 2
 #lto = true
 strip = false
 

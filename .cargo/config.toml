@@ -12,10 +12,11 @@ args = [
 
 [env]
 DEP_LV_CONFIG_PATH = { value = ".", relative = true }
-CC_thumbv7m-none-eabi = "/opt/stm32cubeide/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.linux64_1.1.100.202309141235/tools/bin/arm-none-eabi-gcc"
-AR_thumbv7m-none-eabi = "/opt/stm32cubeide/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.linux64_1.1.100.202309141235/tools/bin/arm-none-eabi-ar"
-#CFLAGS_thumbv7m-none-eabi = "-I /opt/stm32cubeide/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.linux64_1.1.100.202309141235/tools/arm-none-eabi/include"
-LVGL_INCLUDE = "/opt/stm32cubeide/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.linux64_1.1.100.202309141235/tools/arm-none-eabi/include"
-C_INCLUDE_PATH = "/opt/stm32cubeide/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.linux64_1.1.100.202309141235/tools/arm-none-eabi/include"
+#CC_thumbv7m-none-eabi = "/opt/stm32cubeide/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.linux64_1.1.100.202309141235/tools/bin/arm-none-eabi-gcc"
+#AR_thumbv7m-none-eabi = "/opt/stm32cubeide/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.linux64_1.1.100.202309141235/tools/bin/arm-none-eabi-ar"
+##CFLAGS_thumbv7m-none-eabi = "-I /opt/stm32cubeide/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.linux64_1.1.100.202309141235/tools/arm-none-eabi/include"
+#LVGL_INCLUDE = "/opt/stm32cubeide/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.linux64_1.1.100.202309141235/tools/arm-none-eabi/include"
+#C_INCLUDE_PATH = "/opt/stm32cubeide/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.linux64_1.1.100.202309141235/tools/arm-none-eabi/include"
+C_INCLUDE_PATH = "/usr/arm-none-eabi/include"
 CC_ENABLE_DEBUG_OUTPUT = "1"
 DEFMT_LOG = "info"

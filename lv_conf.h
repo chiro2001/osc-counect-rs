@@ -49,7 +49,8 @@
 #define LV_MEM_CUSTOM 0
 #if LV_MEM_CUSTOM == 0
 /*Size of the memory available for `lv_mem_alloc()` in bytes (>= 2kB)*/
-#define LV_MEM_SIZE (16U * 1024U)          /*[bytes]*/
+#define LV_MEM_SIZE (8U * 1024U)          /*[bytes]*/
+//#define LV_MEM_ADD_JUNK 1
 
 /*Set an address for the memory pool instead of allocating it as a normal array. Can be in external SRAM too.*/
 #define LV_MEM_ADR 0     /*0: unused*/
@@ -538,7 +539,7 @@
 #if LV_USE_THEME_DEFAULT
 
 /*0: Light mode; 1: Dark mode*/
-#define LV_THEME_DEFAULT_DARK 0
+#define LV_THEME_DEFAULT_DARK 1
 
 /*1: Enable grow on press*/
 #define LV_THEME_DEFAULT_GROW 1
@@ -548,10 +549,10 @@
 #endif /*LV_USE_THEME_DEFAULT*/
 
 /*A very simple theme that is a good starting point for a custom theme*/
-#define LV_USE_THEME_BASIC 1
+#define LV_USE_THEME_BASIC 0
 
 /*A theme designed for monochrome displays*/
-#define LV_USE_THEME_MONO 1
+#define LV_USE_THEME_MONO 0
 
 /*-----------
  * Layouts
@@ -620,7 +621,7 @@
 #define LV_USE_FREETYPE 0
 #if LV_USE_FREETYPE
 /*Memory used by FreeType to cache characters [bytes] (-1: no caching)*/
-    #define LV_FREETYPE_CACHE_SIZE (16 * 1024)
+    #define LV_FREETYPE_CACHE_SIZE -1
     #if LV_FREETYPE_CACHE_SIZE >= 0
         /* 1: bitmap cache use the sbit cache, 0:bitmap cache use the image cache. */
         /* sbit cache:it is much more memory efficient for small bitmaps(font size < 256) */
