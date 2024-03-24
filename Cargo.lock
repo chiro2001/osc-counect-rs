@@ -925,7 +925,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c2a198fb6b0eada2a8df47933734e6d35d350665a33a3593d7164fa52c75c19"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.4",
 ]
 
 [[package]]
@@ -1105,6 +1105,7 @@ dependencies = [
  "panic-probe",
  "panic-rtt-target",
  "rtt-target 0.5.0",
+ "tm1668",
 ]
 
 [[package]]
@@ -1562,6 +1563,14 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.53",
+]
+
+[[package]]
+name = "tm1668"
+version = "0.1.0"
+dependencies = [
+ "defmt",
+ "embedded-hal 0.2.7",
 ]
 
 [[package]]

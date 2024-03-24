@@ -1,0 +1,8 @@
+[package]
+name = "tm1668"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+defmt = "0.3.6"
+embedded-hal = "0.2.7"

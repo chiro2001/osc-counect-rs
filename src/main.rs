@@ -20,7 +20,11 @@ use lvgl::widgets::{Bar, Label};
 use lvgl::{Align, Animation, Color, Display, DrawBuffer, Event, Part, Widget};
 
 use embassy_executor::Spawner;
-use embassy_stm32::{gpio::OutputType, time::Hertz, timer::Channel};
+use embassy_stm32::{
+    gpio::{Flex, OutputType, Pull},
+    time::Hertz,
+    timer::Channel,
+};
 use embassy_stm32::{
     gpio::{Level, Output, Speed},
     timer::simple_pwm::{PwmPin, SimplePwm},
@@ -29,6 +33,38 @@ use embassy_stm32::{pac, Config};
 use embassy_time::{Delay, Instant, Timer};
 
 use display_interface_fsmc as fsmc;
+
+use tm1668::InoutPin;
+
+struct DioPin<'d> {
+    pin: Flex<'d>,
+}
+
+impl<'d> InoutPin for DioPin<'d> {
+    fn set_input(&mut self) {
+        self.pin.set_as_input(Pull::None);
+    }
+
+    fn set_output(&mut self) {
+        self.pin.set_as_output(Speed::Low);
+    }
+
+    fn set_high(&mut self) {
+        self.pin.set_high();
+    }
+
+    fn set_low(&mut self) {
+        self.pin.set_low();
+    }
+
+    fn is_high(&self) -> bool {
+        self.pin.is_high()
+    }
+
+    fn is_low(&self) -> bool {
+        self.pin.is_low()
+    }
+}
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
@@ -54,6 +90,8 @@ async fn main(_spawner: Spawner) {
     }
     let p = embassy_stm32::init(config);
     // let p = embassy_stm32::init(Default::default());
+
+    let mut delay = Delay {};
 
     info!("System launched!");
 
@@ -107,7 +145,6 @@ async fn main(_spawner: Spawner) {
     pac::RCC.ahbenr().modify(|w| w.set_fsmcen(true));
     let interface = fsmc::FsmcInterface::new(hsram);
     let rst = Output::new(p.PC9, Level::Low, Speed::Low);
-    let mut delay = Delay {};
     let mut lcd = Ili9341::new(
         interface,
         rst,
@@ -135,6 +172,15 @@ async fn main(_spawner: Spawner) {
     );
     bl.enable(Channel::Ch3);
     bl.set_duty(Channel::Ch3, bl.get_max_duty() / 2);
+
+    // init keyboard
+    let stb = Output::new(p.PE2, Level::Low, Speed::Low);
+    let dio = DioPin {
+        pin: Flex::new(p.PE4),
+    };
+    let clk = Output::new(p.PE3, Level::Low, Speed::Low);
+    let mut kbd = tm1668::TM1668::new(stb, clk, dio, &mut delay);
+    let mut kbd_values = [0u8; 5];
 
     let mut cnt = 0u32;
     let cnt_time = 2000;
@@ -206,8 +252,15 @@ async fn main(_spawner: Spawner) {
         i += 1;
         cnt += 1;
 
+        kbd.read_keys(&mut kbd_values);
+        for k in 0..5 {
+            if kbd_values[k] != 0 {
+                info!("Key[{}] pressed: {}", k, kbd_values[k]);
+            }
+        }
+
         lvgl::task_handler();
-        // Timer::after_millis(1).await;
+        Timer::after_millis(100).await;
         let now = Instant::now().as_millis();
         let duration = now - start;
         lvgl::tick_inc(Duration::from_millis(duration as u64));
