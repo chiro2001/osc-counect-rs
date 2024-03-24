@@ -204,6 +204,8 @@ unsafe extern "C" fn read_input<F>(
                     } else {
                         lvgl_sys::lv_indev_state_t_LV_INDEV_STATE_RELEASED
                     };
+                } else {
+                    warn!("Invalid key {} code {}", key, code);
                 }
             }
             false
