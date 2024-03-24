@@ -1,6 +1,11 @@
 #![no_std]
 
 use display_interface::{DataFormat, DisplayError, WriteOnlyDataCommand};
+use embassy_hal_internal::Peripheral;
+use embassy_stm32::{
+    dma::{AnyChannel, Channel, Transfer},
+    PeripheralRef,
+};
 
 #[doc = r"FSMC Register block"]
 #[repr(C)]
@@ -342,14 +347,15 @@ pub fn hal_fsmc_msp_init() {
     // FIXME: Init GPIO outside plz.
 }
 
-pub struct FsmcInterface {
+pub struct FsmcInterface<'d, Dma> {
     hsram: SramHandleTypeDef,
     reg: *mut u16,
     ram: *mut u16,
+    channel: PeripheralRef<'d, Dma>,
 }
 
-impl FsmcInterface {
-    pub fn new(hsram: SramHandleTypeDef) -> Self {
+impl<'d, Dma> FsmcInterface<'d, Dma> {
+    pub fn new(hsram: SramHandleTypeDef, channel: PeripheralRef<'d, Dma>) -> Self {
         const LCD_FSMC_NEX: u32 = 1;
         const LCD_FSMC_AX: u32 = 16;
         let lcd_base: u32 =
@@ -358,6 +364,7 @@ impl FsmcInterface {
             hsram,
             reg: lcd_base as *mut u16,
             ram: (lcd_base + 2) as *mut u16,
+            channel,
         };
         hal_fsmc_msp_init();
         hal_sram_init(&mut s.hsram);
@@ -376,7 +383,10 @@ fn small_delay<T>(ptr: *const T) {
     }
 }
 
-impl WriteOnlyDataCommand for FsmcInterface {
+impl<'d, Dma> WriteOnlyDataCommand for FsmcInterface<'d, Dma>
+where
+    Dma: Channel,
+{
     #[inline(always)]
     fn send_commands(&mut self, cmds: DataFormat<'_>) -> Result {
         match cmds {
@@ -418,11 +428,6 @@ impl WriteOnlyDataCommand for FsmcInterface {
                 }
             }
             DataFormat::U16BEIter(iter) => {
-                // let buf = unsafe { core::slice::from_raw_parts_mut(self.ram, 1) };
-                // for d in iter {
-                //     // better performance...why?
-                //     buf[0] = d;
-                // }
                 for d in iter {
                     unsafe {
                         *self.ram = d;
@@ -430,16 +435,21 @@ impl WriteOnlyDataCommand for FsmcInterface {
                 }
             }
             DataFormat::U16(val) => {
-                // TODO: DMA
-                // let buf = unsafe { core::slice::from_raw_parts_mut(self.ram, 1) };
+                let transfer = unsafe {
+                    Transfer::new_write(
+                        self.channel.clone_unchecked(),
+                        (),
+                        val,
+                        self.ram,
+                        Default::default(),
+                    )
+                };
+                transfer.blocking_wait();
                 // for d in val {
-                //     buf[0] = *d;
+                //     unsafe {
+                //         *self.ram = *d;
+                //     }
                 // }
-                for d in val {
-                    unsafe {
-                        *self.ram = *d;
-                    }
-                }
             }
             _ => return Err(DisplayError::InvalidFormatError),
         }

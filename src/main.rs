@@ -15,9 +15,7 @@ use ili9341::{DisplaySize240x320, Ili9341 as Ili9327, Orientation};
 
 use embassy_executor::Spawner;
 use embassy_stm32::{
-    gpio::{Flex, OutputType, Pull},
-    time::Hertz,
-    timer::{CaptureCompare16bitInstance, Channel},
+    gpio::{Flex, OutputType, Pull}, time::Hertz, timer::{CaptureCompare16bitInstance, Channel}, PeripheralRef
 };
 use embassy_stm32::{
     gpio::{Level, Output, Speed},
@@ -180,7 +178,7 @@ async fn main(_spawner: Spawner) {
         .cr(1)
         .write_value(pac::gpio::regs::Cr(0xBBBBBBBB));
     pac::RCC.ahbenr().modify(|w| w.set_fsmcen(true));
-    let interface = fsmc::FsmcInterface::new(hsram);
+    let interface = fsmc::FsmcInterface::new(hsram, PeripheralRef::new(p.DMA1_CH4));
     let rst = Output::new(p.PC9, Level::Low, Speed::Low);
     let mut lcd = Ili9327::new(
         interface,
