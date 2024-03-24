@@ -180,7 +180,7 @@ async fn main(_spawner: Spawner) {
     };
     let clk = Output::new(p.PE3, Level::Low, Speed::Low);
     let mut kbd = tm1668::TM1668::new(stb, clk, dio, &mut delay);
-    let mut kbd_values = [0u8; 5];
+    let mut kbd_decoded = [false; 20];
 
     let mut cnt = 0u32;
     let cnt_time = 2000;
@@ -252,10 +252,10 @@ async fn main(_spawner: Spawner) {
         i += 1;
         cnt += 1;
 
-        kbd.read_keys(&mut kbd_values);
-        for k in 0..5 {
-            if kbd_values[k] != 0 {
-                info!("Key[{}] pressed: {}", k, kbd_values[k]);
+        kbd.read_decode_keys(&mut kbd_decoded);
+        for k in 0..kbd_decoded.len() {
+            if kbd_decoded[k] {
+                info!("Key {} [{}] pressed", kbd.code_to_key(k), k);
             }
         }
 
