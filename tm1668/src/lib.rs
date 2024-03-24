@@ -2,6 +2,7 @@
 
 extern crate alloc;
 
+#[cfg(feature = "lvgl")]
 pub mod group;
 
 use alloc::boxed::Box;
@@ -9,9 +10,8 @@ use core::{convert::Infallible, mem::MaybeUninit};
 use defmt::*;
 use embedded_hal::{blocking::delay::DelayUs, digital::v2::OutputPin};
 #[cfg(feature = "lvgl")]
-use lvgl::input_device::InputDriver;
 use lvgl::{
-    input_device::{pointer::PointerInputData, BufferStatus, Data},
+    input_device::{pointer::PointerInputData, BufferStatus, Data, InputDriver},
     LvError,
 };
 
@@ -147,11 +147,13 @@ where
     }
 }
 
+#[cfg(feature = "lvgl")]
 pub struct KeypadDriver {
     pub(crate) driver: Box<lvgl_sys::lv_indev_drv_t>,
     pub(crate) descriptor: Option<*mut lvgl_sys::lv_indev_t>,
 }
 
+#[cfg(feature = "lvgl")]
 unsafe extern "C" fn read_input<F>(
     indev_drv: *mut lvgl_sys::lv_indev_drv_t,
     data: *mut lvgl_sys::lv_indev_data_t,

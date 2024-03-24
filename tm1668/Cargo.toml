@@ -22,6 +22,6 @@ default-features = false
 optional = true
 
 [features]
-default = ["lvgl"]
-# default = []
+#default = ["lvgl"]
+default = []
 lvgl = ["dep:lvgl", "dep:lvgl-sys"]

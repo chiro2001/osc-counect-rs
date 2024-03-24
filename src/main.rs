@@ -15,12 +15,6 @@ use cstr_core::CString;
 use embedded_graphics_core::prelude::*;
 use embedded_graphics_core::primitives::Rectangle;
 use ili9341::{DisplaySize240x320, Ili9341, Orientation};
-use lvgl::widgets::{Bar, Btn, Label};
-use lvgl::{
-    input_device::{pointer::PointerInputData, BufferStatus, Data, InputDriver, InputState},
-    style::Style,
-};
-use lvgl::{Align, Animation, Color, Display, DrawBuffer, Event, Part, Widget};
 
 use embassy_executor::Spawner;
 use embassy_stm32::{
@@ -37,7 +31,7 @@ use embassy_time::{Delay, Instant, Timer};
 
 use display_interface_fsmc as fsmc;
 
-use tm1668::{group::Group, InoutPin};
+use tm1668::InoutPin;
 
 mod osc;
 
@@ -103,16 +97,6 @@ where
             Timer::after_millis(self.delay_ms).await;
         }
         self.pwm.disable(self.channel);
-    }
-}
-
-unsafe extern "C" fn lvgl_log_cb(text: *const u8) {
-    let s = core::str::from_utf8_unchecked(core::slice::from_raw_parts(text, 256));
-    // remove \n at the end
-    if s.len() > 1 {
-        let s = s.trim_end_matches('\n');
-        // let s = s.get_unchecked(0..s.len() - 1);
-        defmt::println!("[LVGL] {}", s);
     }
 }
 
@@ -249,160 +233,9 @@ async fn main(_spawner: Spawner) {
     let mut cnt = 0u32;
     let cnt_time = 2000;
 
-    unsafe {
-        lvgl_sys::lv_init();
-    }
+    let kbd = tm1668::TM1668::new(stb, clk, dio, &mut delay);
 
-    unsafe { lvgl_sys::lv_log_register_print_cb(Some(lvgl_log_cb)) };
-
-    // const BUFFER_SZ: usize = 320 * 8;
-    const BUFFER_SZ: usize = 320 * 4;
-
-    let buffer = DrawBuffer::<BUFFER_SZ>::default();
-    let display = Display::register(buffer, lcd.width() as u32, lcd.height() as u32, |refresh| {
-        let area = &refresh.area;
-        let rc = Rectangle::new(
-            Point::new(area.x1 as i32, area.y1 as i32),
-            Size::new(
-                (area.x2 - area.x1 + 1) as u32,
-                (area.y2 - area.y1 + 1) as u32,
-            ),
-        );
-        lcd.fill_contiguous(&rc, refresh.colors.into_iter().map(|p| p.into()))
-            .unwrap();
-    })
-    .unwrap();
-
-    let kbd = RefCell::new(tm1668::TM1668::new(stb, clk, dio, &mut delay));
-    let mut keypad_drv = tm1668::KeypadDriver::register(
-        || {
-            let mut kbd_decoded = [false; 20];
-            static mut LAST: [bool; 20] = [false; 20];
-            kbd.borrow_mut().read_decode_keys(&mut kbd_decoded);
-            let mut r = BufferStatus::Once(InputState::Released(Data::Pointer(
-                // invalid key
-                PointerInputData::Key(0xff),
-            )));
-            for k in 0..kbd_decoded.len() {
-                if kbd_decoded[k] && !unsafe { LAST[k] } {
-                    debug!("Key {} [{}] pressed", kbd.borrow().code_to_key(k), k);
-                    r = BufferStatus::Once(InputState::Pressed(Data::Pointer(
-                        PointerInputData::Key(k as _),
-                    )));
-                    break;
-                } else if !kbd_decoded[k] && unsafe { LAST[k] } {
-                    debug!("Key {} [{}] released", kbd.borrow().code_to_key(k), k);
-                    r = BufferStatus::Once(InputState::Released(Data::Pointer(
-                        PointerInputData::Key(k as _),
-                    )));
-                    break;
-                }
-            }
-            unsafe {
-                LAST = kbd_decoded;
-            }
-            r
-        },
-        &display,
-    )
-    .unwrap();
-
-    let mut screen = display.get_scr_act().unwrap();
-
-    let mut screen_style = Style::default();
-    screen_style.set_bg_color(Color::from_rgb((0, 0, 0)));
-    screen_style.set_radius(0);
-    screen.add_style(Part::Main, &mut screen_style).unwrap();
-
-    // Create the bar object
-    // let mut bar = Bar::create(&mut screen).unwrap();
-    // bar.set_size(175, 20).unwrap();
-    // bar.set_align(Align::Center, 0, 0).unwrap();
-    // bar.set_range(0, 100).unwrap();
-    // bar.on_event(|_b, _e| {
-    //     // info!("Completed!");
-    // })
-    // .unwrap();
-
-    // Set the indicator style for the bar object
-    // let mut ind_style = Style::default();
-    // ind_style.set_bg_color(Color::from_rgb((100, 245, 100)));
-    // bar.add_style(Part::Any, &mut ind_style).unwrap();
-
-    // let mut loading_lbl = Label::create(&mut screen).unwrap();
-    // loading_lbl
-    //     .set_text(CString::new("Testing bar...").unwrap().as_c_str())
-    //     .unwrap();
-    // loading_lbl.set_align(Align::OutTopMid, 0, 0).unwrap();
-
-    // let mut style = Style::default();
-    // style.set_text_color(Color::from_rgb((255, 255, 255)));
-
-    // loading_lbl.add_style(Part::Main, &mut style).unwrap();
-
-    let mut group = Group::default();
-    group.set_indev(&mut keypad_drv).unwrap();
-    let mut btn = Btn::create(&mut screen).unwrap();
-    let mut btn_lbl = Label::create(&mut btn).unwrap();
-    btn_lbl
-        .set_text(CString::new("Hello").unwrap().as_c_str())
-        .unwrap();
-    btn.on_event(|_b, _e| {
-        info!("Button clicked!");
-    })
-    .unwrap();
-    btn.set_align(Align::OutTopMid, 0, 0).unwrap();
-    group.add_obj(&btn).unwrap();
-    let mut btn2 = Btn::create(&mut screen).unwrap();
-    let mut btn_lbl2 = Label::create(&mut btn2).unwrap();
-    btn_lbl2
-        .set_text(CString::new("LVGL").unwrap().as_c_str())
-        .unwrap();
-    btn2.on_event(|_b, _e| {
-        info!("Button2 clicked!");
-    })
-    .unwrap();
-    btn2.set_align(Align::Center, 0, 0).unwrap();
-    group.add_obj(&btn2).unwrap();
-
-    let mut i = 0;
-    let mut last = Instant::now().as_ticks();
     loop {
-        let start = Instant::now().as_millis();
-        if i > 100 {
-            i = 0;
-            // lvgl::event_send(&mut bar, Event::Clicked).unwrap();
-        }
-        // bar.set_value(i, Animation::ON).unwrap();
-        i += 1;
-        cnt += 1;
 
-        let mut buf = [0u8; 64];
-
-        lvgl::task_handler();
-        Timer::after_millis(100).await;
-        let now = Instant::now().as_millis();
-        let duration = now - start;
-        lvgl::tick_inc(Duration::from_millis(duration as u64));
-        debug!("duration: {}, now: {}, last: {}", duration, now, last);
-
-        if now >= last {
-            if now - last > cnt_time {
-                let fps = (cnt * 1000) as u64 / cnt_time;
-                let s = format_no_std::show(
-                    &mut buf,
-                    format_args!("Hello lv_binding_rust! fps={}", fps),
-                )
-                .unwrap();
-                debug!("fps {}, output: {}", fps, s);
-                cnt = 0;
-                // loading_lbl
-                //     .set_text(CString::new(s).unwrap().as_c_str())
-                //     .unwrap();
-                last = now;
-            }
-        } else {
-            last = now;
-        }
     }
 }
