@@ -302,34 +302,38 @@ async fn main(_spawner: Spawner) {
     screen.add_style(Part::Main, &mut screen_style).unwrap();
 
     // Create the bar object
-    let mut bar = Bar::create(&mut screen).unwrap();
-    bar.set_size(175, 20).unwrap();
-    bar.set_align(Align::Center, 0, 0).unwrap();
-    bar.set_range(0, 100).unwrap();
-    bar.on_event(|_b, _e| {
-        // info!("Completed!");
-    })
-    .unwrap();
+    // let mut bar = Bar::create(&mut screen).unwrap();
+    // bar.set_size(175, 20).unwrap();
+    // bar.set_align(Align::Center, 0, 0).unwrap();
+    // bar.set_range(0, 100).unwrap();
+    // bar.on_event(|_b, _e| {
+    //     // info!("Completed!");
+    // })
+    // .unwrap();
 
     // Set the indicator style for the bar object
-    let mut ind_style = Style::default();
-    ind_style.set_bg_color(Color::from_rgb((100, 245, 100)));
-    bar.add_style(Part::Any, &mut ind_style).unwrap();
+    // let mut ind_style = Style::default();
+    // ind_style.set_bg_color(Color::from_rgb((100, 245, 100)));
+    // bar.add_style(Part::Any, &mut ind_style).unwrap();
 
-    let mut loading_lbl = Label::create(&mut screen).unwrap();
-    loading_lbl
-        .set_text(CString::new("Testing bar...").unwrap().as_c_str())
-        .unwrap();
-    loading_lbl.set_align(Align::OutTopMid, 0, 0).unwrap();
+    // let mut loading_lbl = Label::create(&mut screen).unwrap();
+    // loading_lbl
+    //     .set_text(CString::new("Testing bar...").unwrap().as_c_str())
+    //     .unwrap();
+    // loading_lbl.set_align(Align::OutTopMid, 0, 0).unwrap();
 
-    let mut style = Style::default();
-    style.set_text_color(Color::from_rgb((255, 255, 255)));
+    // let mut style = Style::default();
+    // style.set_text_color(Color::from_rgb((255, 255, 255)));
 
-    loading_lbl.add_style(Part::Main, &mut style).unwrap();
+    // loading_lbl.add_style(Part::Main, &mut style).unwrap();
 
     let mut group = Group::default();
     group.set_indev(&mut keypad_drv).unwrap();
     let mut btn = Btn::create(&mut screen).unwrap();
+    let mut btn_lbl = Label::create(&mut btn).unwrap();
+    btn_lbl
+        .set_text(CString::new("Hello").unwrap().as_c_str())
+        .unwrap();
     btn.on_event(|_b, _e| {
         info!("Button clicked!");
     })
@@ -342,9 +346,9 @@ async fn main(_spawner: Spawner) {
         let start = Instant::now().as_millis();
         if i > 100 {
             i = 0;
-            lvgl::event_send(&mut bar, Event::Clicked).unwrap();
+            // lvgl::event_send(&mut bar, Event::Clicked).unwrap();
         }
-        bar.set_value(i, Animation::ON).unwrap();
+        // bar.set_value(i, Animation::ON).unwrap();
         i += 1;
         cnt += 1;
 
@@ -367,9 +371,9 @@ async fn main(_spawner: Spawner) {
                 .unwrap();
                 debug!("fps {}, output: {}", fps, s);
                 cnt = 0;
-                loading_lbl
-                    .set_text(CString::new(s).unwrap().as_c_str())
-                    .unwrap();
+                // loading_lbl
+                //     .set_text(CString::new(s).unwrap().as_c_str())
+                //     .unwrap();
                 last = now;
             }
         } else {

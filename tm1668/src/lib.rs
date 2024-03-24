@@ -169,7 +169,12 @@ unsafe extern "C" fn read_input<F>(
                     key,
                 ))) => {
                     debug!("Released key {}", key);
+                }
+                lvgl::input_device::InputState::Pressed(Data::Pointer(PointerInputData::Key(
+                    key,
+                ))) => {
                     let code = KEY_MAP[key as usize];
+                    info!("Pressed key {} code {}", key, code);
                     let act_key = match code {
                         "F1" => Some(lvgl_sys::LV_KEY_LEFT),
                         "F2" => Some(lvgl_sys::LV_KEY_UP),
@@ -181,11 +186,6 @@ unsafe extern "C" fn read_input<F>(
                     if let Some(k) = act_key {
                         (*data).key = k;
                     }
-                }
-                lvgl::input_device::InputState::Pressed(Data::Pointer(PointerInputData::Key(
-                    key,
-                ))) => {
-                    info!("Pressed key {}", key);
                 }
                 _ => {}
             };

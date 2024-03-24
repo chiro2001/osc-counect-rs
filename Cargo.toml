@@ -92,7 +92,7 @@ lto = true
 [profile.release.package."*"]
 #opt-level = 3
 opt-level = "z"
-debug = true
+debug = false
 #lto = true
 strip = false
 
