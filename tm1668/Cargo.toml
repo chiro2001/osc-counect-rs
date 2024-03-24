@@ -5,3 +5,22 @@ edition = "2021"
 
 [dependencies]
 embedded-hal = "0.2.7"
+
+[dependencies.lvgl]
+version = "0.6.2"
+features = [
+    "embedded_graphics", "unsafe_no_autoinit",
+    "alloc", "lvgl_alloc"
+]
+default-features = false
+optional = true
+
+[dependencies.lvgl-sys]
+version = "0.6.2"
+default-features = false
+optional = true
+
+[features]
+# default = ["lvgl"]
+default = []
+lvgl = ["dep:lvgl"]

@@ -2,6 +2,8 @@
 
 use core::convert::Infallible;
 use embedded_hal::{blocking::delay::DelayUs, digital::v2::OutputPin};
+#[cfg(feature = "lvgl")]
+use lvgl::input_device::InputDriver;
 
 /// TM1668
 /// Key Map 4x5
@@ -12,8 +14,8 @@ use embedded_hal::{blocking::delay::DelayUs, digital::v2::OutputPin};
 /// *  [19]    0 [18]    # [9]     OK    [8]
 
 const KEY_MAP: [&str; 20] = [
-    "F4", "F3", "Lock", "3", "X", "6", "<", "9", "OK", "#", "2", "1", "F2", "F1", "5", "4", "8", "7",
-    "0", "*",
+    "F4", "F3", "Lock", "3", "X", "6", "<", "9", "OK", "#", "2", "1", "F2", "F1", "5", "4", "8",
+    "7", "0", "*",
 ];
 
 pub trait InoutPin {
@@ -132,5 +134,39 @@ where
             // self.delay.delay_us(1);
         }
         data
+    }
+}
+
+#[cfg(feature = "lvgl")]
+impl<'d, S, C, D, DELAY> InputDriver<TM1668<'d, S, C, D, DELAY>> for TM1668<'d, S, C, D, DELAY> {
+    fn register<F>(
+        handler: F,
+        display: &lvgl::Display,
+    ) -> lvgl::LvResult<TM1668<'d, S, C, D, DELAY>>
+    where
+        F: Fn() -> lvgl::input_device::BufferStatus,
+    {
+        todo!()
+    }
+
+    fn get_driver(&mut self) -> &mut lvgl_sys::lv_indev_drv_t {
+        todo!()
+    }
+
+    unsafe fn new_raw(
+        read_cb: Option<
+            unsafe extern "C" fn(*mut lvgl_sys::lv_indev_drv_t, *mut lvgl_sys::lv_indev_data_t),
+        >,
+        feedback_cb: Option<unsafe extern "C" fn(*mut lvgl_sys::lv_indev_drv_t, u8)>,
+        display: &lvgl::Display,
+    ) -> lvgl::LvResult<TM1668<'d, S, C, D, DELAY>> {
+        todo!()
+    }
+
+    unsafe fn set_descriptor(
+        &mut self,
+        descriptor: *mut lvgl_sys::lv_indev_t,
+    ) -> lvgl::LvResult<()> {
+        todo!()
     }
 }

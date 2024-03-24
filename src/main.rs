@@ -6,7 +6,7 @@
 
 extern crate alloc;
 
-use core::time::Duration;
+use core::{mem::MaybeUninit, time::Duration};
 use defmt::*;
 use embedded_graphics::pixelcolor::Rgb565;
 use {defmt_rtt as _, panic_probe as _};
@@ -19,7 +19,7 @@ use lvgl::style::Style;
 use lvgl::widgets::{Bar, Label};
 use lvgl::{Align, Animation, Color, Display, DrawBuffer, Event, Part, Widget};
 
-use alloc::vec::Vec;
+use alloc::{boxed::Box, vec::Vec};
 use embassy_executor::Spawner;
 use embassy_stm32::{
     gpio::{Flex, OutputType, Pull},
@@ -36,6 +36,12 @@ use embassy_time::{Delay, Instant, Timer};
 use display_interface_fsmc as fsmc;
 
 use tm1668::InoutPin;
+
+mod osc;
+
+use embedded_alloc::Heap;
+#[global_allocator]
+static HEAP: Heap = Heap::empty();
 
 struct DioPin<'d> {
     pin: Flex<'d>,
@@ -98,6 +104,37 @@ where
     }
 }
 
+// unsafe extern "C" fn kbd_feedback(_indev_drv: *mut lvgl_sys::lv_indev_drv_t, _code: u8) {}
+
+unsafe extern "C" fn kbd_read_input(
+    indev_drv: *mut lvgl_sys::lv_indev_drv_t,
+    data: *mut lvgl_sys::lv_indev_data_t,
+) {
+    let kbd = indev_drv as *mut tm1668::TM1668<'_, Output<'_>, Output<'_>, DioPin, Delay>;
+    let mut kbd_decoded = [false; 20];
+    kbd.as_mut().unwrap().read_decode_keys(&mut kbd_decoded);
+    let data = data.as_mut().unwrap();
+    for k in 0..kbd_decoded.len() {
+        if kbd_decoded[k] {
+            info!("kbd_read_input: key {} pressed", k);
+            data.key = k as _;
+            data.state = lvgl_sys::lv_indev_state_t_LV_INDEV_STATE_PRESSED;
+            return;
+        }
+    }
+    data.state = lvgl_sys::lv_indev_state_t_LV_INDEV_STATE_RELEASED;
+}
+
+unsafe extern "C" fn lvgl_log_cb(text: *const u8) {
+    let s = core::str::from_utf8_unchecked(core::slice::from_raw_parts(text, 256));
+    // remove \n at the end
+    if s.len() > 1 {
+        let s = s.trim_end_matches('\n');
+        // let s = s.get_unchecked(0..s.len() - 1);
+        defmt::println!("[LVGL] {}", s);
+    }
+}
+
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
     // #[cfg(feature = "custom-alloc")]
@@ -126,6 +163,13 @@ async fn main(_spawner: Spawner) {
     let mut delay = Delay {};
 
     info!("System launched!");
+
+    {
+        use core::mem::MaybeUninit;
+        const HEAP_SIZE: usize = 8 * 1024;
+        static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
+        unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
+    }
 
     let init = fsmc::FsmcNorsramInitTypeDef {
         ns_bank: 0,
@@ -234,7 +278,7 @@ async fn main(_spawner: Spawner) {
         pin: Flex::new(p.PE4),
     };
     let clk = Output::new(p.PE3, Level::Low, Speed::Low);
-    let mut kbd = tm1668::TM1668::new(stb, clk, dio, &mut delay);
+    let kbd = tm1668::TM1668::new(stb, clk, dio, &mut delay);
     let mut kbd_decoded = [false; 20];
 
     let mut cnt = 0u32;
@@ -244,7 +288,10 @@ async fn main(_spawner: Spawner) {
         lvgl_sys::lv_init();
     }
 
-    const BUFFER_SZ: usize = 320 * 8;
+    unsafe { lvgl_sys::lv_log_register_print_cb(Some(lvgl_log_cb)) };
+
+    // const BUFFER_SZ: usize = 320 * 8;
+    const BUFFER_SZ: usize = 320 * 4;
 
     let buffer = DrawBuffer::<BUFFER_SZ>::default();
     let display = Display::register(buffer, lcd.width() as u32, lcd.height() as u32, |refresh| {
@@ -261,10 +308,24 @@ async fn main(_spawner: Spawner) {
     })
     .unwrap();
 
+    let kbd_driver = unsafe {
+        let mut indev_drv = MaybeUninit::uninit();
+        lvgl_sys::lv_indev_drv_init(indev_drv.as_mut_ptr());
+        let mut indev_drv = Box::new(indev_drv.assume_init());
+        indev_drv.type_ = lvgl_sys::lv_indev_type_t_LV_INDEV_TYPE_KEYPAD;
+        indev_drv.read_cb = Some(kbd_read_input);
+        indev_drv.user_data = Box::into_raw(Box::new(kbd)) as *mut _;
+        indev_drv
+    };
+    // lvgl::indev_drv_register(&mut kbd_driver).unwrap();
+    let kbd_descr = unsafe { lvgl_sys::lv_indev_drv_register(Box::into_raw(kbd_driver)) };
+    defmt::assert!(!kbd_descr.is_null());
+    // kbd_driver.set_descriptor(descr)?;
+
     let mut screen = display.get_scr_act().unwrap();
 
     let mut screen_style = Style::default();
-    screen_style.set_bg_color(Color::from_rgb((255, 255, 255)));
+    screen_style.set_bg_color(Color::from_rgb((0, 0, 0)));
     screen_style.set_radius(0);
     screen.add_style(Part::Main, &mut screen_style).unwrap();
 
@@ -296,9 +357,11 @@ async fn main(_spawner: Spawner) {
     keys_lbl.set_align(Align::OutTopMid, 0, 40).unwrap();
 
     let mut style = Style::default();
-    style.set_text_color(Color::from_rgb((0, 0, 0)));
+    style.set_text_color(Color::from_rgb((255, 255, 255)));
+
     loading_lbl.add_style(Part::Main, &mut style).unwrap();
-    let mut last_keys = Vec::new();
+    keys_lbl.add_style(Part::Main, &mut style).unwrap();
+    // let mut last_keys = Vec::new();
 
     let mut i = 0;
     let mut last = Instant::now().as_ticks();
@@ -312,38 +375,39 @@ async fn main(_spawner: Spawner) {
         i += 1;
         cnt += 1;
 
-        kbd.read_decode_keys(&mut kbd_decoded);
-        let mut keys = Vec::new();
-        let mut has_keys = false;
-        for k in 0..kbd_decoded.len() {
-            if kbd_decoded[k] {
-                // info!("Key {} [{}] pressed", kbd.code_to_key(k), k);
-                has_keys = true;
-                keys.push(kbd.code_to_key(k));
-            }
-        }
         let mut buf = [0u8; 64];
-        if has_keys {
-            if keys != last_keys {
-                buzzer.beep().await;
-                let s = format_no_std::show(&mut buf, format_args!("keys: {:?}", keys)).unwrap();
-                keys_lbl
-                    .set_text(CString::new(s).unwrap().as_c_str())
-                    .unwrap();
-                let s = format_no_std::show(
-                    &mut buf,
-                    format_args!("keys: {:?}, last_keys: {:?}", keys, last_keys),
-                )
-                .unwrap();
-                info!("{}", s);
-                last_keys = keys;
-            }
-        } else {
-            keys_lbl
-                .set_text(CString::new("No keys pressed").unwrap().as_c_str())
-                .unwrap();
-            last_keys.clear();
-        }
+
+        // kbd.read_decode_keys(&mut kbd_decoded);
+        // let mut keys = Vec::new();
+        // let mut has_keys = false;
+        // for k in 0..kbd_decoded.len() {
+        //     if kbd_decoded[k] {
+        //         // info!("Key {} [{}] pressed", kbd.code_to_key(k), k);
+        //         has_keys = true;
+        //         keys.push(kbd.code_to_key(k));
+        //     }
+        // }
+        // if has_keys {
+        //     if keys != last_keys {
+        //         buzzer.beep().await;
+        //         let s = format_no_std::show(&mut buf, format_args!("keys: {:?}", keys)).unwrap();
+        //         keys_lbl
+        //             .set_text(CString::new(s).unwrap().as_c_str())
+        //             .unwrap();
+        //         let s = format_no_std::show(
+        //             &mut buf,
+        //             format_args!("keys: {:?}, last_keys: {:?}", keys, last_keys),
+        //         )
+        //         .unwrap();
+        //         info!("{}", s);
+        //         last_keys = keys;
+        //     }
+        // } else {
+        //     keys_lbl
+        //         .set_text(CString::new("No keys pressed").unwrap().as_c_str())
+        //         .unwrap();
+        //     last_keys.clear();
+        // }
 
         lvgl::task_handler();
         Timer::after_millis(100).await;
