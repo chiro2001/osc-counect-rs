@@ -106,27 +106,6 @@ where
     }
 }
 
-// unsafe extern "C" fn kbd_feedback(_indev_drv: *mut lvgl_sys::lv_indev_drv_t, _code: u8) {}
-
-// unsafe extern "C" fn kbd_read_input(
-//     indev_drv: *mut lvgl_sys::lv_indev_drv_t,
-//     data: *mut lvgl_sys::lv_indev_data_t,
-// ) {
-//     let kbd = indev_drv as *mut tm1668::TM1668<'_, Output<'_>, Output<'_>, DioPin, Delay>;
-//     let mut kbd_decoded = [false; 20];
-//     kbd.as_mut().unwrap().read_decode_keys(&mut kbd_decoded);
-//     let data = data.as_mut().unwrap();
-//     for k in 0..kbd_decoded.len() {
-//         if kbd_decoded[k] {
-//             info!("kbd_read_input: key {} pressed", k);
-//             data.key = k as _;
-//             data.state = lvgl_sys::lv_indev_state_t_LV_INDEV_STATE_PRESSED;
-//             return;
-//         }
-//     }
-//     data.state = lvgl_sys::lv_indev_state_t_LV_INDEV_STATE_RELEASED;
-// }
-
 unsafe extern "C" fn lvgl_log_cb(text: *const u8) {
     let s = core::str::from_utf8_unchecked(core::slice::from_raw_parts(text, 256));
     // remove \n at the end
@@ -236,8 +215,6 @@ async fn main(_spawner: Spawner) {
     lcd.clear(Rgb565::new(0, 0, 0)).unwrap();
     info!("OK!");
 
-    // let mut bl_pin = Output::new(p.PC8, Level::High, Speed::Low);
-    // bl_pin.set_high();
     let mut bl = SimplePwm::new(
         // Warning: TIM3 channel 3 not usable
         p.TIM8,
@@ -259,18 +236,6 @@ async fn main(_spawner: Spawner) {
         Hertz::hz(523),
         Default::default(),
     );
-    // beep.set_duty(Channel::Ch4, beep.get_max_duty() / 2);
-    // let do_beep = || {
-    //     beep.enable(Channel::Ch4);
-    //     beep.set_frequency(Hertz::hz(523));
-    //     Timer::after_millis(50).await;
-    //     beep.set_frequency(Hertz::hz(659));
-    //     Timer::after_millis(50).await;
-    //     beep.set_frequency(Hertz::hz(784));
-    //     Timer::after_millis(50).await;
-    //     beep.disable(Channel::Ch4);
-    // };
-    // do_beep();
     let mut buzzer = Buzzer::new(beep, Channel::Ch4, 50);
     buzzer.beep().await;
 
@@ -280,7 +245,6 @@ async fn main(_spawner: Spawner) {
         pin: Flex::new(p.PE4),
     };
     let clk = Output::new(p.PE3, Level::Low, Speed::Low);
-    // let mut kbd_decoded = [false; 20];
 
     let mut cnt = 0u32;
     let cnt_time = 2000;
@@ -309,20 +273,6 @@ async fn main(_spawner: Spawner) {
     })
     .unwrap();
 
-    // let kbd_driver = unsafe {
-    //     let mut indev_drv = MaybeUninit::uninit();
-    //     lvgl_sys::lv_indev_drv_init(indev_drv.as_mut_ptr());
-    //     let mut indev_drv = Box::new(indev_drv.assume_init());
-    //     indev_drv.type_ = lvgl_sys::lv_indev_type_t_LV_INDEV_TYPE_KEYPAD;
-    //     indev_drv.read_cb = Some(kbd_read_input);
-    //     indev_drv.user_data = Box::into_raw(Box::new(kbd)) as *mut _;
-    //     indev_drv
-    // };
-    // // lvgl::indev_drv_register(&mut kbd_driver).unwrap();
-    // let kbd_descr = unsafe { lvgl_sys::lv_indev_drv_register(Box::into_raw(kbd_driver)) };
-    // defmt::assert!(!kbd_descr.is_null());
-    // // kbd_driver.set_descriptor(descr)?;
-
     let kbd = RefCell::new(tm1668::TM1668::new(stb, clk, dio, &mut delay));
     let _keypad_drv = tm1668::KeypadDriver::register(
         || {
@@ -330,7 +280,7 @@ async fn main(_spawner: Spawner) {
             kbd.borrow_mut().read_decode_keys(&mut kbd_decoded);
             for k in 0..kbd_decoded.len() {
                 if kbd_decoded[k] {
-                    info!("Key {} [{}] pressed", kbd.borrow().code_to_key(k), k);
+                    debug!("Key {} [{}] pressed", kbd.borrow().code_to_key(k), k);
                     return BufferStatus::Once(InputState::Pressed(Data::Pointer(
                         PointerInputData::Key(k as _),
                     )));
@@ -370,20 +320,12 @@ async fn main(_spawner: Spawner) {
     loading_lbl
         .set_text(CString::new("Testing bar...").unwrap().as_c_str())
         .unwrap();
-    loading_lbl.set_align(Align::OutTopMid, 0, 20).unwrap();
-
-    let mut keys_lbl = Label::create(&mut screen).unwrap();
-    keys_lbl
-        .set_text(CString::new("Testing key...").unwrap().as_c_str())
-        .unwrap();
-    keys_lbl.set_align(Align::OutTopMid, 0, 40).unwrap();
+    loading_lbl.set_align(Align::OutTopMid, 0, 0).unwrap();
 
     let mut style = Style::default();
     style.set_text_color(Color::from_rgb((255, 255, 255)));
 
     loading_lbl.add_style(Part::Main, &mut style).unwrap();
-    keys_lbl.add_style(Part::Main, &mut style).unwrap();
-    // let mut last_keys = Vec::new();
 
     let mut i = 0;
     let mut last = Instant::now().as_ticks();
@@ -398,38 +340,6 @@ async fn main(_spawner: Spawner) {
         cnt += 1;
 
         let mut buf = [0u8; 64];
-
-        // kbd.read_decode_keys(&mut kbd_decoded);
-        // let mut keys = Vec::new();
-        // let mut has_keys = false;
-        // for k in 0..kbd_decoded.len() {
-        //     if kbd_decoded[k] {
-        //         // info!("Key {} [{}] pressed", kbd.code_to_key(k), k);
-        //         has_keys = true;
-        //         keys.push(kbd.code_to_key(k));
-        //     }
-        // }
-        // if has_keys {
-        //     if keys != last_keys {
-        //         buzzer.beep().await;
-        //         let s = format_no_std::show(&mut buf, format_args!("keys: {:?}", keys)).unwrap();
-        //         keys_lbl
-        //             .set_text(CString::new(s).unwrap().as_c_str())
-        //             .unwrap();
-        //         let s = format_no_std::show(
-        //             &mut buf,
-        //             format_args!("keys: {:?}, last_keys: {:?}", keys, last_keys),
-        //         )
-        //         .unwrap();
-        //         info!("{}", s);
-        //         last_keys = keys;
-        //     }
-        // } else {
-        //     keys_lbl
-        //         .set_text(CString::new("No keys pressed").unwrap().as_c_str())
-        //         .unwrap();
-        //     last_keys.clear();
-        // }
 
         lvgl::task_handler();
         Timer::after_millis(100).await;
@@ -446,7 +356,7 @@ async fn main(_spawner: Spawner) {
                     format_args!("Hello lv_binding_rust! fps={}", fps),
                 )
                 .unwrap();
-                info!("fps {}, output: {}", fps, s);
+                debug!("fps {}, output: {}", fps, s);
                 cnt = 0;
                 loading_lbl
                     .set_text(CString::new(s).unwrap().as_c_str())
