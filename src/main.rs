@@ -20,8 +20,11 @@ use lvgl::widgets::{Bar, Label};
 use lvgl::{Align, Animation, Color, Display, DrawBuffer, Event, Part, Widget};
 
 use embassy_executor::Spawner;
-use embassy_stm32::gpio::{Level, Output, Speed};
-use embassy_stm32::time::Hertz;
+use embassy_stm32::{gpio::OutputType, time::Hertz, timer::Channel};
+use embassy_stm32::{
+    gpio::{Level, Output, Speed},
+    timer::simple_pwm::{PwmPin, SimplePwm},
+};
 use embassy_stm32::{pac, Config};
 use embassy_time::{Delay, Instant, Timer};
 
@@ -50,11 +53,9 @@ async fn main(_spawner: Spawner) {
         config.rcc.apb2_pre = APBPrescaler::DIV1;
     }
     let p = embassy_stm32::init(config);
+    // let p = embassy_stm32::init(Default::default());
 
     info!("System launched!");
-
-    let mut bl_pin = Output::new(p.PC8, Level::High, Speed::Low);
-    bl_pin.set_high();
 
     let init = fsmc::FsmcNorsramInitTypeDef {
         ns_bank: 0,
@@ -120,6 +121,21 @@ async fn main(_spawner: Spawner) {
     lcd.clear(Rgb565::new(0, 0, 0)).unwrap();
     info!("OK!");
 
+    // let mut bl_pin = Output::new(p.PC8, Level::High, Speed::Low);
+    // bl_pin.set_high();
+    let mut bl = SimplePwm::new(
+        // Warning: TIM3 channel 3 not usable
+        p.TIM8,
+        None,
+        None,
+        Some(PwmPin::new_ch3(p.PC8, OutputType::PushPull)),
+        None,
+        Hertz::khz(2),
+        Default::default(),
+    );
+    bl.enable(Channel::Ch3);
+    bl.set_duty(Channel::Ch3, bl.get_max_duty() / 2);
+
     let mut cnt = 0u32;
     let cnt_time = 2000;
 
@@ -127,7 +143,7 @@ async fn main(_spawner: Spawner) {
         lvgl_sys::lv_init();
     }
 
-    const BUFFER_SZ: usize = 320 * 6;
+    const BUFFER_SZ: usize = 320 * 8;
 
     let buffer = DrawBuffer::<BUFFER_SZ>::default();
     let display = Display::register(buffer, lcd.width() as u32, lcd.height() as u32, |refresh| {
