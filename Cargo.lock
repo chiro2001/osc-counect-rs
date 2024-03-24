@@ -1506,6 +1506,7 @@ dependencies = [
 name = "tm1668"
 version = "0.1.0"
 dependencies = [
+ "defmt",
  "embedded-hal 0.2.7",
  "lvgl",
  "lvgl-sys",

@@ -1,9 +1,17 @@
 #![no_std]
 
-use core::convert::Infallible;
+extern crate alloc;
+
+use alloc::boxed::Box;
+use core::{convert::Infallible, mem::MaybeUninit};
+use defmt::*;
 use embedded_hal::{blocking::delay::DelayUs, digital::v2::OutputPin};
 #[cfg(feature = "lvgl")]
 use lvgl::input_device::InputDriver;
+use lvgl::{
+    input_device::{pointer::PointerInputData, BufferStatus, Data},
+    LvError,
+};
 
 /// TM1668
 /// Key Map 4x5
@@ -135,22 +143,92 @@ where
         }
         data
     }
+
+    extern "C" fn kbd_read_input(
+        drv: *mut lvgl_sys::lv_indev_drv_t,
+        data: *mut lvgl_sys::lv_indev_data_t,
+    ) {
+        let kbd = unsafe { &mut *((*drv).user_data as *mut Self) };
+        let data = unsafe { &mut *data };
+        let mut keys = [false; 20];
+        kbd.read_decode_keys(&mut keys);
+        data.state = lvgl_sys::lv_indev_state_t_LV_INDEV_STATE_RELEASED;
+        for i in 0..keys.len() {
+            // let key = kbd.code_to_key(i);
+            if keys[i] {
+                data.key = i as u32;
+                data.state = lvgl_sys::lv_indev_state_t_LV_INDEV_STATE_PRESSED;
+                break;
+            }
+        }
+    }
+}
+
+pub struct KeypadDriver {
+    pub(crate) driver: Box<lvgl_sys::lv_indev_drv_t>,
+    pub(crate) descriptor: Option<*mut lvgl_sys::lv_indev_t>,
+}
+
+unsafe extern "C" fn read_input<F>(
+    indev_drv: *mut lvgl_sys::lv_indev_drv_t,
+    data: *mut lvgl_sys::lv_indev_data_t,
+) where
+    F: Fn() -> BufferStatus,
+{
+    // convert user data to function
+    let user_closure = &mut *((*indev_drv).user_data as *mut F);
+    // call user data
+    let info: BufferStatus = user_closure();
+    match info {
+        BufferStatus::Once(input) => match input {
+            lvgl::input_device::InputState::Released(Data::Pointer(PointerInputData::Key(key))) => {
+                debug!("Released key {}", key);
+            }
+            lvgl::input_device::InputState::Pressed(Data::Pointer(PointerInputData::Key(key))) => {
+                info!("Pressed key {}", key);
+            }
+            _ => {}
+        },
+        BufferStatus::Buffered(_) => {
+            info!("Buffered");
+        }
+    }
 }
 
 #[cfg(feature = "lvgl")]
-impl<'d, S, C, D, DELAY> InputDriver<TM1668<'d, S, C, D, DELAY>> for TM1668<'d, S, C, D, DELAY> {
-    fn register<F>(
-        handler: F,
-        display: &lvgl::Display,
-    ) -> lvgl::LvResult<TM1668<'d, S, C, D, DELAY>>
+impl InputDriver<KeypadDriver> for KeypadDriver {
+    fn register<F>(handler: F, display: &lvgl::Display) -> lvgl::LvResult<Self>
     where
         F: Fn() -> lvgl::input_device::BufferStatus,
     {
-        todo!()
+        let driver = unsafe {
+            let mut indev_drv = MaybeUninit::uninit();
+            lvgl_sys::lv_indev_drv_init(indev_drv.as_mut_ptr());
+            let mut indev_drv = Box::new(indev_drv.assume_init());
+            indev_drv.type_ = lvgl_sys::lv_indev_type_t_LV_INDEV_TYPE_KEYPAD;
+            indev_drv.read_cb = Some(read_input::<F>);
+            indev_drv.user_data = Box::into_raw(Box::new(handler)) as *mut _;
+            indev_drv
+        };
+        let mut dev = Self {
+            driver,
+            descriptor: None,
+        };
+
+        match unsafe {
+            let descr = lvgl_sys::lv_indev_drv_register(dev.get_driver() as *mut _);
+            if descr.is_null() {
+                return Err(LvError::LvOOMemory);
+            }
+            dev.set_descriptor(descr)
+        } {
+            Ok(()) => Ok(dev),
+            Err(e) => Err(e),
+        }
     }
 
     fn get_driver(&mut self) -> &mut lvgl_sys::lv_indev_drv_t {
-        todo!()
+        self.driver.as_mut()
     }
 
     unsafe fn new_raw(
@@ -159,14 +237,42 @@ impl<'d, S, C, D, DELAY> InputDriver<TM1668<'d, S, C, D, DELAY>> for TM1668<'d, 
         >,
         feedback_cb: Option<unsafe extern "C" fn(*mut lvgl_sys::lv_indev_drv_t, u8)>,
         display: &lvgl::Display,
-    ) -> lvgl::LvResult<TM1668<'d, S, C, D, DELAY>> {
-        todo!()
+    ) -> lvgl::LvResult<KeypadDriver> {
+        let driver = unsafe {
+            let mut indev_drv = MaybeUninit::uninit();
+            lvgl_sys::lv_indev_drv_init(indev_drv.as_mut_ptr());
+            let mut indev_drv = Box::new(indev_drv.assume_init());
+            indev_drv.type_ = lvgl_sys::lv_indev_type_t_LV_INDEV_TYPE_KEYPAD;
+            indev_drv.read_cb = read_cb;
+            indev_drv.feedback_cb = feedback_cb;
+            indev_drv
+        };
+        let mut dev = Self {
+            driver,
+            descriptor: None,
+        };
+
+        match unsafe {
+            let descr = lvgl_sys::lv_indev_drv_register(dev.get_driver() as *mut _);
+            if descr.is_null() {
+                return Err(LvError::LvOOMemory);
+            }
+            dev.set_descriptor(descr)
+        } {
+            Ok(()) => Ok(dev),
+            Err(e) => Err(e),
+        }
     }
 
     unsafe fn set_descriptor(
         &mut self,
         descriptor: *mut lvgl_sys::lv_indev_t,
     ) -> lvgl::LvResult<()> {
-        todo!()
+        if self.descriptor.is_none() {
+            self.descriptor = Some(descriptor);
+        } else {
+            return Err(LvError::AlreadyInUse);
+        }
+        Ok(())
     }
 }

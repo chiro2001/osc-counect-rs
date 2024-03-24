@@ -6,7 +6,7 @@
 
 extern crate alloc;
 
-use core::{mem::MaybeUninit, time::Duration};
+use core::{cell::RefCell, mem::MaybeUninit, time::Duration};
 use defmt::*;
 use embedded_graphics::pixelcolor::Rgb565;
 use {defmt_rtt as _, panic_probe as _};
@@ -15,11 +15,13 @@ use cstr_core::CString;
 use embedded_graphics_core::prelude::*;
 use embedded_graphics_core::primitives::Rectangle;
 use ili9341::{DisplaySize240x320, Ili9341, Orientation};
-use lvgl::style::Style;
 use lvgl::widgets::{Bar, Label};
+use lvgl::{
+    input_device::{pointer::PointerInputData, BufferStatus, Data, InputDriver, InputState},
+    style::Style,
+};
 use lvgl::{Align, Animation, Color, Display, DrawBuffer, Event, Part, Widget};
 
-use alloc::{boxed::Box, vec::Vec};
 use embassy_executor::Spawner;
 use embassy_stm32::{
     gpio::{Flex, OutputType, Pull},
@@ -106,24 +108,24 @@ where
 
 // unsafe extern "C" fn kbd_feedback(_indev_drv: *mut lvgl_sys::lv_indev_drv_t, _code: u8) {}
 
-unsafe extern "C" fn kbd_read_input(
-    indev_drv: *mut lvgl_sys::lv_indev_drv_t,
-    data: *mut lvgl_sys::lv_indev_data_t,
-) {
-    let kbd = indev_drv as *mut tm1668::TM1668<'_, Output<'_>, Output<'_>, DioPin, Delay>;
-    let mut kbd_decoded = [false; 20];
-    kbd.as_mut().unwrap().read_decode_keys(&mut kbd_decoded);
-    let data = data.as_mut().unwrap();
-    for k in 0..kbd_decoded.len() {
-        if kbd_decoded[k] {
-            info!("kbd_read_input: key {} pressed", k);
-            data.key = k as _;
-            data.state = lvgl_sys::lv_indev_state_t_LV_INDEV_STATE_PRESSED;
-            return;
-        }
-    }
-    data.state = lvgl_sys::lv_indev_state_t_LV_INDEV_STATE_RELEASED;
-}
+// unsafe extern "C" fn kbd_read_input(
+//     indev_drv: *mut lvgl_sys::lv_indev_drv_t,
+//     data: *mut lvgl_sys::lv_indev_data_t,
+// ) {
+//     let kbd = indev_drv as *mut tm1668::TM1668<'_, Output<'_>, Output<'_>, DioPin, Delay>;
+//     let mut kbd_decoded = [false; 20];
+//     kbd.as_mut().unwrap().read_decode_keys(&mut kbd_decoded);
+//     let data = data.as_mut().unwrap();
+//     for k in 0..kbd_decoded.len() {
+//         if kbd_decoded[k] {
+//             info!("kbd_read_input: key {} pressed", k);
+//             data.key = k as _;
+//             data.state = lvgl_sys::lv_indev_state_t_LV_INDEV_STATE_PRESSED;
+//             return;
+//         }
+//     }
+//     data.state = lvgl_sys::lv_indev_state_t_LV_INDEV_STATE_RELEASED;
+// }
 
 unsafe extern "C" fn lvgl_log_cb(text: *const u8) {
     let s = core::str::from_utf8_unchecked(core::slice::from_raw_parts(text, 256));
@@ -278,8 +280,7 @@ async fn main(_spawner: Spawner) {
         pin: Flex::new(p.PE4),
     };
     let clk = Output::new(p.PE3, Level::Low, Speed::Low);
-    let kbd = tm1668::TM1668::new(stb, clk, dio, &mut delay);
-    let mut kbd_decoded = [false; 20];
+    // let mut kbd_decoded = [false; 20];
 
     let mut cnt = 0u32;
     let cnt_time = 2000;
@@ -308,19 +309,40 @@ async fn main(_spawner: Spawner) {
     })
     .unwrap();
 
-    let kbd_driver = unsafe {
-        let mut indev_drv = MaybeUninit::uninit();
-        lvgl_sys::lv_indev_drv_init(indev_drv.as_mut_ptr());
-        let mut indev_drv = Box::new(indev_drv.assume_init());
-        indev_drv.type_ = lvgl_sys::lv_indev_type_t_LV_INDEV_TYPE_KEYPAD;
-        indev_drv.read_cb = Some(kbd_read_input);
-        indev_drv.user_data = Box::into_raw(Box::new(kbd)) as *mut _;
-        indev_drv
-    };
-    // lvgl::indev_drv_register(&mut kbd_driver).unwrap();
-    let kbd_descr = unsafe { lvgl_sys::lv_indev_drv_register(Box::into_raw(kbd_driver)) };
-    defmt::assert!(!kbd_descr.is_null());
-    // kbd_driver.set_descriptor(descr)?;
+    // let kbd_driver = unsafe {
+    //     let mut indev_drv = MaybeUninit::uninit();
+    //     lvgl_sys::lv_indev_drv_init(indev_drv.as_mut_ptr());
+    //     let mut indev_drv = Box::new(indev_drv.assume_init());
+    //     indev_drv.type_ = lvgl_sys::lv_indev_type_t_LV_INDEV_TYPE_KEYPAD;
+    //     indev_drv.read_cb = Some(kbd_read_input);
+    //     indev_drv.user_data = Box::into_raw(Box::new(kbd)) as *mut _;
+    //     indev_drv
+    // };
+    // // lvgl::indev_drv_register(&mut kbd_driver).unwrap();
+    // let kbd_descr = unsafe { lvgl_sys::lv_indev_drv_register(Box::into_raw(kbd_driver)) };
+    // defmt::assert!(!kbd_descr.is_null());
+    // // kbd_driver.set_descriptor(descr)?;
+
+    let kbd = RefCell::new(tm1668::TM1668::new(stb, clk, dio, &mut delay));
+    let _keypad_drv = tm1668::KeypadDriver::register(
+        || {
+            let mut kbd_decoded = [false; 20];
+            kbd.borrow_mut().read_decode_keys(&mut kbd_decoded);
+            for k in 0..kbd_decoded.len() {
+                if kbd_decoded[k] {
+                    info!("Key {} [{}] pressed", kbd.borrow().code_to_key(k), k);
+                    return BufferStatus::Once(InputState::Pressed(Data::Pointer(
+                        PointerInputData::Key(k as _),
+                    )));
+                }
+            }
+            BufferStatus::Once(InputState::Released(Data::Pointer(PointerInputData::Key(
+                0,
+            ))))
+        },
+        &display,
+    )
+    .unwrap();
 
     let mut screen = display.get_scr_act().unwrap();
 
