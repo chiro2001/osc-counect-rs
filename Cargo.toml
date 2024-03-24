@@ -1,5 +1,6 @@
 workspace = { members = [
     "display-interface-fsmc",
+    "ili9341-rs",
 ] }
 
 [package]
@@ -34,8 +35,11 @@ embedded-graphics-core = "0.3.3"
 embedded-hal = "0.2.7"
 format_no_std = "1.0.2"
 fugit = "0.3.7"
-ili9341 = "0.5.0"
+# ili9341 = "0.5.0"
 nb = "1"
+
+[dependencies.ili9341]
+path = "ili9341-rs"
 
 # Target side implementation of the RTT (Real-Time Transfer) I/O protocol
 [dependencies.rtt-target]

@@ -1,6 +1,14 @@
 #![no_std]
 
 use display_interface::{DataFormat, DisplayError, WriteOnlyDataCommand};
+use embassy_stm32::{
+    dma::TransferOptions,
+    pac::{
+        self,
+        bdma::vals::{Dir, Pl, Size},
+    },
+    peripherals::DMA2_CH4,
+};
 
 #[doc = r"FSMC Register block"]
 #[repr(C)]
@@ -180,9 +188,11 @@ pub struct SramHandleTypeDef {
 }
 
 impl SramHandleTypeDef {
-    pub fn new(init: FsmcNorsramInitTypeDef,
-               timing: FsmcNorsramTimingTypeDef,
-               ext_timing: FsmcNorsramTimingTypeDef) -> Self {
+    pub fn new(
+        init: FsmcNorsramInitTypeDef,
+        timing: FsmcNorsramTimingTypeDef,
+        ext_timing: FsmcNorsramTimingTypeDef,
+    ) -> Self {
         Self {
             device: unsafe { &mut *(FSMC_DEV_ADDR as *mut FSMC) },
             init,
@@ -238,9 +248,7 @@ pub fn fsmc_norsram_extended_timing_init(device: &mut FSMC, _timing: &FsmcNorsra
     device.bwtr1 = 0x0ff001f0u32;
 }
 
-pub fn hal_sram_init(
-    hsram: &mut SramHandleTypeDef,
-) {
+pub fn hal_sram_init(hsram: &mut SramHandleTypeDef) {
     // fsmc_norsram_init(hsram.device, &hsram.init);
     // fsmc_norsram_timing_init(hsram.device, &hsram.timing);
     // fsmc_norsram_extended_timing_init(hsram.device, &hsram.ext_timing);
@@ -393,7 +401,7 @@ impl WriteOnlyDataCommand for FsmcInterface {
         Ok(())
     }
 
-    #[inline(always)]
+    #[inline(never)]
     fn send_data(&mut self, data: DataFormat<'_>) -> Result {
         match data {
             DataFormat::U8Iter(iter) => {
@@ -404,15 +412,43 @@ impl WriteOnlyDataCommand for FsmcInterface {
                 }
             }
             DataFormat::U16BEIter(iter) => {
-                // let buf = unsafe { core::slice::from_raw_parts_mut(self.ram, 1) };
-                // for d in iter {
-                //     // better performance...why?
-                //     buf[0] = d;
-                // }
+                let buf = unsafe { core::slice::from_raw_parts_mut(self.ram, 1) };
                 for d in iter {
-                    unsafe {
-                        *self.ram = d;
-                    }
+                    // better performance...why?
+                    buf[0] = d;
+                }
+            }
+            DataFormat::U16BE(value) => {
+                // send with async dma
+                // pac::DMA2.ch(4).mar().write_value(value.as_ptr() as u32);
+                // pac::DMA2.ch(4).par().write_value(self.ram as u32);
+                // pac::DMA2.ch(4).ndtr().write_value(value.len() as u32);
+                // pac::DMA2.ch(4).cr().modify(|w| {
+                //     w.set_mem2mem(true);
+                //     w.set_dir(Dir::FROMMEMORY);
+                //     w.set_minc(true);
+                //     w.set_pinc(false);
+                //     w.set_pl(Pl::HIGH);
+                //     w.set_msize(Size::BITS16);
+                //     w.set_psize(Size::BITS16);
+                //     w.set_circ(false);
+                //     w.set_en(true);
+                // });
+
+                // let transfer = unsafe {
+                //     embassy_stm32::dma::Transfer::new_write(
+                //         DMA2_CH4::steal(),
+                //         (),
+                //         value,
+                //         self.ram,
+                //         TransferOptions::default(),
+                //     )
+                // };
+                // transfer.blocking_wait();
+
+                let buf = unsafe { core::slice::from_raw_parts_mut(self.ram, 1) };
+                for d in value.into_iter() {
+                    buf[0] = *d;
                 }
             }
             _ => return Err(DisplayError::InvalidFormatError),

@@ -324,6 +324,7 @@ name = "display-interface-fsmc"
 version = "0.1.0"
 dependencies = [
  "display-interface",
+ "embassy-stm32",
 ]
 
 [[package]]
@@ -874,8 +875,6 @@ checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 [[package]]
 name = "ili9341"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "52897a923ee65051ae7da0f0b3d326c08d3b0998aa59346dc9a856e3f137c0a9"
 dependencies = [
  "display-interface",
  "embedded-graphics-core",
@@ -925,7 +924,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c2a198fb6b0eada2a8df47933734e6d35d350665a33a3593d7164fa52c75c19"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.4",
 ]
 
 [[package]]

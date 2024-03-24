@@ -7,4 +7,4 @@ description = "A display interface library for STM32F103 FSMC, tested on board c
 
 [dependencies]
 display-interface = "0.4.1"
-
+embassy-stm32 = { version = "0.1.0", path = "../embassy/embassy-stm32", features = [ "defmt", "stm32f103vc", "unstable-pac", "memory-x", "time-driver-any" ]  }

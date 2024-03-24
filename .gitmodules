@@ -1,3 +1,6 @@
 [submodule "embassy"]
 	path = embassy
 	url = https://github.com/embassy-rs/embassy
+[submodule "ili9341-rs"]
+	path = ili9341-rs
+	url = https://github.com/chiro2001/ili9341-rs

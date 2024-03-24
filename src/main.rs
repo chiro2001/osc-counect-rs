@@ -132,6 +132,9 @@ async fn main(_spawner: Spawner) {
     let buffer = DrawBuffer::<BUFFER_SZ>::default();
     let display = Display::register(buffer, lcd.width() as u32, lcd.height() as u32, |refresh| {
         let area = &refresh.area;
+
+        defmt::assert!(area.x2 > area.x1);
+        defmt::assert!(area.y2 > area.y1);
         let rc = Rectangle::new(
             Point::new(area.x1 as i32, area.y1 as i32),
             Size::new(
@@ -139,8 +142,35 @@ async fn main(_spawner: Spawner) {
                 (area.y2 - area.y1 + 1) as u32,
             ),
         );
-        lcd.fill_contiguous(&rc, refresh.colors.into_iter().map(|p| p.into()))
+        // lcd.fill_contiguous(&rc, refresh.colors.into_iter().map(|p| p.into()))
+        //     .unwrap();
+        let len = refresh.colors.len();
+        let data_ptr = refresh.colors.as_ptr() as *const u16;
+        lcd.fill_slice(&rc, unsafe { core::slice::from_raw_parts(data_ptr, len) })
             .unwrap();
+
+        // let len = refresh.colors.len();
+        // let data_ptr = refresh.colors.as_ptr() as *const u16;
+        // lcd.draw_raw_slice(
+        //     area.x1 as u16,
+        //     area.y1 as u16,
+        //     area.x2 as u16,
+        //     area.y2 as u16,
+        //     unsafe { core::slice::from_raw_parts(data_ptr, len) },
+        // )
+        // .unwrap();
+
+        // lcd.draw_raw_iter(
+        //     area.x1 as u16,
+        //     area.y1 as u16,
+        //     area.x2 as u16,
+        //     area.y2 as u16,
+        //     refresh.colors.into_iter().map(|p| {
+        //         let b = Rgb565::from(p).to_be_bytes();
+        //         b[1] as u16 | ((b[0] as u16) << 8u16)
+        //     }),
+        // )
+        // .unwrap();
     })
     .unwrap();
 
