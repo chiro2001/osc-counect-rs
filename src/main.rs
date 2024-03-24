@@ -23,7 +23,7 @@ use embassy_stm32::{
     timer::simple_pwm::{PwmPin, SimplePwm},
 };
 use embassy_stm32::{pac, Config};
-use embassy_time::{Delay, Timer};
+use embassy_time::{Delay, Instant, Timer};
 
 use display_interface_fsmc as fsmc;
 
@@ -179,7 +179,7 @@ async fn main(_spawner: Spawner) {
         .cr(1)
         .write_value(pac::gpio::regs::Cr(0xBBBBBBBB));
     pac::RCC.ahbenr().modify(|w| w.set_fsmcen(true));
-    let interface = fsmc::FsmcInterface::new(hsram, PeripheralRef::new(p.DMA1_CH4));
+    let interface = fsmc::FsmcInterface::new(hsram, PeripheralRef::new(p.DMA2_CH4));
     let rst = Output::new(p.PC9, Level::Low, Speed::Low);
     let mut lcd = Ili9327::new(
         interface,
@@ -231,11 +231,26 @@ async fn main(_spawner: Spawner) {
     let _kbd = tm1668::TM1668::new(stb, clk, dio, &mut delay);
 
     let mut color = 0;
+    let frames = 30;
+    let mut start = Instant::now();
+    const SPLIT: usize = 8;
+    const BUF: [u16; 240 / SPLIT * 320] = [0; 240 / SPLIT * 320];
     loop {
         // info!("Color: {}", color);
-        lcd.clear_screen(color).await.unwrap();
+        // lcd.clear_screen(color).await.unwrap();
+        lcd.draw_raw_slice(0, 0, lcd.width as _, lcd.height as _, &BUF)
+            .await
+            .unwrap();
+        for _ in 0..3 {
+            lcd.write_slice(&BUF).await.unwrap();
+        }
         color += 1;
-        if color > 0xFFF {
+        if color > frames {
+            let now = Instant::now();
+            let duration = now - start;
+            let fps = frames as f32 * 1000.0 / duration.as_millis() as f32;
+            info!("FPS: {}", fps);
+            start = now;
             color = 0;
         }
         // Timer::after_millis(100).await;
