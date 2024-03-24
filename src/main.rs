@@ -147,7 +147,7 @@ async fn main(_spawner: Spawner) {
 
     {
         use core::mem::MaybeUninit;
-        const HEAP_SIZE: usize = 8 * 1024;
+        const HEAP_SIZE: usize = 16 * 1024;
         static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
         unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
     }
@@ -277,18 +277,31 @@ async fn main(_spawner: Spawner) {
     let mut keypad_drv = tm1668::KeypadDriver::register(
         || {
             let mut kbd_decoded = [false; 20];
+            static mut LAST: [bool; 20] = [false; 20];
             kbd.borrow_mut().read_decode_keys(&mut kbd_decoded);
+            let mut r = BufferStatus::Once(InputState::Released(Data::Pointer(
+                // invalid key
+                PointerInputData::Key(0xff),
+            )));
             for k in 0..kbd_decoded.len() {
-                if kbd_decoded[k] {
+                if kbd_decoded[k] && !unsafe { LAST[k] } {
                     debug!("Key {} [{}] pressed", kbd.borrow().code_to_key(k), k);
-                    return BufferStatus::Once(InputState::Pressed(Data::Pointer(
+                    r = BufferStatus::Once(InputState::Pressed(Data::Pointer(
                         PointerInputData::Key(k as _),
                     )));
+                    break;
+                } else if !kbd_decoded[k] && unsafe { LAST[k] } {
+                    debug!("Key {} [{}] released", kbd.borrow().code_to_key(k), k);
+                    r = BufferStatus::Once(InputState::Released(Data::Pointer(
+                        PointerInputData::Key(k as _),
+                    )));
+                    break;
                 }
             }
-            BufferStatus::Once(InputState::Released(Data::Pointer(PointerInputData::Key(
-                0,
-            ))))
+            unsafe {
+                LAST = kbd_decoded;
+            }
+            r
         },
         &display,
     )
@@ -338,7 +351,19 @@ async fn main(_spawner: Spawner) {
         info!("Button clicked!");
     })
     .unwrap();
+    btn.set_align(Align::OutTopMid, 0, 0).unwrap();
     group.add_obj(&btn).unwrap();
+    let mut btn2 = Btn::create(&mut screen).unwrap();
+    let mut btn_lbl2 = Label::create(&mut btn2).unwrap();
+    btn_lbl2
+        .set_text(CString::new("LVGL").unwrap().as_c_str())
+        .unwrap();
+    btn2.on_event(|_b, _e| {
+        info!("Button2 clicked!");
+    })
+    .unwrap();
+    btn2.set_align(Align::Center, 0, 0).unwrap();
+    group.add_obj(&btn2).unwrap();
 
     let mut i = 0;
     let mut last = Instant::now().as_ticks();

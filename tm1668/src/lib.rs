@@ -164,31 +164,48 @@ unsafe extern "C" fn read_input<F>(
     let info: BufferStatus = user_closure();
     (*data).continue_reading = match info {
         BufferStatus::Once(input) => {
-            match input {
+            let (valid, pressed, key) = match input {
                 lvgl::input_device::InputState::Released(Data::Pointer(PointerInputData::Key(
                     key,
                 ))) => {
-                    debug!("Released key {}", key);
+                    if key < 20 {
+                        info!("Released key {} code {}", key, KEY_MAP[key as usize]);
+                        (true, false, key)
+                    } else {
+                        (false, false, 0)
+                    }
                 }
                 lvgl::input_device::InputState::Pressed(Data::Pointer(PointerInputData::Key(
                     key,
                 ))) => {
-                    let code = KEY_MAP[key as usize];
-                    info!("Pressed key {} code {}", key, code);
-                    let act_key = match code {
-                        "F1" => Some(lvgl_sys::LV_KEY_LEFT),
-                        "F2" => Some(lvgl_sys::LV_KEY_UP),
-                        "F3" => Some(lvgl_sys::LV_KEY_DOWN),
-                        "F4" => Some(lvgl_sys::LV_KEY_RIGHT),
-                        "OK" => Some(lvgl_sys::LV_KEY_ENTER),
-                        _ => None,
-                    };
-                    if let Some(k) = act_key {
-                        (*data).key = k;
+                    if key < 20 {
+                        info!("Pressed key {} code {}", key, KEY_MAP[key as usize]);
+                        (true, true, key)
+                    } else {
+                        (false, false, 0)
                     }
                 }
-                _ => {}
+                _ => (false, false, 0),
             };
+            if valid && key < 20 {
+                let code = KEY_MAP[key as usize];
+                let act_key = match code {
+                    "F1" => Some(lvgl_sys::LV_KEY_PREV),
+                    "F2" => Some(lvgl_sys::LV_KEY_UP),
+                    "F3" => Some(lvgl_sys::LV_KEY_DOWN),
+                    "F4" => Some(lvgl_sys::LV_KEY_NEXT),
+                    "OK" => Some(lvgl_sys::LV_KEY_ENTER),
+                    _ => None,
+                };
+                if let Some(k) = act_key {
+                    (*data).key = k;
+                    (*data).state = if pressed {
+                        lvgl_sys::lv_indev_state_t_LV_INDEV_STATE_PRESSED
+                    } else {
+                        lvgl_sys::lv_indev_state_t_LV_INDEV_STATE_RELEASED
+                    };
+                }
+            }
             false
         }
         BufferStatus::Buffered(_input) => {
