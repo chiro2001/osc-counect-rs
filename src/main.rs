@@ -7,15 +7,16 @@
 extern crate alloc;
 
 use defmt::*;
-use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::prelude::*;
 use {defmt_rtt as _, panic_probe as _};
 
-use ili9341::{DisplaySize240x320, Ili9341 as Ili9327, Orientation};
+use ili9341::{DisplaySize240x320, Ili9341Async as Ili9327, Orientation};
 
 use embassy_executor::Spawner;
 use embassy_stm32::{
-    gpio::{Flex, OutputType, Pull}, time::Hertz, timer::{CaptureCompare16bitInstance, Channel}, PeripheralRef
+    gpio::{Flex, OutputType, Pull},
+    time::Hertz,
+    timer::{CaptureCompare16bitInstance, Channel},
+    PeripheralRef,
 };
 use embassy_stm32::{
     gpio::{Level, Output, Speed},
@@ -188,9 +189,10 @@ async fn main(_spawner: Spawner) {
         // Orientation::PortraitFlipped,
         DisplaySize240x320,
     )
+    .await
     .unwrap();
     // lcd.brightness(0).unwrap();
-    lcd.clear_screen(0).unwrap();
+    lcd.clear_screen(0).await.unwrap();
     // info!("Clearing...");
     // lcd.clear(Rgb565::new(0, 0, 0)).unwrap();
     info!("OK!");
@@ -231,11 +233,11 @@ async fn main(_spawner: Spawner) {
     let mut color = 0;
     loop {
         // info!("Color: {}", color);
-        lcd.clear_screen(color).unwrap();
+        lcd.clear_screen(color).await.unwrap();
         color += 1;
-        if color >= 8 {
+        if color > 0xFFF {
             color = 0;
         }
-        Timer::after_millis(100).await;
+        // Timer::after_millis(100).await;
     }
 }

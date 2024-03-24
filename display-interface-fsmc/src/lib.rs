@@ -1,9 +1,10 @@
 #![no_std]
 
-use display_interface::{DataFormat, DisplayError, WriteOnlyDataCommand};
-use embassy_hal_internal::Peripheral;
+use display_interface::{
+    AsyncWriteOnlyDataCommand, DataFormat, DisplayError, WriteOnlyDataCommand,
+};
 use embassy_stm32::{
-    dma::{AnyChannel, Channel, Transfer},
+    dma::{Channel, Transfer},
     PeripheralRef,
 };
 
@@ -445,11 +446,84 @@ where
                     )
                 };
                 transfer.blocking_wait();
-                // for d in val {
-                //     unsafe {
-                //         *self.ram = *d;
-                //     }
-                // }
+            }
+            _ => return Err(DisplayError::InvalidFormatError),
+        }
+        small_delay(&self);
+        Ok(())
+    }
+}
+
+impl<'d, Dma> AsyncWriteOnlyDataCommand for FsmcInterface<'d, Dma>
+where
+    Dma: Channel,
+{
+    #[inline(always)]
+    async fn send_commands(&mut self, cmds: DataFormat<'_>) -> Result {
+        match cmds {
+            DataFormat::U8(val) => {
+                for cmd in val {
+                    unsafe {
+                        *self.reg = *cmd as u16;
+                    }
+                }
+            }
+            DataFormat::U8Iter(iter) => {
+                for cmd in iter {
+                    unsafe {
+                        *self.reg = cmd as u16;
+                    }
+                }
+            }
+            _ => return Err(DisplayError::InvalidFormatError),
+        }
+        small_delay(&self);
+        Ok(())
+    }
+
+    #[inline(always)]
+    async fn send_data(&mut self, data: DataFormat<'_>) -> Result {
+        match data {
+            DataFormat::U8Iter(iter) => {
+                for d in iter {
+                    unsafe {
+                        *self.ram = d as u16;
+                    }
+                }
+            }
+            DataFormat::U8(val) => {
+                for d in val {
+                    unsafe {
+                        *self.ram = *d as u16;
+                    }
+                }
+            }
+            DataFormat::U16BEIter(iter) => {
+                for d in iter {
+                    unsafe {
+                        *self.ram = d;
+                    }
+                }
+            }
+            DataFormat::U16(val) => {
+                if val.len() > 16 {
+                    let transfer = unsafe {
+                        Transfer::new_write(
+                            self.channel.clone_unchecked(),
+                            (),
+                            val,
+                            self.ram,
+                            Default::default(),
+                        )
+                    };
+                    transfer.await;
+                } else {
+                    for d in val {
+                        unsafe {
+                            *self.ram = *d;
+                        }
+                    }
+                }
             }
             _ => return Err(DisplayError::InvalidFormatError),
         }
