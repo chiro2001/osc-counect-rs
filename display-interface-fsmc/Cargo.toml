@@ -6,5 +6,5 @@ authors = ["Chiro <chiro2001@163.com>"]
 description = "A display interface library for STM32F103 FSMC, tested on board counect with ili9341."
 
 [dependencies]
-display-interface = "0.4.1"
+display-interface = "0.5.0"
 

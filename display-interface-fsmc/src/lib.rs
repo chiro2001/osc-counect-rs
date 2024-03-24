@@ -180,9 +180,11 @@ pub struct SramHandleTypeDef {
 }
 
 impl SramHandleTypeDef {
-    pub fn new(init: FsmcNorsramInitTypeDef,
-               timing: FsmcNorsramTimingTypeDef,
-               ext_timing: FsmcNorsramTimingTypeDef) -> Self {
+    pub fn new(
+        init: FsmcNorsramInitTypeDef,
+        timing: FsmcNorsramTimingTypeDef,
+        ext_timing: FsmcNorsramTimingTypeDef,
+    ) -> Self {
         Self {
             device: unsafe { &mut *(FSMC_DEV_ADDR as *mut FSMC) },
             init,
@@ -238,9 +240,7 @@ pub fn fsmc_norsram_extended_timing_init(device: &mut FSMC, _timing: &FsmcNorsra
     device.bwtr1 = 0x0ff001f0u32;
 }
 
-pub fn hal_sram_init(
-    hsram: &mut SramHandleTypeDef,
-) {
+pub fn hal_sram_init(hsram: &mut SramHandleTypeDef) {
     // fsmc_norsram_init(hsram.device, &hsram.init);
     // fsmc_norsram_timing_init(hsram.device, &hsram.timing);
     // fsmc_norsram_extended_timing_init(hsram.device, &hsram.ext_timing);
@@ -380,6 +380,13 @@ impl WriteOnlyDataCommand for FsmcInterface {
     #[inline(always)]
     fn send_commands(&mut self, cmds: DataFormat<'_>) -> Result {
         match cmds {
+            DataFormat::U8(val) => {
+                for cmd in val {
+                    unsafe {
+                        *self.reg = *cmd as u16;
+                    }
+                }
+            }
             DataFormat::U8Iter(iter) => {
                 for cmd in iter {
                     unsafe {
@@ -403,6 +410,13 @@ impl WriteOnlyDataCommand for FsmcInterface {
                     }
                 }
             }
+            DataFormat::U8(val) => {
+                for d in val {
+                    unsafe {
+                        *self.ram = *d as u16;
+                    }
+                }
+            }
             DataFormat::U16BEIter(iter) => {
                 // let buf = unsafe { core::slice::from_raw_parts_mut(self.ram, 1) };
                 // for d in iter {
@@ -412,6 +426,18 @@ impl WriteOnlyDataCommand for FsmcInterface {
                 for d in iter {
                     unsafe {
                         *self.ram = d;
+                    }
+                }
+            }
+            DataFormat::U16(val) => {
+                // TODO: DMA
+                // let buf = unsafe { core::slice::from_raw_parts_mut(self.ram, 1) };
+                // for d in val {
+                //     buf[0] = *d;
+                // }
+                for d in val {
+                    unsafe {
+                        *self.ram = *d;
                     }
                 }
             }

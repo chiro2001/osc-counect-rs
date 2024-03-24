@@ -7,13 +7,11 @@
 extern crate alloc;
 
 use defmt::*;
+use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
-use embedded_graphics::{
-    pixelcolor::Rgb565,
-};
 use {defmt_rtt as _, panic_probe as _};
 
-use ili9341::{DisplaySize240x320, Ili9341, Orientation};
+use ili9341::{DisplaySize240x320, Ili9341 as Ili9327, Orientation};
 
 use embassy_executor::Spawner;
 use embassy_stm32::{
@@ -184,7 +182,7 @@ async fn main(_spawner: Spawner) {
     pac::RCC.ahbenr().modify(|w| w.set_fsmcen(true));
     let interface = fsmc::FsmcInterface::new(hsram);
     let rst = Output::new(p.PC9, Level::Low, Speed::Low);
-    let mut lcd = Ili9341::new(
+    let mut lcd = Ili9327::new(
         interface,
         rst,
         &mut delay,
@@ -193,8 +191,10 @@ async fn main(_spawner: Spawner) {
         DisplaySize240x320,
     )
     .unwrap();
-    info!("Clearing...");
-    lcd.clear(Rgb565::new(0, 0, 0)).unwrap();
+    // lcd.brightness(0).unwrap();
+    lcd.clear_screen(0).unwrap();
+    // info!("Clearing...");
+    // lcd.clear(Rgb565::new(0, 0, 0)).unwrap();
     info!("OK!");
 
     let mut bl = SimplePwm::new(
@@ -228,7 +228,16 @@ async fn main(_spawner: Spawner) {
     };
     let clk = Output::new(p.PE3, Level::Low, Speed::Low);
 
-    let kbd = tm1668::TM1668::new(stb, clk, dio, &mut delay);
+    let _kbd = tm1668::TM1668::new(stb, clk, dio, &mut delay);
 
-    loop {}
+    let mut color = 0;
+    loop {
+        // info!("Color: {}", color);
+        lcd.clear_screen(color).unwrap();
+        color += 1;
+        if color >= 8 {
+            color = 0;
+        }
+        Timer::after_millis(100).await;
+    }
 }
