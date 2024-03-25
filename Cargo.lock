@@ -518,6 +518,7 @@ checksum = "7ba2aab1ef3793e6f7804162debb5ac5edb93b3d650fbcc5aeb72fcd0e6c03a0"
 name = "display-interface-fsmc"
 version = "0.1.0"
 dependencies = [
+ "defmt",
  "display-interface 0.5.0",
  "embassy-hal-internal",
  "embassy-stm32",

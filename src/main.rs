@@ -13,7 +13,9 @@ use ili9341::{DisplaySize240x320, Ili9341Async as Ili9327, Orientation};
 
 use embassy_executor::Spawner;
 use embassy_stm32::{
+    dma::{Transfer, TransferOptions},
     gpio::{Flex, OutputType, Pull},
+    pac::bdma::vals::{Dir, Pl, Size},
     time::Hertz,
     timer::{CaptureCompare16bitInstance, Channel},
     PeripheralRef,
@@ -231,13 +233,95 @@ async fn main(_spawner: Spawner) {
     let _kbd = tm1668::TM1668::new(stb, clk, dio, &mut delay);
 
     let mut color = 0;
+    lcd.set_window(0, 0, 320, 240).await.unwrap();
+    const SZ: usize = 10 * 320;
+    const BUF: [u16; SZ] = [0x5a; SZ];
+    static mut DEST: [u16; SZ] = [1u16; SZ];
+    // let mut dma = PeripheralRef::new(p.DMA1_CH1);
+    // // let ch = &mut dma;
+    // // let req = unsafe { embassy_stm32::peripherals::DMA1_CH1::steal() }.request();
+    // let mut option = TransferOptions::default();
+    // option.complete_transfer_ir = true;
+    // option.priority = embassy_stm32::dma::Priority::Medium;
+
+    // let mut transfer = unsafe {
+    //     Transfer::new_write(
+    //         &mut dma,
+    //         // &mut p.DMA2_CH2,
+    //         (),
+    //         &BUF,
+    //         DEST.as_mut_ptr(),
+    //         option,
+    //     )
+    // };
+
+    // /* 存储器地址 */
+    // DMA2_Channel4->CMAR = (uint32_t)&color;
+    // /* 外设地址 */
+    // DMA2_Channel4->CPAR = (uint32_t)&LCD->LCD_RAM;
+    // /* 配置优先级 传输方向 内存2内存 外设地址增加 内存地址增加 */
+    // // DMA2_Channel4->CCR = DMA_CCR_PL | DMA_CCR_DIR | DMA_CCR_MEM2MEM | DMA_CCR_PINC | DMA_CCR_MINC;
+    // DMA2_Channel4->CCR = DMA_CCR_PL | DMA_CCR_DIR | DMA_CCR_MEM2MEM | DMA_CCR_MSIZE_0 | DMA_CCR_PSIZE_0;
+    // /* 传输的数据量 */
+    // DMA2_Channel4->CNDTR = totalpoint * 1;
+    //
+    // /* 使能DMA */
+    // DMA2_Channel4->CCR |= DMA_CCR_EN;
+    //
+    // while ((DMA2->ISR & DMA_ISR_TCIF4) == 0);
+    // DMA2->IFCR = DMA_IFCR_CTCIF4;
+    // DMA2_Channel4->CCR &= ~DMA_CCR_EN;
+    const LCD_FSMC_NEX: u32 = 1;
+    const LCD_FSMC_AX: u32 = 16;
+    let lcd_base: u32 =
+        (0x60000000u32 + (0x4000000u32 * (LCD_FSMC_NEX - 1))) | (((1 << LCD_FSMC_AX) * 2) - 2);
+    // pac::DMA2.ch(4).mar().write(|w| *w = 0x2000_0000);
+    // pac::DMA2.ch(4).par().write(|w| *w = lcd_base);
+    pac::DMA2.ch(4).mar().write(|w| *w = BUF.as_ptr() as u32);
+    pac::DMA2
+        .ch(4)
+        .par()
+        .write(|w| *w = unsafe { DEST.as_ptr() as u32 });
+    pac::DMA2.ch(4).ndtr().write(|w| w.set_ndt(BUF.len() as _));
+    pac::DMA2.ch(4).cr().write(|w| {
+        w.set_pl(Pl::HIGH);
+        w.set_dir(Dir::FROMMEMORY);
+        w.set_mem2mem(true);
+        w.set_msize(Size::BITS16);
+        w.set_psize(Size::BITS16);
+        w.set_minc(true);
+        w.set_pinc(false);
+    });
+    info!("dma starting");
+    // transfer.await;
+    // transfer.blocking_wait();
+    // while transfer.is_running() {
+    //     info!("dma running, remaining: {}", transfer.get_remaining_transfers());
+    //     Timer::after_millis(100).await;
+    // }
+    pac::DMA2.ch(4).cr().modify(|w| w.set_en(true));
+    while !pac::DMA2.isr().read().tcif(4) {}
+    info!("dma pass, DEST[0]: {:x}", unsafe { DEST[0] });
+    pac::DMA2.ifcr().write(|w| w.set_tcif(4, false));
+    pac::DMA2.ch(4).cr().modify(|w| w.set_en(false));
     loop {
-        // info!("Color: {}", color);
-        lcd.clear_screen(color).await.unwrap();
+        // lcd.set_window(0, 0, 320, 240).await.unwrap();
+        // for _ in 0..(248 * 320 * 2 / SZ) {
+        //     unsafe { lcd.write_slice(&DEST) }.await.unwrap();
+        // }
         color += 1;
         if color > 0xFFF {
             color = 0;
         }
+        // unsafe {
+        //     for i in 0..SZ {
+        //         DEST[i] = color;
+        //     }
+        // }
+        // info!("Color: {}", color);
+
+        lcd.clear_screen(color).await.unwrap();
+
         // Timer::after_millis(100).await;
     }
 }

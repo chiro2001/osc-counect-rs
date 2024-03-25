@@ -3,9 +3,9 @@
 use display_interface::{
     AsyncWriteOnlyDataCommand, DataFormat, DisplayError, WriteOnlyDataCommand,
 };
+use defmt::*;
 use embassy_stm32::{
-    dma::{Channel, Transfer},
-    PeripheralRef,
+    dma::{Channel, Transfer}, pac::{self, bdma::vals::{Dir, Pl, Size}}, PeripheralRef
 };
 
 #[doc = r"FSMC Register block"]
@@ -350,8 +350,8 @@ pub fn hal_fsmc_msp_init() {
 
 pub struct FsmcInterface<'d, Dma> {
     hsram: SramHandleTypeDef,
-    reg: *mut u16,
-    ram: *mut u16,
+    pub reg: *mut u16,
+    pub ram: *mut u16,
     channel: PeripheralRef<'d, Dma>,
 }
 
@@ -377,7 +377,7 @@ type Result = core::result::Result<(), DisplayError>;
 
 #[inline(always)]
 fn small_delay<T>(ptr: *const T) {
-    for _ in 0..1 {
+    for _ in 0..100 {
         unsafe {
             core::ptr::read_volatile(ptr);
         }
@@ -507,16 +507,48 @@ where
             }
             DataFormat::U16(val) => {
                 if val.len() > 16 {
-                    let transfer = unsafe {
-                        Transfer::new_write(
-                            self.channel.clone_unchecked(),
-                            (),
-                            val,
-                            self.ram,
-                            Default::default(),
-                        )
-                    };
-                    transfer.await;
+                    // let transfer = unsafe {
+                    //     Transfer::new_write(
+                    //         &mut self.channel,
+                    //         (),
+                    //         val,
+                    //         self.ram,
+                    //         Default::default(),
+                    //     )
+                    // };
+                    // // transfer.await;
+                    // transfer.blocking_wait();
+
+                    for d in val {
+                        unsafe {
+                            *self.ram = *d;
+                        }
+                    }
+
+                    // pac::DMA2.ch(4).mar().write(|w| *w = val.as_ptr() as u32);
+                    // pac::DMA2.ch(4).par().write(|w| *w = self.ram as u32);
+                    // pac::DMA2.ch(4).ndtr().write(|w| w.set_ndt(val.len() as _));
+                    // pac::DMA2.ch(4).cr().write(|w| {
+                    //     w.set_pl(Pl::HIGH);
+                    //     w.set_dir(Dir::FROMMEMORY);
+                    //     w.set_mem2mem(true);
+                    //     w.set_msize(Size::BITS16);
+                    //     w.set_psize(Size::BITS16);
+                    //     w.set_minc(true);
+                    //     w.set_pinc(false);
+                    // });
+                    // // info!("dma starting");
+                    // // transfer.await;
+                    // // transfer.blocking_wait();
+                    // // while transfer.is_running() {
+                    // //     info!("dma running, remaining: {}", transfer.get_remaining_transfers());
+                    // //     Timer::after_millis(100).await;
+                    // // }
+                    // pac::DMA2.ch(4).cr().modify(|w| w.set_en(true));
+                    // while !pac::DMA2.isr().read().tcif(4) {}
+                    // // info!("dma pass");
+                    // pac::DMA2.ifcr().write(|w| w.set_tcif(4, false));
+                    // pac::DMA2.ch(4).cr().modify(|w| w.set_en(false));
                 } else {
                     for d in val {
                         unsafe {
