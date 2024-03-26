@@ -107,13 +107,12 @@ async fn main(_spawner: Spawner) {
     let mut config = Config::default();
     {
         use embassy_stm32::rcc::*;
-        config.rcc.hse = Some(Hse {
-            freq: Hertz(25_000_000),
-            // Oscillator for bluepill, Bypass for nucleos.
-            mode: HseMode::Oscillator,
-        });
         #[cfg(feature = "stm32h743vi")]
         {
+            config.rcc.hse = Some(Hse {
+                freq: Hertz(25_000_000),
+                mode: HseMode::Oscillator,
+            });
             config.rcc.pll1 = Some(Pll {
                 source: PllSource::HSI,
                 prediv: PllPreDiv::DIV4,
@@ -125,6 +124,10 @@ async fn main(_spawner: Spawner) {
         }
         #[cfg(feature = "stm32f103vc")]
         {
+            config.rcc.hse = Some(Hse {
+                freq: Hertz(8_000_000),
+                mode: HseMode::Oscillator,
+            });
             config.rcc.pll = Some(Pll {
                 src: PllSource::HSE,
                 prediv: PllPreDiv::DIV1,
@@ -162,71 +165,68 @@ async fn main(_spawner: Spawner) {
         unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
     }
 
-    // let init = fsmc::FsmcNorsramInitTypeDef {
-    //     ns_bank: 0,
-    //     data_address_mux: 0,
-    //     memory_type: 0,
-    //     memory_data_width: 0x10,
-    //     burst_access_mode: 0,
-    //     wait_signal_polarity: 0,
-    //     wrap_mode: 0,
-    //     wait_signal_active: 0,
-    //     write_operation: 0x1000,
-    //     wait_signal: 0,
-    //     extended_mode: 0x4000,
-    //     asynchronous_wait: 0,
-    //     write_burst: 0,
-    //     page_size: 0,
-    // };
-    // let timing = fsmc::FsmcNorsramTimingTypeDef {
-    //     address_setup_time: 0,
-    //     address_hold_time: 1,
-    //     data_setup_time: 1,
-    //     bus_turn_around_duration: 0,
-    //     clk_division: 1,
-    //     data_latency: 2,
-    //     access_mode: 0,
-    // };
-    // let ext_timing = fsmc::FsmcNorsramTimingTypeDef {
-    //     address_setup_time: 0,
-    //     address_hold_time: 1,
-    //     data_setup_time: 1,
-    //     bus_turn_around_duration: 0,
-    //     clk_division: 1,
-    //     data_latency: 2,
-    //     access_mode: 0,
-    // };
-    // let hsram = fsmc::SramHandleTypeDef::new(init, timing, ext_timing);
-    // pac::GPIOD
-    //     .cr(0)
-    //     .write_value(pac::gpio::regs::Cr(0xB4BB44BB));
-    // pac::GPIOD
-    //     .cr(1)
-    //     .write_value(pac::gpio::regs::Cr(0xBB44BBBB));
-    // pac::GPIOE
-    //     .cr(0)
-    //     .write_value(pac::gpio::regs::Cr(0xB4444444));
-    // pac::GPIOE
-    //     .cr(1)
-    //     .write_value(pac::gpio::regs::Cr(0xBBBBBBBB));
-    // pac::RCC.ahbenr().modify(|w| w.set_fsmcen(true));
-    // let interface = fsmc::FsmcInterface::new(hsram, PeripheralRef::new(p.DMA1_CH4));
-    // let rst = Output::new(p.PC9, Level::Low, Speed::Low);
-    // let mut lcd = Ili9327::new(
-    //     interface,
-    //     rst,
-    //     &mut delay,
-    //     Orientation::LandscapeFlipped,
-    //     // Orientation::PortraitFlipped,
-    //     DisplaySize240x320,
-    // )
-    // .await
-    // .unwrap();
-    // // lcd.brightness(0).unwrap();
-    // lcd.clear_screen(0).await.unwrap();
-    // // info!("Clearing...");
-    // // lcd.clear(Rgb565::new(0, 0, 0)).unwrap();
-    // info!("OK!");
+    let init = fsmc::FsmcNorsramInitTypeDef {
+        ns_bank: 0,
+        data_address_mux: 0,
+        memory_type: 0,
+        memory_data_width: 0x10,
+        burst_access_mode: 0,
+        wait_signal_polarity: 0,
+        wrap_mode: 0,
+        wait_signal_active: 0,
+        write_operation: 0x1000,
+        wait_signal: 0,
+        extended_mode: 0x4000,
+        asynchronous_wait: 0,
+        write_burst: 0,
+        page_size: 0,
+    };
+    let timing = fsmc::FsmcNorsramTimingTypeDef {
+        address_setup_time: 0,
+        address_hold_time: 1,
+        data_setup_time: 1,
+        bus_turn_around_duration: 0,
+        clk_division: 1,
+        data_latency: 2,
+        access_mode: 0,
+    };
+    let ext_timing = fsmc::FsmcNorsramTimingTypeDef {
+        address_setup_time: 0,
+        address_hold_time: 1,
+        data_setup_time: 1,
+        bus_turn_around_duration: 0,
+        clk_division: 1,
+        data_latency: 2,
+        access_mode: 0,
+    };
+    let hsram = fsmc::SramHandleTypeDef::new(init, timing, ext_timing);
+    pac::GPIOD
+        .cr(0)
+        .write_value(pac::gpio::regs::Cr(0xB4BB44BB));
+    pac::GPIOD
+        .cr(1)
+        .write_value(pac::gpio::regs::Cr(0xBB44BBBB));
+    pac::GPIOE
+        .cr(0)
+        .write_value(pac::gpio::regs::Cr(0xB4444444));
+    pac::GPIOE
+        .cr(1)
+        .write_value(pac::gpio::regs::Cr(0xBBBBBBBB));
+    pac::RCC.ahbenr().modify(|w| w.set_fsmcen(true));
+    let interface = fsmc::FsmcInterface::new(hsram, PeripheralRef::new(p.DMA1_CH4));
+    let rst = Output::new(p.PC9, Level::Low, Speed::Low);
+    let mut lcd = Ili9327::new(
+        interface,
+        rst,
+        &mut delay,
+        Orientation::LandscapeFlipped,
+        // Orientation::PortraitFlipped,
+        DisplaySize240x320,
+    )
+    .await
+    .unwrap();
+    lcd.clear_screen(0).await.unwrap();
+    info!("OK!");
 
     let mut bl = SimplePwm::new(
         // Warning: TIM3 channel 3 not usable
@@ -261,154 +261,5 @@ async fn main(_spawner: Spawner) {
 
     let _kbd = tm1668::TM1668::new(stb, clk, dio, &mut delay);
 
-    let mut color = 0u16;
-    // lcd.set_window(0, 0, 320, 240).await.unwrap();
-    const SZ: usize = 20 * 320;
-    const BUF: [u16; SZ] = [0x5a; SZ];
-    static mut DEST: [u16; SZ] = [1u16; SZ];
-    unsafe {
-        DEST[0] = 0x5a;
-    }
-    // let mut dma = PeripheralRef::new(p.DMA1_CH1);
-    let mut dma = PeripheralRef::new(p.DMA1_CH1);
-    // // let ch = &mut dma;
-    // // let req = unsafe { embassy_stm32::peripherals::DMA1_CH1::steal() }.request();
-    let mut option = TransferOptions::default();
-    option.complete_transfer_ir = true;
-    option.priority = embassy_stm32::dma::Priority::Medium;
-
-    let mut transfer = unsafe {
-        Transfer::new_write(
-            &mut dma,
-            // &mut p.DMA2_CH2,
-            0,
-            &BUF,
-            DEST.as_mut_ptr(),
-            option,
-        )
-    };
-    info!("dma starting");
-    // transfer.await;
-    // transfer.blocking_wait();
-    while transfer.is_running() {
-        info!("dma running, remaining: {}", transfer.get_remaining_transfers());
-        Timer::after_millis(1000).await;
-    }
-
-    // const LCD_FSMC_NEX: u32 = 1;
-    // const LCD_FSMC_AX: u32 = 16;
-    // let lcd_base: u32 =
-    //     (0x60000000u32 + (0x4000000u32 * (LCD_FSMC_NEX - 1))) | (((1 << LCD_FSMC_AX) * 2) - 2);
-    // // pac::DMA2.ch(4).mar().write(|w| *w = 0x2000_0000);
-    // // pac::DMA2.ch(4).par().write(|w| *w = lcd_base);
-    // pac::DMA2.ch(4).par().write(|w| {});
-    // pac::DMA2
-    //     .ch(4)
-    //     .par()
-    //     .modify(|w| *w = unsafe { DEST }.as_ptr() as u32);
-    // // pac::DMA2.ch(4).ndtr().write(|w| w.set_ndt(BUF.len() as _));
-    // pac::DMA2.ch(4).mar().modify(|w| *w = BUF.as_ptr() as u32);
-    // pac::DMA2
-    //     .ch(4)
-    //     .ndtr()
-    //     .modify(|w| w.set_ndt((BUF.len() * size_of::<u16>()) as _));
-    // pac::DMA2.ch(4).cr().modify(|w| {
-    //     w.set_pl(Pl::HIGH);
-    // });
-    // pac::DMA2.ch(4).cr().modify(|w| {
-    //     w.set_dir(Dir::FROMMEMORY);
-    //     w.set_mem2mem(true);
-    //     w.set_msize(Size::BITS16);
-    //     w.set_psize(Size::BITS16);
-    //     w.set_minc(true);
-    //     w.set_pinc(true);
-
-    //     // w.set_teie(true);
-    //     // w.set_htie(true);
-    //     // w.set_tcie(true);
-    // });
-    // info!("dma starting");
-    // // while pac::DMA2.isr().read().tcif(4) {}
-    // pac::DMA2.ch(4).cr().modify(|w| w.set_en(true));
-    // while !pac::DMA2.isr().read().tcif(4) {}
-    // Timer::after_millis(100).await;
-    // let isr = pac::DMA2.isr().read();
-    // info!(
-    //     "dma done, isr gif:{} tcif:{} teif:{} htif:{}",
-    //     isr.gif(4),
-    //     isr.tcif(4),
-    //     isr.teif(4),
-    //     isr.htif(4)
-    // );
-    // pac::DMA2.ifcr().write(|w| w.set_tcif(4, false));
-    // pac::DMA2.ch(4).cr().modify(|w| w.set_en(false));
-    // info!("dma pass, DEST[0]: {:x}", unsafe { DEST[0] });
-    // for i in 0..SZ {
-    //     if unsafe { DEST[i] } != BUF[i] {
-    //         defmt::panic!(
-    //             "DMA data error at {}, expected {:x} now {:x}",
-    //             i,
-    //             BUF[i],
-    //             unsafe { DEST[i] }
-    //         );
-    //     }
-    // }
-    info!("dma data checked");
-
-    loop {
-        // lcd.set_window(0, 0, 320, 240).await.unwrap();
-        // lcd.command(Command::MemoryWrite, &[]).await.unwrap();
-        // // for _ in 0..(248 * 320 * 2 / SZ) {
-        // //     // unsafe { lcd.write_slice(&DEST) }.await.unwrap();
-        // //     use display_interface::AsyncWriteOnlyDataCommand;
-        // //     unsafe {
-        // //         lcd.interface.send_data(DataFormat::U16(&DEST)).await.unwrap();
-        // //     }
-        // // }
-
-        // pac::DMA2
-        //     .ch(4)
-        //     .mar()
-        //     // .write(|w| *w = (&color) as *const u16 as u32);
-        //     .write(|w| *w = unsafe { DEST }.as_ptr() as u32);
-        // pac::DMA2.ch(4).par().write(|w| *w = lcd_base as u32);
-        // pac::DMA2
-        //     .ch(4)
-        //     .ndtr()
-        //     .write(|w| w.set_ndt((320 * 240 / 2 * 1) as u16));
-        // pac::DMA2.ch(4).cr().write(|w| {
-        //     w.set_pl(Pl::HIGH);
-        //     w.set_dir(Dir::FROMMEMORY);
-        //     // w.set_mem2mem(true);
-        //     w.set_msize(Size::BITS16);
-        //     w.set_psize(Size::BITS16);
-        //     w.set_minc(false);
-        //     w.set_pinc(false);
-        // });
-        // info!("dma starting");
-        // pac::DMA2.ch(4).cr().modify(|w| w.set_en(true));
-        // while !pac::DMA2.isr().read().tcif(4) {
-        //     let remains = pac::DMA2.ch(4).ndtr().read();
-        //     info!("dma running, remaining: {}", remains.ndt());
-        //     // Timer::after_millis(100).await;
-        // }
-        // pac::DMA2.ifcr().write(|w| w.set_tcif(4, false));
-        // pac::DMA2.ch(4).cr().modify(|w| w.set_en(false));
-
-        info!("pass, color={:x}", color);
-        color += 1;
-        if color > 0xFFF {
-            color = 0;
-        }
-        unsafe {
-            for i in 0..SZ {
-                DEST[i] = color;
-            }
-        }
-        // info!("Color: {}", color);
-
-        // lcd.clear_screen(color).await.unwrap();
-
-        Timer::after_millis(1000).await;
-    }
+    loop {}
 }
