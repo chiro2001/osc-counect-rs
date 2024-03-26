@@ -53,7 +53,7 @@ heapless = { version = "0.8", default-features = false }
 cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
 cortex-m-rt = "0.7.3"
 cstr_core = "0.2.6"
-display-interface = "0.4.1"
+display-interface = "0.5.0"
 embedded-alloc = "0.5.1"
 embedded-graphics = "0.7.1"
 embedded-graphics-core = "0.3.3"
