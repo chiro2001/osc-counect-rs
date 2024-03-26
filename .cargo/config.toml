@@ -1,8 +1,12 @@
-[target.'cfg(all(target_arch = "arm", target_os = "none"))']
+[target.thumbv7em-none-eabi]
+runner = "probe-rs run --chip STM32H743VITx"
+
+[target.thumbv7m-none-eabi]
 runner = "probe-rs run --chip STM32F103VC"
 
 [build]
-target = "thumbv7m-none-eabi"
+# target = "thumbv7m-none-eabi"
+target = "thumbv7em-none-eabi"
 
 [tasks.flash]
 command = "openocd"

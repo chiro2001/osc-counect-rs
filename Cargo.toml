@@ -8,7 +8,6 @@ edition = "2021"
 [dependencies]
 embassy-stm32 = { version = "0.1.0", path = "./embassy/embassy-stm32", features = [
     "defmt",
-    "stm32f103vc",
     "unstable-pac",
     "memory-x",
     "time-driver-any",
@@ -94,3 +93,9 @@ opt-level = "s"
 debug = 2
 lto = true
 #strip = false
+
+[features]
+default = ["stm32h743vi"]
+# default = ["stm32f103vc"]
+stm32f103vc = ["embassy-stm32/stm32f103vc"]
+stm32h743vi = ["embassy-stm32/stm32h743vi"]
