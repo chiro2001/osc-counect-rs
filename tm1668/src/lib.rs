@@ -7,9 +7,9 @@ extern crate alloc;
 pub mod group;
 
 use alloc::boxed::Box;
+use embedded_hal::{delay::DelayNs, digital::OutputPin};
 use core::{convert::Infallible, mem::MaybeUninit};
 use defmt::*;
-use embedded_hal::{blocking::delay::DelayUs, digital::v2::OutputPin};
 #[cfg(feature = "lvgl")]
 use lvgl::{
     input_device::{pointer::PointerInputData, BufferStatus, Data, InputDriver},
@@ -56,7 +56,7 @@ where
     S: OutputPin<Error = Infallible>,
     C: OutputPin<Error = Infallible>,
     D: InoutPin,
-    DELAY: DelayUs<u16>,
+    DELAY: DelayNs,
 {
     pub fn new(stb: S, clk: C, dio: D, delay: &'d mut DELAY) -> Self {
         Self {

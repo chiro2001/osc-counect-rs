@@ -835,8 +835,21 @@ dependencies = [
  "az",
  "byteorder",
  "embedded-graphics-core 0.3.3",
- "float-cmp",
- "micromath",
+ "float-cmp 0.8.0",
+ "micromath 1.1.1",
+]
+
+[[package]]
+name = "embedded-graphics"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0649998afacf6d575d126d83e68b78c0ab0e00ca2ac7e9b3db11b4cbe8274ef0"
+dependencies = [
+ "az",
+ "byteorder",
+ "embedded-graphics-core 0.4.0",
+ "float-cmp 0.9.0",
+ "micromath 2.1.0",
 ]
 
 [[package]]
@@ -1051,6 +1064,15 @@ name = "float-cmp"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e1267f4ac4f343772758f7b1bdcbe767c218bbab93bb432acbf5162bbf85a6c4"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
+name = "float-cmp"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "98de4bbd547a563b716d8dfa9aad1cb19bfab00f4fa09a6a4ed21dbcf44ce9c4"
 dependencies = [
  "num-traits",
 ]
@@ -1346,7 +1368,7 @@ dependencies = [
  "defmt-rtt 0.3.2",
  "display-interface",
  "embedded-graphics-core 0.4.0",
- "embedded-hal 0.2.7",
+ "embedded-hal 1.0.0",
  "panic-semihosting",
  "stm32f4xx-hal",
 ]
@@ -1464,7 +1486,7 @@ dependencies = [
  "cstr_core",
  "ctor",
  "cty",
- "embedded-graphics",
+ "embedded-graphics 0.7.1",
  "lvgl-codegen",
  "lvgl-sys",
  "paste",
@@ -1508,6 +1530,12 @@ name = "micromath"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc4010833aea396656c2f91ee704d51a6f1329ec2ab56ffd00bfd56f7481ea94"
+
+[[package]]
+name = "micromath"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3c8dda44ff03a2f238717214da50f65d5a53b45cd213a7370424ffdb6fae815"
 
 [[package]]
 name = "minimal-lexical"
@@ -1591,9 +1619,9 @@ dependencies = [
  "embassy-usb-dfu",
  "embassy-usb-driver",
  "embedded-alloc",
- "embedded-graphics",
- "embedded-graphics-core 0.3.3",
- "embedded-hal 0.2.7",
+ "embedded-graphics 0.8.1",
+ "embedded-graphics-core 0.4.0",
+ "embedded-hal 1.0.0",
  "format_no_std",
  "fugit",
  "futures",
@@ -2366,7 +2394,7 @@ name = "tm1668"
 version = "0.1.0"
 dependencies = [
  "defmt",
- "embedded-hal 0.2.7",
+ "embedded-hal 1.0.0",
  "lvgl",
  "lvgl-sys",
 ]

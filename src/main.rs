@@ -8,6 +8,7 @@ extern crate alloc;
 
 use core::mem::size_of;
 
+use alloc::vec::Vec;
 use defmt::*;
 use display_interface::DataFormat;
 use {defmt_rtt as _, panic_probe as _};
@@ -16,12 +17,7 @@ use ili9341::{Command, DisplaySize240x320, Ili9341Async as Ili9327, Orientation}
 
 use embassy_executor::Spawner;
 use embassy_stm32::{
-    dma::{Transfer, TransferOptions},
-    gpio::{Flex, OutputType, Pull},
-    pac::bdma::vals::{Dir, Pl, Size},
-    time::Hertz,
-    timer::{CaptureCompare16bitInstance, Channel},
-    PeripheralRef,
+    adc::Adc, bind_interrupts, dma::{Transfer, TransferOptions}, gpio::{Flex, OutputType, Pull}, pac::bdma::vals::{Dir, Pl, Size}, peripherals::ADC1, time::Hertz, timer::{CaptureCompare16bitInstance, Channel}, PeripheralRef
 };
 use embassy_stm32::{
     gpio::{Level, Output, Speed},
@@ -35,6 +31,10 @@ use display_interface_fsmc as fsmc;
 use tm1668::InoutPin;
 
 mod osc;
+
+bind_interrupts!(struct Irqs {
+    ADC1_2 => embassy_stm32::adc::InterruptHandler<ADC1>;
+});
 
 use embedded_alloc::Heap;
 #[global_allocator]
@@ -261,5 +261,36 @@ async fn main(_spawner: Spawner) {
 
     let _kbd = tm1668::TM1668::new(stb, clk, dio, &mut delay);
 
-    loop {}
+    // loop {}
+
+    let mut adc = Adc::new(p.ADC1, &mut Delay);
+    // let mut pin = p.PC1;
+    let mut pin = p.PA1;
+
+    let mut vrefint = adc.enable_vref(&mut Delay);
+    let vrefint_sample = adc.read(&mut vrefint).await;
+    let convert_to_millivolts = |sample| {
+        // From http://www.st.com/resource/en/datasheet/CD00161566.pdf
+        // 5.3.4 Embedded reference voltage
+        const VREFINT_MV: u32 = 1200; // mV
+
+        (u32::from(sample) * VREFINT_MV / u32::from(vrefint_sample)) as u16
+    };
+
+    loop {
+        let mut vv = Vec::new();
+        for _ in 0..1000 {
+            let v = adc.read(&mut pin).await;
+            vv.push(v);
+            // info!("--> {} - {} mV", v, convert_to_millivolts(v));
+        }
+        // get average
+        let mut sum = 0u64;
+        for v in vv.iter() {
+            sum += *v as u64;
+        }
+        let avg = sum / (vv.len() as u64);
+        info!("ave --> {} - {} mV", avg, convert_to_millivolts(avg as u16));
+        // Timer::after_millis(100).await;
+    }
 }
