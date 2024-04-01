@@ -102,11 +102,6 @@ where
         .draw_styled(&style, display)
         .map_err(|_| AppError::DisplayError)?;
 
-        // let style2 = PrimitiveStyleBuilder::new()
-        //     .stroke_color(self.info.color_primary)
-        //     .stroke_width(1)
-        //     .build();
-
         let dl = 2;
         // Draw point grid
         for i in 0..(self.info.size.height as i32 / 40 + 1) {
@@ -188,8 +183,8 @@ impl Overview {
     pub fn new() -> Self {
         Self {
             info: GUIInfo {
-                size: Size::new(24 * 3, 10),
-                position: Point::new(84, 0),
+                size: Size::new(134, 10),
+                position: Point::new(70, 0),
                 color_primary: Rgb565::WHITE,
                 color_secondary: Rgb565::BLACK,
             },
@@ -220,7 +215,7 @@ where
         )
         .translate(self.info.position)
         .draw(&mut *display)
-        .map_err(|_| AppError::DisplayError);
+        .map_err(|_| AppError::DisplayError)?;
         Ok(())
     }
 }
@@ -232,6 +227,8 @@ pub struct App<DISPLAY> {
     run_stop: LineDisp<'static>,
     time_scale: LineDisp<'static>,
     overview: Overview,
+    channel_info1: LineDisp<'static>,
+    channel_info2: LineDisp<'static>,
 }
 
 impl<DISPLAY> App<DISPLAY>
@@ -260,37 +257,44 @@ where
                     color_primary: Rgb565::MAGENTA,
                     color_secondary: Rgb565::WHITE,
                 },
-                text: "H 2us",
+                text: "T 2us",
                 font: MonoTextStyle::new(&FONT_6X9, Rgb565::WHITE),
             },
             overview: Overview::new(),
+            channel_info1: LineDisp {
+                info: GUIInfo {
+                    size: Size::new(33, 10),
+                    position: Point::new(205, 0),
+                    color_primary: Rgb565::YELLOW,
+                    color_secondary: Rgb565::BLACK,
+                },
+                text: "20mV",
+                font: MonoTextStyle::new(&FONT_6X9, Rgb565::BLACK),
+            },
+            channel_info2: LineDisp {
+                info: GUIInfo {
+                    size: Size::new(33, 10),
+                    position: Point::new(205 + 33 + 1, 0),
+                    color_primary: Rgb565::GREEN,
+                    color_secondary: Rgb565::BLACK,
+                },
+                text: "500mV",
+                font: MonoTextStyle::new(&FONT_6X9, Rgb565::BLACK),
+            },
         }
     }
 
     pub async fn draw(&mut self) -> Result<()> {
-        // Create a new character style
-        // let style = MonoTextStyle::new(&FONT_4X6, Rgb565::RED);
-
         self.display
             .clear(Rgb565::CSS_DARK_SLATE_GRAY)
             .map_err(|_| AppError::DisplayError)?;
 
         self.waveform.draw(&mut self.display)?;
-
         self.run_stop.draw(&mut self.display)?;
         self.time_scale.draw(&mut self.display)?;
-
         self.overview.draw(&mut self.display)?;
-
-        // Create a text at position (20, 30) and draw it using the previously defined style
-        // Text::with_alignment(
-        //     "First line\nSecond line",
-        //     Point::new(20, 30),
-        //     style,
-        //     Alignment::Left,
-        // )
-        // .draw(&mut self.display)
-        // .map_err(|_| AppError::DisplayError)?;
+        self.channel_info1.draw(&mut self.display)?;
+        self.channel_info2.draw(&mut self.display)?;
 
         Ok(())
     }
