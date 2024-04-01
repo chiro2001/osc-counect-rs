@@ -6,15 +6,7 @@
 
 extern crate alloc;
 
-
 use defmt::*;
-use embedded_graphics::{
-    geometry::Point,
-    mono_font::{ascii::FONT_9X18_BOLD, MonoTextStyle},
-    pixelcolor::{Rgb565, RgbColor},
-    text::{Alignment, Text},
-    Drawable,
-};
 use {defmt_rtt as _, panic_probe as _};
 
 use ili9341::{DisplaySize240x320, Ili9341 as Ili9327, Orientation};
@@ -39,8 +31,7 @@ use display_interface_fsmc as fsmc;
 
 use tm1668::InoutPin;
 
-mod gui;
-mod osc;
+mod app;
 
 bind_interrupts!(struct Irqs {
     ADC1_2 => embassy_stm32::adc::InterruptHandler<ADC1>;
@@ -111,7 +102,7 @@ where
 }
 
 #[embassy_executor::main]
-async fn main(_spawner: Spawner) {
+async fn main(spawner: Spawner) {
     // #[cfg(feature = "custom-alloc")]
     // heap_init!(32 * 1024);
     let mut config = Config::default();
@@ -271,21 +262,10 @@ async fn main(_spawner: Spawner) {
 
     let _kbd = tm1668::TM1668::new(stb, clk, dio, &mut delay);
 
-    loop {
-        let style = MonoTextStyle::new(&FONT_9X18_BOLD, Rgb565::RED);
+    spawner.spawn(app::main_loop(lcd)).unwrap();
 
-        Text::with_alignment(
-            "First line\nSecond line",
-            Point::new(20, 30),
-            style,
-            Alignment::Left,
-        )
-        .draw(&mut lcd)
-        .unwrap();
-        // Timer::after_millis(100).await;
-        lcd.clear_screen_async(0).await.unwrap();
-        lcd.clear_screen_async(0xffff).await.unwrap();
-        // lcd.clear_screen(0).unwrap();
-        // lcd.clear_screen(0xffff).unwrap();
+    loop {
+        Timer::after_millis(10000).await;
+        // debug!("main loop");
     }
 }
