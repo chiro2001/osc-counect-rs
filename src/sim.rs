@@ -12,7 +12,7 @@ use embedded_graphics_simulator::{
 mod app;
 
 #[embassy_executor::main]
-async fn main(spawner: Spawner) -> () {
+async fn main(_spawner: Spawner) -> () {
     env_logger::init();
     info!("Simulator started");
 

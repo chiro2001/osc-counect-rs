@@ -1,12 +1,13 @@
 #![allow(dead_code)]
 
+use crate::info;
 use embassy_time::Timer;
 use embedded_graphics::{
     draw_target::DrawTarget,
     geometry::{Point, Size},
-    mono_font::{ascii::FONT_4X6, MonoTextStyle},
+    mono_font::{ascii::*, MonoTextStyle},
     pixelcolor::{Rgb565, RgbColor, WebColors},
-    primitives::{Line, PrimitiveStyleBuilder, Rectangle, StyledDrawable},
+    primitives::*,
     text::{Alignment, Text},
     transform::Transform,
     Drawable, Pixel,
@@ -14,6 +15,8 @@ use embedded_graphics::{
 
 #[derive(Default, Debug)]
 struct State {}
+
+const TEXT_OFFSET: Point = Point::new(0, 2);
 
 #[derive(Debug)]
 pub enum AppError {
@@ -99,10 +102,10 @@ where
         .draw_styled(&style, display)
         .map_err(|_| AppError::DisplayError)?;
 
-        let style2 = PrimitiveStyleBuilder::new()
-            .stroke_color(self.info.color_primary)
-            .stroke_width(1)
-            .build();
+        // let style2 = PrimitiveStyleBuilder::new()
+        //     .stroke_color(self.info.color_primary)
+        //     .stroke_width(1)
+        //     .build();
 
         let dl = 2;
         // Draw point grid
@@ -148,6 +151,7 @@ where
 pub struct LineDisp<'a> {
     pub(crate) info: GUIInfo,
     text: &'a str,
+    font: MonoTextStyle<'static, Rgb565>,
 }
 
 impl<DISPLAY> Draw<DISPLAY> for LineDisp<'_>
@@ -155,11 +159,68 @@ where
     DISPLAY: DrawTarget<Color = Rgb565>,
 {
     fn draw(&self, display: &mut DISPLAY) -> Result<()> {
-        let style = MonoTextStyle::new(&FONT_4X6, self.info.color_primary);
-        Text::with_alignment(self.text, self.info.size_center(), style, Alignment::Center)
-            .translate(self.info.position)
-            .draw(&mut *display)
+        Rectangle::new(self.info.position, self.info.size)
+            .into_styled(
+                PrimitiveStyleBuilder::new()
+                    .fill_color(self.info.color_primary)
+                    .build(),
+            )
+            .draw(display)
             .map_err(|_| AppError::DisplayError)?;
+        Text::with_alignment(
+            self.text,
+            self.info.size_center() + TEXT_OFFSET,
+            self.font,
+            Alignment::Center,
+        )
+        .translate(self.info.position)
+        .draw(&mut *display)
+        .map_err(|_| AppError::DisplayError)?;
+        Ok(())
+    }
+}
+
+pub struct Overview {
+    pub(crate) info: GUIInfo,
+    text: &'static str,
+}
+impl Overview {
+    pub fn new() -> Self {
+        Self {
+            info: GUIInfo {
+                size: Size::new(24 * 3, 10),
+                position: Point::new(84, 0),
+                color_primary: Rgb565::WHITE,
+                color_secondary: Rgb565::BLACK,
+            },
+            text: "Roll Mode",
+        }
+    }
+}
+impl<DISPLAY> Draw<DISPLAY> for Overview
+where
+    DISPLAY: DrawTarget<Color = Rgb565>,
+{
+    fn draw(&self, display: &mut DISPLAY) -> Result<()> {
+        Rectangle::new(self.info.position, self.info.size)
+            .into_styled(
+                PrimitiveStyleBuilder::new()
+                    .stroke_color(self.info.color_primary)
+                    .stroke_width(1)
+                    .fill_color(self.info.color_secondary)
+                    .build(),
+            )
+            .draw(display)
+            .map_err(|_| AppError::DisplayError)?;
+        Text::with_alignment(
+            self.text,
+            self.info.size_center() + TEXT_OFFSET,
+            MonoTextStyle::new(&FONT_6X9, self.info.color_primary),
+            Alignment::Center,
+        )
+        .translate(self.info.position)
+        .draw(&mut *display)
+        .map_err(|_| AppError::DisplayError);
         Ok(())
     }
 }
@@ -168,6 +229,9 @@ pub struct App<DISPLAY> {
     pub(crate) state: State,
     pub display: DISPLAY,
     waveform: Waveform,
+    run_stop: LineDisp<'static>,
+    time_scale: LineDisp<'static>,
+    overview: Overview,
 }
 
 impl<DISPLAY> App<DISPLAY>
@@ -179,12 +243,33 @@ where
             state: Default::default(),
             display,
             waveform: Default::default(),
+            run_stop: LineDisp {
+                info: GUIInfo {
+                    size: Size::new(29, 10),
+                    position: Point::new(4, 0),
+                    color_primary: Rgb565::RED,
+                    color_secondary: Rgb565::WHITE,
+                },
+                text: "STOP",
+                font: MonoTextStyle::new(&FONT_6X9, Rgb565::WHITE),
+            },
+            time_scale: LineDisp {
+                info: GUIInfo {
+                    size: Size::new(35, 10),
+                    position: Point::new(4 + 29 + 1, 0),
+                    color_primary: Rgb565::MAGENTA,
+                    color_secondary: Rgb565::WHITE,
+                },
+                text: "H 2us",
+                font: MonoTextStyle::new(&FONT_6X9, Rgb565::WHITE),
+            },
+            overview: Overview::new(),
         }
     }
 
     pub async fn draw(&mut self) -> Result<()> {
         // Create a new character style
-        let style = MonoTextStyle::new(&FONT_4X6, Rgb565::RED);
+        // let style = MonoTextStyle::new(&FONT_4X6, Rgb565::RED);
 
         self.display
             .clear(Rgb565::CSS_DARK_SLATE_GRAY)
@@ -192,15 +277,20 @@ where
 
         self.waveform.draw(&mut self.display)?;
 
+        self.run_stop.draw(&mut self.display)?;
+        self.time_scale.draw(&mut self.display)?;
+
+        self.overview.draw(&mut self.display)?;
+
         // Create a text at position (20, 30) and draw it using the previously defined style
-        Text::with_alignment(
-            "First line\nSecond line",
-            Point::new(20, 30),
-            style,
-            Alignment::Left,
-        )
-        .draw(&mut self.display)
-        .map_err(|_| AppError::DisplayError)?;
+        // Text::with_alignment(
+        //     "First line\nSecond line",
+        //     Point::new(20, 30),
+        //     style,
+        //     Alignment::Left,
+        // )
+        // .draw(&mut self.display)
+        // .map_err(|_| AppError::DisplayError)?;
 
         Ok(())
     }
