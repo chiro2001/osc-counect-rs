@@ -8,19 +8,16 @@ default-run = "osc-counect"
 
 [dependencies]
 embassy-sync = { version = "0.5.0", path = "./embassy/embassy-sync", features = [
-    "defmt",
+    # "defmt",
 ] }
 embassy-executor = { version = "0.5.0", path = "./embassy/embassy-executor", features = [
-    "arch-cortex-m",
     "executor-thread",
-    "defmt",
+    # "defmt",
     "integrated-timers",
 ] }
 embassy-time = { version = "0.3.0", path = "./embassy/embassy-time", features = [
-    "defmt",
-    "defmt-timestamp-uptime",
-    # "tick-hz-32_768",
-    "tick-hz-1_000_000",
+    # "defmt",
+    # "defmt-timestamp-uptime",
 ] }
 # embassy-usb = { version = "0.1.0", path = "./embassy/embassy-usb", features = [
 #     "defmt",
@@ -36,10 +33,7 @@ embassy-time = { version = "0.3.0", path = "./embassy/embassy-time", features = 
 # ] }
 # embassy-usb-driver = { version = "0.1.0", path = "./embassy/embassy-usb-driver" }
 embassy-futures = { version = "0.1.0", path = "./embassy/embassy-futures" }
-defmt = "0.3"
-defmt-rtt = "0.4"
 
-panic-probe = { version = "0.3", features = ["print-defmt"] }
 futures = { version = "0.3.17", default-features = false, features = [
     "async-await",
 ] }
@@ -57,7 +51,7 @@ nb = "1"
 
 [target.'cfg(all(target_arch = "arm", target_os = "none"))'.dependencies]
 embassy-stm32 = { version = "0.1.0", path = "./embassy/embassy-stm32", features = [
-    "defmt",
+    # "defmt",
     "unstable-pac",
     "memory-x",
     "time-driver-any",
@@ -71,6 +65,17 @@ display-interface-fsmc = { path = "display-interface-fsmc", features = [
     "async",
 ] }
 tm1668 = { path = "tm1668" }
+panic-probe = { version = "0.3", features = ["print-defmt"], optional = true }
+defmt = { version = "0.3", optional = true }
+defmt-rtt = { version = "0.4", optional = true }
+
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+embedded-graphics-simulator = "0.6.0"
+env_logger = "0.11.3"
+
+[target.'cfg(target_arch = "x86_64")'.dependencies.defmt]
+package = "log"
+version = "0.4.21"
 
 [workspace]
 members = ["tm1668", "display-interface-fsmc", "ili9327"]
@@ -91,12 +96,25 @@ lto = true
 # [target.'cfg(all(target_arch = "arm", target_os = "none"))'.features]
 [features]
 # default = ["stm32h743vi"]
-default = ["stm32f103vc"]
-stm32f103vc = ["embassy-stm32/stm32f103vc"]
-stm32h743vi = ["embassy-stm32/stm32h743vi"]
-
-[target.'cfg(target_arch = "x86_64")'.dependencies]
-embedded-graphics-simulator = "0.6.0"
+# default = ["stm32f103vc"]
+stm32f103vc = ["embassy-stm32/stm32f103vc", "embedded"]
+stm32h743vi = ["embassy-stm32/stm32h743vi", "embedded"]
+embedded = ["embassy-time/tick-hz-1_000_000", "embassy-executor/arch-cortex-m"]
+simulator = [
+    "embassy-time/std",
+    # "embassy-time/tick-hz-32_768",
+    "embassy-executor/arch-std",
+]
+defmt = [
+    "dep:defmt",
+    "dep:defmt-rtt",
+    "dep:panic-probe",
+    "embassy-sync/defmt",
+    "embassy-executor/defmt",
+    "embassy-time/defmt",
+    "embassy-time/defmt-timestamp-uptime",
+    "embassy-stm32/defmt",
+]
 
 [[bin]]
 name = "osc-counect"
@@ -105,4 +123,3 @@ path = "src/main.rs"
 [[bin]]
 name = "simulator"
 path = "src/sim.rs"
-

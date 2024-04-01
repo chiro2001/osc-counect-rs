@@ -15,6 +15,3 @@ args = ["-f", "openocd.cfg"]
 [env]
 # DEFMT_LOG = "info"
 DEFMT_LOG = "trace"
-
-[target.'cfg(target_arch = "arm")']
-rustc-link-arg-bins = ["--nmagic", "-Tlink.x", "-Tdefmt.x"]
