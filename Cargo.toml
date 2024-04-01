@@ -2,16 +2,11 @@
 name = "osc-counect-rs"
 version = "0.1.0"
 edition = "2021"
+default-run = "osc-counect"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-embassy-stm32 = { version = "0.1.0", path = "./embassy/embassy-stm32", features = [
-    "defmt",
-    "unstable-pac",
-    "memory-x",
-    "time-driver-any",
-] }
 embassy-sync = { version = "0.5.0", path = "./embassy/embassy-sync", features = [
     "defmt",
 ] }
@@ -27,19 +22,19 @@ embassy-time = { version = "0.3.0", path = "./embassy/embassy-time", features = 
     # "tick-hz-32_768",
     "tick-hz-1_000_000",
 ] }
-embassy-usb = { version = "0.1.0", path = "./embassy/embassy-usb", features = [
-    "defmt",
-] }
-embassy-usb-dfu = { version = "0.1.0", path = "./embassy/embassy-usb-dfu", features = [
-    "dfu",
-] }
+# embassy-usb = { version = "0.1.0", path = "./embassy/embassy-usb", features = [
+#     "defmt",
+# ] }
+# embassy-usb-dfu = { version = "0.1.0", path = "./embassy/embassy-usb-dfu", features = [
+#     "dfu",
+# ] }
 # embassy-boot = { version = "0.2.0", path = "./embassy/embassy-boot", features = [
 #     "defmt",
 # ] }
 # embassy-boot-stm32 = { version = "0.2.0", path = "./embassy/embassy-boot-stm32", features = [
 #     "defmt",
 # ] }
-embassy-usb-driver = { version = "0.1.0", path = "./embassy/embassy-usb-driver" }
+# embassy-usb-driver = { version = "0.1.0", path = "./embassy/embassy-usb-driver" }
 embassy-futures = { version = "0.1.0", path = "./embassy/embassy-futures" }
 defmt = "0.3"
 defmt-rtt = "0.4"
@@ -50,8 +45,6 @@ futures = { version = "0.3.17", default-features = false, features = [
 ] }
 heapless = { version = "0.8", default-features = false }
 
-cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
-cortex-m-rt = "0.7.3"
 cstr_core = "0.2.6"
 display-interface = "0.5.0"
 embedded-alloc = "0.5.1"
@@ -62,27 +55,25 @@ format_no_std = "1.0.2"
 fugit = "0.3.7"
 nb = "1"
 
+[target.'cfg(all(target_arch = "arm", target_os = "none"))'.dependencies]
+embassy-stm32 = { version = "0.1.0", path = "./embassy/embassy-stm32", features = [
+    "defmt",
+    "unstable-pac",
+    "memory-x",
+    "time-driver-any",
+] }
+cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
+cortex-m-rt = { version = "0.7.3" }
+ili9341 = { path = "ili9327", features = ["async"] }
+rtt-target = "0.5.0"
+panic-rtt-target = { version = "0.1.2", features = ["cortex-m"] }
+display-interface-fsmc = { path = "display-interface-fsmc", features = [
+    "async",
+] }
+tm1668 = { path = "tm1668" }
+
 [workspace]
 members = ["tm1668", "display-interface-fsmc", "ili9327"]
-
-[dependencies.ili9341]
-path = "ili9327"
-features = ["async"]
-
-# Target side implementation of the RTT (Real-Time Transfer) I/O protocol
-[dependencies.rtt-target]
-version = "0.5.0"
-
-[dependencies.panic-rtt-target]
-version = "0.1.2"
-features = ["cortex-m"]
-
-[dependencies.display-interface-fsmc]
-path = "display-interface-fsmc"
-features = ["async"]
-
-[dependencies.tm1668]
-path = "tm1668"
 
 [profile.dev]
 opt-level = 0
@@ -97,8 +88,21 @@ debug = 2
 lto = true
 #strip = false
 
+# [target.'cfg(all(target_arch = "arm", target_os = "none"))'.features]
 [features]
 # default = ["stm32h743vi"]
 default = ["stm32f103vc"]
 stm32f103vc = ["embassy-stm32/stm32f103vc"]
 stm32h743vi = ["embassy-stm32/stm32h743vi"]
+
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+embedded-graphics-simulator = "0.6.0"
+
+[[bin]]
+name = "osc-counect"
+path = "src/main.rs"
+
+[[bin]]
+name = "simulator"
+path = "src/sim.rs"
+

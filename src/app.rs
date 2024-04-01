@@ -162,3 +162,16 @@ pub async fn main_loop(display: impl DrawTarget<Color = Rgb565> + 'static) {
         Timer::after_millis(10000).await;
     }
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use embedded_graphics_simulator::{
+//         BinaryColorTheme, OutputSettingsBuilder, SimulatorDisplay, Window,
+//     };
+
+//     #[test]
+//     fn test_draw() {
+//         let mut display = SimulatorDisplay::<Rgb565>::new(Size::new(320, 240));
+//     }
+// }
