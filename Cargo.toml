@@ -104,6 +104,7 @@ simulator = [
     "embassy-time/std",
     # "embassy-time/tick-hz-32_768",
     "embassy-executor/arch-std",
+    "embassy-sync/std",
 ]
 defmt = [
     "dep:defmt",

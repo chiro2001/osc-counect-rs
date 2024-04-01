@@ -7,3 +7,8 @@
 - [X] FSMC 适配
 - [ ] lvgl：由于内存错误放弃
 - [ ] Slint：由于 Flash 大小不足放弃
+
+```
+cargo run --release --bin simulator --target x86_64-unknown-linux-gnu --features=simulator
+cargo run --release --features=stm32f103vc,defmt
+```

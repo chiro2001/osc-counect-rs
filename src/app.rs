@@ -113,7 +113,7 @@ where
 
 pub struct App<DISPLAY> {
     pub(crate) state: State,
-    display: DISPLAY,
+    pub display: DISPLAY,
     waveform: Waveform,
 }
 
@@ -153,6 +153,7 @@ where
     }
 }
 
+#[cfg(feature = "embedded")]
 #[embassy_executor::task]
 pub async fn main_loop(display: impl DrawTarget<Color = Rgb565> + 'static) {
     let mut app = App::new(display);
@@ -163,15 +164,23 @@ pub async fn main_loop(display: impl DrawTarget<Color = Rgb565> + 'static) {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use embedded_graphics_simulator::{
-//         BinaryColorTheme, OutputSettingsBuilder, SimulatorDisplay, Window,
-//     };
+#[cfg(feature = "simulator")]
+// #[embassy_executor::task]
+pub async fn main_loop(
+    display: embedded_graphics_simulator::SimulatorDisplay<Rgb565>,
+    mut window: embedded_graphics_simulator::Window,
+) {
+    let mut app = App::new(display);
+    'running: loop {
+        app.draw().await.unwrap();
 
-//     #[test]
-//     fn test_draw() {
-//         let mut display = SimulatorDisplay::<Rgb565>::new(Size::new(320, 240));
-//     }
-// }
+        window.update(&app.display);
+        for event in window.events() {
+            if event == embedded_graphics_simulator::SimulatorEvent::Quit {
+                break 'running;
+            }
+        }
+        Timer::after_millis(1).await;
+    }
+    info!("Simulator stopped");
+}
