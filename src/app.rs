@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use embassy_time::Timer;
 use embedded_graphics::{
     draw_target::DrawTarget,
@@ -26,14 +28,30 @@ pub trait Draw<DISPLAY> {
 
 #[derive(Debug, Default)]
 pub struct GUIInfo {
-    pub(crate) rect: Rectangle,
+    pub(crate) size: Size,
+    pub(crate) position: Point,
     pub(crate) color_primary: Rgb565,
     pub(crate) color_secondary: Rgb565,
-    pub(crate) text: &'static str,
-    pub(crate) translate: Point,
 }
 
-#[derive(Debug)]
+impl GUIInfo {
+    pub fn width(&self) -> i32 {
+        self.size.width as i32
+    }
+    pub fn height(&self) -> i32 {
+        self.size.height as i32
+    }
+    pub fn size_center(&self) -> Point {
+        Point::new(self.size.width as i32 / 2, self.size.height as i32 / 2)
+    }
+    pub fn bottom_right(&self) -> Point {
+        Point::new(
+            self.position.x + self.size.width as i32,
+            self.position.y + self.size.height as i32,
+        )
+    }
+}
+
 pub struct Waveform {
     pub(crate) info: GUIInfo,
 }
@@ -42,8 +60,10 @@ impl Default for Waveform {
     fn default() -> Self {
         Self {
             info: GUIInfo {
-                rect: Rectangle::new(Default::default(), Size::new(320 - 48 - 4, 240 - 12 - 12)),
-                translate: Point::new(4, 12),
+                size: Size::new(320 - 48 - 4, 240 - 12 - 12),
+                position: Point::new(4, 12),
+                color_primary: Rgb565::CSS_DARK_SLATE_GRAY,
+                color_secondary: Rgb565::CSS_LIGHT_GRAY,
                 ..Default::default()
             },
         }
@@ -56,68 +76,64 @@ where
 {
     fn draw(&self, display: &mut DISPLAY) -> Result<()> {
         let style = PrimitiveStyleBuilder::new()
-            .stroke_color(Rgb565::CSS_LIGHT_GRAY)
+            .stroke_color(self.info.color_secondary)
             .stroke_width(1)
             .fill_color(Rgb565::BLACK)
             .build();
-        self.info
-            .rect
-            .translate(self.info.translate)
+        Rectangle::new(self.info.position, self.info.size)
             .draw_styled(&style, display)
             .map_err(|_| AppError::DisplayError)?;
-        let center = self.info.rect.center();
-        let bottom_right = self.info.rect.bottom_right().unwrap();
+        let center = self.info.size_center();
         Line::new(
             Point::new(center.x, 0),
-            Point::new(center.x, bottom_right.y),
+            Point::new(center.x, self.info.height() - 1),
         )
-        .translate(self.info.translate)
+        .translate(self.info.position)
         .draw_styled(&style, display)
         .map_err(|_| AppError::DisplayError)?;
         Line::new(
             Point::new(0, center.y),
-            Point::new(bottom_right.x, center.y),
+            Point::new(self.info.width() - 1, center.y),
         )
-        .translate(self.info.translate)
+        .translate(self.info.position)
         .draw_styled(&style, display)
         .map_err(|_| AppError::DisplayError)?;
 
         let style2 = PrimitiveStyleBuilder::new()
-            .stroke_color(Rgb565::CSS_DARK_SLATE_GRAY)
+            .stroke_color(self.info.color_primary)
             .stroke_width(1)
-            .fill_color(Rgb565::BLACK)
             .build();
 
         let dl = 2;
         // Draw point grid
-        for i in 0..(self.info.rect.size.height as i32 / 40 + 1) {
-            for j in 0..(self.info.rect.size.width as i32 / 8) {
-                let x = j * 8 + 5;
-                let y = i * 40 + 27;
+        for i in 0..(self.info.size.height as i32 / 40 + 1) {
+            for j in 0..(self.info.size.width as i32 / 8) {
+                let x = j * 8 + 6;
+                let y = i * 40 + 28;
                 if y == center.y as i32 {
                     Line::new(Point::new(x, y - dl), Point::new(x, y + dl))
-                        .translate(self.info.translate)
+                        .translate(self.info.position)
                         .draw_styled(&style, display)
                         .map_err(|_| AppError::DisplayError)?;
                 } else {
-                    let p = Point::new(x, y) + self.info.translate;
-                    Pixel(p, Rgb565::CSS_DARK_SLATE_GRAY)
+                    let p = Point::new(x, y) + self.info.position;
+                    Pixel(p, self.info.color_primary)
                         .draw(&mut *display)
                         .map_err(|_| AppError::DisplayError)?;
                 }
             }
         }
-        for i in 0..(self.info.rect.size.width as i32 / 40 + 1) {
-            for j in 0..(self.info.rect.size.height as i32 / 8) {
-                let x = i * 40 + 13;
-                let y = j * 8 + 3;
+        for i in 0..(self.info.size.width as i32 / 40 + 1) {
+            for j in 0..(self.info.size.height as i32 / 8) {
+                let x = i * 40 + 14;
+                let y = j * 8 + 4;
                 if x == center.x as i32 {
                     Line::new(Point::new(x - dl, y), Point::new(x + dl, y))
-                        .translate(self.info.translate)
+                        .translate(self.info.position)
                         .draw_styled(&style, display)
                         .map_err(|_| AppError::DisplayError)?;
                 } else {
-                    let p = Point::new(x, y) + self.info.translate;
+                    let p = Point::new(x, y) + self.info.position;
                     Pixel(p, Rgb565::CSS_DARK_SLATE_GRAY)
                         .draw(&mut *display)
                         .map_err(|_| AppError::DisplayError)?;
@@ -125,6 +141,25 @@ where
             }
         }
 
+        Ok(())
+    }
+}
+
+pub struct LineDisp<'a> {
+    pub(crate) info: GUIInfo,
+    text: &'a str,
+}
+
+impl<DISPLAY> Draw<DISPLAY> for LineDisp<'_>
+where
+    DISPLAY: DrawTarget<Color = Rgb565>,
+{
+    fn draw(&self, display: &mut DISPLAY) -> Result<()> {
+        let style = MonoTextStyle::new(&FONT_4X6, self.info.color_primary);
+        Text::with_alignment(self.text, self.info.size_center(), style, Alignment::Center)
+            .translate(self.info.position)
+            .draw(&mut *display)
+            .map_err(|_| AppError::DisplayError)?;
         Ok(())
     }
 }
