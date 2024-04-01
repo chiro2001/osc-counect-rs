@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 
-use crate::info;
 use embassy_time::Timer;
 use embedded_graphics::{
     draw_target::DrawTarget,
@@ -17,6 +16,8 @@ use embedded_graphics::{
 struct State {}
 
 const TEXT_OFFSET: Point = Point::new(0, 2);
+const SCREEN_WIDTH: u32 = 320;
+const SCREEN_HEIGHT: u32 = 240;
 
 #[derive(Debug)]
 pub enum AppError {
@@ -25,8 +26,10 @@ pub enum AppError {
 
 type Result<T, E = AppError> = core::result::Result<T, E>;
 
-pub trait Draw<DISPLAY> {
-    fn draw(&self, display: &mut DISPLAY) -> Result<()>;
+pub trait Draw<D> {
+    fn draw(&self, display: &mut D) -> Result<()>
+    where
+        D: DrawTarget<Color = Rgb565>;
 }
 
 #[derive(Debug, Default)]
@@ -63,7 +66,7 @@ impl Default for Waveform {
     fn default() -> Self {
         Self {
             info: GUIInfo {
-                size: Size::new(320 - 48 - 4, 240 - 12 - 12),
+                size: Size::new(SCREEN_WIDTH - 48 - 4, SCREEN_HEIGHT - 12 - 12),
                 position: Point::new(4, 12),
                 color_primary: Rgb565::CSS_DARK_SLATE_GRAY,
                 color_secondary: Rgb565::CSS_LIGHT_GRAY,
@@ -73,11 +76,11 @@ impl Default for Waveform {
     }
 }
 
-impl<DISPLAY> Draw<DISPLAY> for Waveform
+impl<D> Draw<D> for Waveform
 where
-    DISPLAY: DrawTarget<Color = Rgb565>,
+    D: DrawTarget<Color = Rgb565>,
 {
-    fn draw(&self, display: &mut DISPLAY) -> Result<()> {
+    fn draw(&self, display: &mut D) -> Result<()> {
         let style = PrimitiveStyleBuilder::new()
             .stroke_color(self.info.color_secondary)
             .stroke_width(1)
@@ -116,7 +119,7 @@ where
                 } else {
                     let p = Point::new(x, y) + self.info.position;
                     Pixel(p, self.info.color_primary)
-                        .draw(&mut *display)
+                        .draw(display)
                         .map_err(|_| AppError::DisplayError)?;
                 }
             }
@@ -133,7 +136,7 @@ where
                 } else {
                     let p = Point::new(x, y) + self.info.position;
                     Pixel(p, Rgb565::CSS_DARK_SLATE_GRAY)
-                        .draw(&mut *display)
+                        .draw(display)
                         .map_err(|_| AppError::DisplayError)?;
                 }
             }
@@ -149,11 +152,11 @@ pub struct LineDisp<'a> {
     font: MonoTextStyle<'static, Rgb565>,
 }
 
-impl<DISPLAY> Draw<DISPLAY> for LineDisp<'_>
+impl<D> Draw<D> for LineDisp<'_>
 where
-    DISPLAY: DrawTarget<Color = Rgb565>,
+    D: DrawTarget<Color = Rgb565>,
 {
-    fn draw(&self, display: &mut DISPLAY) -> Result<()> {
+    fn draw(&self, display: &mut D) -> Result<()> {
         Rectangle::new(self.info.position, self.info.size)
             .into_styled(
                 PrimitiveStyleBuilder::new()
@@ -169,7 +172,7 @@ where
             Alignment::Center,
         )
         .translate(self.info.position)
-        .draw(&mut *display)
+        .draw(display)
         .map_err(|_| AppError::DisplayError)?;
         Ok(())
     }
@@ -192,11 +195,11 @@ impl Overview {
         }
     }
 }
-impl<DISPLAY> Draw<DISPLAY> for Overview
+impl<D> Draw<D> for Overview
 where
-    DISPLAY: DrawTarget<Color = Rgb565>,
+    D: DrawTarget<Color = Rgb565>,
 {
-    fn draw(&self, display: &mut DISPLAY) -> Result<()> {
+    fn draw(&self, display: &mut D) -> Result<()> {
         Rectangle::new(self.info.position, self.info.size)
             .into_styled(
                 PrimitiveStyleBuilder::new()
@@ -214,28 +217,92 @@ where
             Alignment::Center,
         )
         .translate(self.info.position)
-        .draw(&mut *display)
+        .draw(display)
         .map_err(|_| AppError::DisplayError)?;
         Ok(())
     }
 }
 
-pub struct App<DISPLAY> {
+pub struct Battery {
+    pub(crate) info: GUIInfo,
+    pub(crate) level: u8,
+}
+
+impl Battery {
+    pub fn new(level: u8) -> Self {
+        Self {
+            info: GUIInfo {
+                size: Size::new(24, 8),
+                position: Point::new(SCREEN_WIDTH as i32 - 24, 1),
+                color_primary: Rgb565::WHITE,
+                color_secondary: Rgb565::BLACK,
+            },
+            level,
+        }
+    }
+}
+
+impl<D> Draw<D> for Battery {
+    fn draw(&self, display: &mut D) -> Result<()>
+    where
+        D: DrawTarget<Color = Rgb565>,
+    {
+        Rectangle::new(self.info.position, self.info.size - Size::new(2, 0))
+            .into_styled(
+                PrimitiveStyleBuilder::new()
+                    .stroke_color(self.info.color_primary)
+                    .stroke_width(1)
+                    .fill_color(self.info.color_secondary)
+                    .build(),
+            )
+            .draw(display)
+            .map_err(|_| AppError::DisplayError)?;
+        Rectangle::new(
+            Point::new(
+                self.info.size.width as i32 - 3,
+                self.info.size_center().y / 2,
+            ),
+            Size::new(3, 4),
+        )
+        .into_styled(
+            PrimitiveStyleBuilder::new()
+                .stroke_color(self.info.color_primary)
+                .stroke_width(1)
+                .fill_color(self.info.color_secondary)
+                .build(),
+        )
+        .translate(self.info.position)
+        .draw(display)
+        .map_err(|_| AppError::DisplayError)?;
+        let level = self.level as i32 * (self.info.size.width as i32 - 2) / 100;
+        Rectangle::new(
+            Point::new(self.info.position.x + 1, self.info.position.y + 1),
+            Size::new(level as u32, self.info.size.height - 2),
+        )
+        .into_styled(PrimitiveStyle::with_fill(self.info.color_primary))
+        .draw(display)
+        .map_err(|_| AppError::DisplayError)?;
+        Ok(())
+    }
+}
+
+pub struct App<D> {
     pub(crate) state: State,
-    pub display: DISPLAY,
+    pub display: D,
     waveform: Waveform,
     run_stop: LineDisp<'static>,
     time_scale: LineDisp<'static>,
     overview: Overview,
     channel_info1: LineDisp<'static>,
     channel_info2: LineDisp<'static>,
+    battery: Battery,
 }
 
-impl<DISPLAY> App<DISPLAY>
+impl<D> App<D>
 where
-    DISPLAY: DrawTarget<Color = Rgb565> + 'static,
+    D: DrawTarget<Color = Rgb565> + 'static,
 {
-    pub fn new(display: DISPLAY) -> Self {
+    pub fn new(display: D) -> Self {
         Self {
             state: Default::default(),
             display,
@@ -281,6 +348,7 @@ where
                 text: "500mV",
                 font: MonoTextStyle::new(&FONT_6X9, Rgb565::BLACK),
             },
+            battery: Battery::new(50),
         }
     }
 
@@ -295,6 +363,7 @@ where
         self.overview.draw(&mut self.display)?;
         self.channel_info1.draw(&mut self.display)?;
         self.channel_info2.draw(&mut self.display)?;
+        self.battery.draw(&mut self.display)?;
 
         Ok(())
     }
@@ -305,6 +374,7 @@ where
 pub async fn main_loop(display: impl DrawTarget<Color = Rgb565> + 'static) {
     let mut app = App::new(display);
     loop {
+        use crate::info;
         info!("Hello, world!");
         app.draw().await.unwrap();
         Timer::after_millis(10000).await;
