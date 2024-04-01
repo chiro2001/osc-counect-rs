@@ -1,4 +1,3 @@
-use defmt::*;
 use embassy_time::Timer;
 use embedded_graphics::{
     draw_target::DrawTarget,
@@ -182,5 +181,4 @@ pub async fn main_loop(
         }
         Timer::after_millis(1).await;
     }
-    info!("Simulator stopped");
 }
