@@ -2,7 +2,7 @@ use embassy_time::Timer;
 use embedded_graphics::{
     draw_target::DrawTarget,
     geometry::{Point, Size},
-    mono_font::{ascii::FONT_6X10, MonoTextStyle},
+    mono_font::{ascii::FONT_4X6, MonoTextStyle},
     pixelcolor::{Rgb565, RgbColor, WebColors},
     primitives::{Line, PrimitiveStyleBuilder, Rectangle, StyledDrawable},
     text::{Alignment, Text},
@@ -88,21 +88,40 @@ where
             .fill_color(Rgb565::BLACK)
             .build();
 
+        let dl = 2;
         // Draw point grid
         for i in 0..(self.info.rect.size.height as i32 / 40 + 1) {
-            for j in 0..(self.info.rect.size.width as i32 / 8 + 1) {
-                let p = Point::new(j * 8 + 5, i * 40 + 27) + self.info.translate;
-                Pixel(p, Rgb565::CSS_DARK_SLATE_GRAY)
-                    .draw(&mut *display)
-                    .map_err(|_| AppError::DisplayError)?;
+            for j in 0..(self.info.rect.size.width as i32 / 8) {
+                let x = j * 8 + 5;
+                let y = i * 40 + 27;
+                if y == center.y as i32 {
+                    Line::new(Point::new(x, y - dl), Point::new(x, y + dl))
+                        .translate(self.info.translate)
+                        .draw_styled(&style, display)
+                        .map_err(|_| AppError::DisplayError)?;
+                } else {
+                    let p = Point::new(x, y) + self.info.translate;
+                    Pixel(p, Rgb565::CSS_DARK_SLATE_GRAY)
+                        .draw(&mut *display)
+                        .map_err(|_| AppError::DisplayError)?;
+                }
             }
         }
         for i in 0..(self.info.rect.size.width as i32 / 40 + 1) {
             for j in 0..(self.info.rect.size.height as i32 / 8) {
-                let p = Point::new(i * 40 + 13, j * 8 + 11) + self.info.translate;
-                Pixel(p, Rgb565::CSS_DARK_SLATE_GRAY)
-                    .draw(&mut *display)
-                    .map_err(|_| AppError::DisplayError)?;
+                let x = i * 40 + 13;
+                let y = j * 8 + 3;
+                if x == center.x as i32 {
+                    Line::new(Point::new(x - dl, y), Point::new(x + dl, y))
+                        .translate(self.info.translate)
+                        .draw_styled(&style, display)
+                        .map_err(|_| AppError::DisplayError)?;
+                } else {
+                    let p = Point::new(x, y) + self.info.translate;
+                    Pixel(p, Rgb565::CSS_DARK_SLATE_GRAY)
+                        .draw(&mut *display)
+                        .map_err(|_| AppError::DisplayError)?;
+                }
             }
         }
 
@@ -130,7 +149,7 @@ where
 
     pub async fn draw(&mut self) -> Result<()> {
         // Create a new character style
-        let style = MonoTextStyle::new(&FONT_6X10, Rgb565::RED);
+        let style = MonoTextStyle::new(&FONT_4X6, Rgb565::RED);
 
         self.display
             .clear(Rgb565::CSS_DARK_SLATE_GRAY)
