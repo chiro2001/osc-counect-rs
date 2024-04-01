@@ -24,7 +24,8 @@ embassy-executor = { version = "0.5.0", path = "./embassy/embassy-executor", fea
 embassy-time = { version = "0.3.0", path = "./embassy/embassy-time", features = [
     "defmt",
     "defmt-timestamp-uptime",
-    "tick-hz-32_768",
+    # "tick-hz-32_768",
+    "tick-hz-1_000_000",
 ] }
 embassy-usb = { version = "0.1.0", path = "./embassy/embassy-usb", features = [
     "defmt",
