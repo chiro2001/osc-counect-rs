@@ -6,18 +6,27 @@
 
 extern crate alloc;
 
-use core::mem::size_of;
 
-use alloc::vec::Vec;
 use defmt::*;
-use display_interface::DataFormat;
+use embedded_graphics::{
+    geometry::Point,
+    mono_font::{ascii::FONT_9X18_BOLD, MonoTextStyle},
+    pixelcolor::{Rgb565, RgbColor},
+    text::{Alignment, Text},
+    Drawable,
+};
 use {defmt_rtt as _, panic_probe as _};
 
-use ili9341::{Command, DisplaySize240x320, Ili9341Async as Ili9327, Orientation};
+use ili9341::{DisplaySize240x320, Ili9341 as Ili9327, Orientation};
 
 use embassy_executor::Spawner;
 use embassy_stm32::{
-    adc::Adc, bind_interrupts, dma::{Transfer, TransferOptions}, gpio::{Flex, OutputType, Pull}, pac::bdma::vals::{Dir, Pl, Size}, peripherals::ADC1, time::Hertz, timer::{CaptureCompare16bitInstance, Channel}, PeripheralRef
+    bind_interrupts,
+    gpio::{Flex, OutputType, Pull},
+    peripherals::ADC1,
+    time::Hertz,
+    timer::{CaptureCompare16bitInstance, Channel},
+    PeripheralRef,
 };
 use embassy_stm32::{
     gpio::{Level, Output, Speed},
@@ -30,6 +39,7 @@ use display_interface_fsmc as fsmc;
 
 use tm1668::InoutPin;
 
+mod gui;
 mod osc;
 
 bind_interrupts!(struct Irqs {
@@ -223,9 +233,9 @@ async fn main(_spawner: Spawner) {
         // Orientation::PortraitFlipped,
         DisplaySize240x320,
     )
-    .await
+    // .await
     .unwrap();
-    lcd.clear_screen(0).await.unwrap();
+    lcd.clear_screen(0).unwrap();
     info!("OK!");
 
     let mut bl = SimplePwm::new(
@@ -261,36 +271,21 @@ async fn main(_spawner: Spawner) {
 
     let _kbd = tm1668::TM1668::new(stb, clk, dio, &mut delay);
 
-    // loop {}
-
-    let mut adc = Adc::new(p.ADC1, &mut Delay);
-    // let mut pin = p.PC1;
-    let mut pin = p.PA1;
-
-    let mut vrefint = adc.enable_vref(&mut Delay);
-    let vrefint_sample = adc.read(&mut vrefint).await;
-    let convert_to_millivolts = |sample| {
-        // From http://www.st.com/resource/en/datasheet/CD00161566.pdf
-        // 5.3.4 Embedded reference voltage
-        const VREFINT_MV: u32 = 1200; // mV
-
-        (u32::from(sample) * VREFINT_MV / u32::from(vrefint_sample)) as u16
-    };
-
     loop {
-        let mut vv = Vec::new();
-        for _ in 0..1000 {
-            let v = adc.read(&mut pin).await;
-            vv.push(v);
-            // info!("--> {} - {} mV", v, convert_to_millivolts(v));
-        }
-        // get average
-        let mut sum = 0u64;
-        for v in vv.iter() {
-            sum += *v as u64;
-        }
-        let avg = sum / (vv.len() as u64);
-        info!("ave --> {} - {} mV", avg, convert_to_millivolts(avg as u16));
+        let style = MonoTextStyle::new(&FONT_9X18_BOLD, Rgb565::RED);
+
+        Text::with_alignment(
+            "First line\nSecond line",
+            Point::new(20, 30),
+            style,
+            Alignment::Left,
+        )
+        .draw(&mut lcd)
+        .unwrap();
         // Timer::after_millis(100).await;
+        lcd.clear_screen_async(0).await.unwrap();
+        lcd.clear_screen_async(0xffff).await.unwrap();
+        // lcd.clear_screen(0).unwrap();
+        // lcd.clear_screen(0xffff).unwrap();
     }
 }

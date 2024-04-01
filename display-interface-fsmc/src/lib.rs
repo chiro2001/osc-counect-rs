@@ -464,6 +464,7 @@ where
     }
 }
 
+#[cfg(feature = "async")]
 impl<'d, Dma> AsyncWriteOnlyDataCommand for FsmcInterface<'d, Dma>
 where
     Dma: Channel,

@@ -67,6 +67,7 @@ members = ["tm1668", "display-interface-fsmc", "ili9327"]
 
 [dependencies.ili9341]
 path = "ili9327"
+features = ["async"]
 
 # Target side implementation of the RTT (Real-Time Transfer) I/O protocol
 [dependencies.rtt-target]
@@ -78,6 +79,7 @@ features = ["cortex-m"]
 
 [dependencies.display-interface-fsmc]
 path = "display-interface-fsmc"
+features = ["async"]
 
 [dependencies.tm1668]
 path = "tm1668"

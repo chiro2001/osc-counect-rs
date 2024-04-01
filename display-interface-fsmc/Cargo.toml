@@ -16,3 +16,6 @@ embassy-stm32 = { version = "0.1.0", path = "../embassy/embassy-stm32", features
     "memory-x",
     "time-driver-any",
 ] }
+
+[features]
+async = []
