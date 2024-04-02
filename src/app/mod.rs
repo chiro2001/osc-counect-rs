@@ -4,7 +4,7 @@ mod gui;
 use gui::*;
 
 #[derive(Default, Debug)]
-struct State {}
+pub struct State {}
 
 #[derive(Debug)]
 pub enum AppError {
@@ -31,7 +31,7 @@ use embedded_graphics::{
 };
 
 pub struct App<D> {
-    pub(crate) state: State,
+    pub state: State,
     pub display: D,
     waveform: Waveform,
     run_stop: LineDisp<'static>,

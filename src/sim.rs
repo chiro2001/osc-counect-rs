@@ -17,7 +17,7 @@ async fn main(_spawner: Spawner) -> () {
     info!("Simulator started");
 
     let display = SimulatorDisplay::<Rgb565>::new(Size::new(320, 240));
-    let output_settings = OutputSettingsBuilder::new().scale(4).build();
+    let output_settings = OutputSettingsBuilder::new().scale(3).build();
     let window = Window::new("osc", &output_settings);
 
     app::main_loop(display, window).await;
