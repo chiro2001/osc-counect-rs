@@ -55,7 +55,7 @@ pub trait KeyboardDevice {
 
 #[cfg(feature = "simulator")]
 impl From<embedded_graphics_simulator::sdl2::Keycode> for Keys {
-    fn from(value: Keycode) -> Self {
+    fn from(value: embedded_graphics_simulator::sdl2::Keycode) -> Self {
         use embedded_graphics_simulator::sdl2::Keycode;
         match value {
             Keycode::Backspace => Keys::Back,

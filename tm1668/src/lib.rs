@@ -68,7 +68,7 @@ where
         self.write(0b0100_0010);
         self.dio.set_input();
         // delay
-        self.delay.delay_us(1);
+        self.delay.delay_us(4);
         self.read(data);
         self.stb.set_high().unwrap();
     }
@@ -120,7 +120,7 @@ where
             } else {
                 self.dio.set_low();
             }
-            self.delay.delay_us(1);
+            self.delay.delay_us(2);
             self.clk.set_high().unwrap();
             // self.delay.delay_us(1);
         }
@@ -131,7 +131,7 @@ where
         let mut data = 0u8;
         for i in 0..8 {
             self.clk.set_low().unwrap();
-            self.delay.delay_us(1);
+            self.delay.delay_us(2);
             if self.dio.is_high() {
                 data |= 1 << i;
             }

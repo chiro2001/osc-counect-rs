@@ -383,10 +383,12 @@ async fn keyboad_task(
 ) {
     loop {
         let key = keyboard.read_key();
-        let s: &str = key.into();
         if key != Keys::None {
+            // let s: &str = key.into();
             // crate::debug!("send Key: {:?}", s);
             sender.send(key).await;
+        } else {
+            // crate::debug!("send no Key");
         }
         Timer::after_millis(10).await;
     }
@@ -413,7 +415,7 @@ where
             }
             Err(_) => {}
         }
-        Timer::after_millis(20).await;
+        Timer::after_millis(50).await;
     }
 }
 

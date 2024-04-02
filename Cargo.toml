@@ -88,8 +88,8 @@ debug = true
 lto = true
 
 [profile.release]
-#opt-level = 3
-opt-level = "s"
+opt-level = 3
+# opt-level = "s"
 debug = 2
 lto = true
 #strip = false
