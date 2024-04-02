@@ -106,7 +106,7 @@ where
         .draw_styled(&style, display)
         .map_err(|_| AppError::DisplayError)?;
 
-        let dl = 2;
+        let dl = 1;
         // Draw point grid
         for i in 0..(self.info.size.height as i32 / 40 + 1) {
             for j in 0..(self.info.size.width as i32 / 8) {
@@ -355,20 +355,22 @@ pub struct PanelItem {
     pub(crate) label: &'static str,
     pub(crate) text: &'static str,
     pub(crate) style: PanelStyle,
+    pub(crate) index: u8,
 }
 
 impl PanelItem {
-    pub fn new(pos: u8, label: &'static str, text: &'static str, style: PanelStyle) -> Self {
+    pub fn new(index: u8, label: &'static str, text: &'static str, style: PanelStyle) -> Self {
         Self {
             info: GUIInfo {
                 size: Size::new(48 - 2, 26),
-                position: Point::new(SCREEN_WIDTH as i32 - 48 + 1, 12 + pos as i32 * 27),
+                position: Point::new(SCREEN_WIDTH as i32 - 48 + 1, 12 + (index - 1) as i32 * 27),
                 color_primary: Rgb565::CSS_PURPLE,
                 color_secondary: Rgb565::BLACK,
             },
             label,
             text,
             style,
+            index,
         }
     }
 }
@@ -401,20 +403,35 @@ where
             .into_styled(PrimitiveStyleBuilder::new().fill_color(color_main).build())
             .draw(display)
             .map_err(|_| AppError::DisplayError)?;
+        let mut buf = [0u8; 2];
+        let text_index = format_no_std::show(&mut buf, format_args!("{}", self.index))
+            .map_err(|_| AppError::DataFormatError)?;
+        let color_label = if self.style == PanelStyle::ProbeColor {
+            Rgb565::BLACK
+        } else {
+            Rgb565::WHITE
+        };
+        let color_index = if self.style == PanelStyle::Normal {
+            Rgb565::CYAN
+        } else {
+            Rgb565::CSS_DARK_RED
+        };
+        Text::with_alignment(
+            text_index,
+            Point::new(1, self.info.size.height as i32 * 1 / 4) + TEXT_OFFSET,
+            MonoTextStyle::new(&FONT_6X9, color_index),
+            Alignment::Left,
+        )
+        .translate(self.info.position)
+        .draw(display)
+        .map_err(|_| AppError::DisplayError)?;
         Text::with_alignment(
             self.label,
             Point::new(
                 self.info.size.width as i32 / 2,
                 self.info.size.height as i32 * 1 / 4,
             ) + TEXT_OFFSET,
-            MonoTextStyle::new(
-                &FONT_6X9,
-                if self.style == PanelStyle::ProbeColor {
-                    Rgb565::BLACK
-                } else {
-                    Rgb565::WHITE
-                },
-            ),
+            MonoTextStyle::new(&FONT_6X9, color_label),
             Alignment::Center,
         )
         .translate(self.info.position)
@@ -503,20 +520,20 @@ where
             battery: Battery::new(50),
             clock: Clock::new(),
             panel_items: [
-                PanelItem::new(0, "Channel", "CHA", PanelStyle::ProbeColor),
-                PanelItem::new(1, "T-Scale", "100ms", PanelStyle::Normal),
-                PanelItem::new(2, "V-Scale", "20mV", PanelStyle::ProbeColor),
-                PanelItem::new(3, "Xpos", "0.0ns", PanelStyle::Normal),
-                PanelItem::new(4, "Ypos", "0.0ns", PanelStyle::ProbeColor),
-                PanelItem::new(5, "T-thr", "-3.03mV", PanelStyle::Normal),
-                PanelItem::new(6, "Couple", "DC", PanelStyle::ProbeColor),
-                PanelItem::new(7, "T-Type", "CHA-U", PanelStyle::Normal),
-                PanelItem::new(0, "Probe", "X2", PanelStyle::ProbeColor),
-                PanelItem::new(1, "H-Meas1", "Freq", PanelStyle::ProbeColor),
-                PanelItem::new(2, "V-Mesa1", "Vp-p", PanelStyle::ProbeColor),
-                PanelItem::new(3, "H-Mesa2", "--", PanelStyle::ProbeColor),
-                PanelItem::new(4, "V_Mesa2", "Vrms", PanelStyle::ProbeColor),
-                PanelItem::new(5, "Sweep", "AUTO", PanelStyle::Normal),
+                PanelItem::new(1, "Chann", "CHA", PanelStyle::ProbeColor),
+                PanelItem::new(2, "T-Sca", "100ms", PanelStyle::Normal),
+                PanelItem::new(3, "V-Sca", "20mV", PanelStyle::ProbeColor),
+                PanelItem::new(4, "Xpos", "0.0ns", PanelStyle::Normal),
+                PanelItem::new(5, "Ypos", "0.0ns", PanelStyle::ProbeColor),
+                PanelItem::new(6, "T-thr", "-3.03mV", PanelStyle::Normal),
+                PanelItem::new(7, "Coup", "DC", PanelStyle::ProbeColor),
+                PanelItem::new(8, "T-Typ", "CHA-U", PanelStyle::Normal),
+                PanelItem::new(1, "Probe", "X2", PanelStyle::ProbeColor),
+                PanelItem::new(2, "H-Me1", "Freq", PanelStyle::ProbeColor),
+                PanelItem::new(3, "V-Me1", "Vp-p", PanelStyle::ProbeColor),
+                PanelItem::new(4, "H-Me2", "--", PanelStyle::ProbeColor),
+                PanelItem::new(5, "V_Me2", "Vrms", PanelStyle::ProbeColor),
+                PanelItem::new(6, "Sweep", "AUTO", PanelStyle::Normal),
             ],
         }
     }
