@@ -27,6 +27,12 @@ pub enum AppError {
 
 type Result<T, E = AppError> = core::result::Result<T, E>;
 
+#[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
+pub enum Channel {
+    A,
+    B,
+}
+
 pub trait Draw<D> {
     fn draw(&self, display: &mut D) -> Result<()>
     where
@@ -67,7 +73,7 @@ impl Default for Waveform {
     fn default() -> Self {
         Self {
             info: GUIInfo {
-                size: Size::new(SCREEN_WIDTH - 48 - 4, SCREEN_HEIGHT - 12 - 12),
+                size: Size::new(SCREEN_WIDTH - 48 - 4 - 1, SCREEN_HEIGHT - 12 - 12 - 1),
                 position: Point::new(4, 12),
                 color_primary: Rgb565::CSS_DARK_SLATE_GRAY,
                 color_secondary: Rgb565::CSS_LIGHT_GRAY,
@@ -110,8 +116,11 @@ where
         // Draw point grid
         for i in 0..(self.info.size.height as i32 / 40 + 1) {
             for j in 0..(self.info.size.width as i32 / 8) {
-                let x = j * 8 + 6;
-                let y = i * 40 + 28;
+                let x = j * 8 + 6 - 1;
+                let y = i * 40 + 28 - 1;
+                if x == center.x as i32 {
+                    continue;
+                }
                 if y == center.y as i32 {
                     Line::new(Point::new(x, y - dl), Point::new(x, y + dl))
                         .translate(self.info.position)
@@ -126,9 +135,12 @@ where
             }
         }
         for i in 0..(self.info.size.width as i32 / 40 + 1) {
-            for j in 0..(self.info.size.height as i32 / 8) {
-                let x = i * 40 + 14;
-                let y = j * 8 + 4;
+            for j in 0..(self.info.size.height as i32 / 8 + 1) {
+                let x = i * 40 + 14 - 1;
+                let y = j * 8 + 4 - 1;
+                if y == center.y as i32 {
+                    continue;
+                }
                 if x == center.x as i32 {
                     Line::new(Point::new(x - dl, y), Point::new(x + dl, y))
                         .translate(self.info.position)
@@ -347,7 +359,7 @@ where
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PanelStyle {
     Normal,
-    ProbeColor,
+    ChannelColor,
 }
 
 pub struct PanelItem {
@@ -362,7 +374,7 @@ impl PanelItem {
     pub fn new(index: u8, label: &'static str, text: &'static str, style: PanelStyle) -> Self {
         Self {
             info: GUIInfo {
-                size: Size::new(48 - 2, 26),
+                size: Size::new(48 - 1, 26),
                 position: Point::new(SCREEN_WIDTH as i32 - 48 + 1, 12 + (index - 1) as i32 * 27),
                 color_primary: Rgb565::CSS_PURPLE,
                 color_secondary: Rgb565::BLACK,
@@ -380,7 +392,7 @@ where
     D: DrawTarget<Color = Rgb565>,
 {
     fn draw(&self, display: &mut D) -> Result<()> {
-        let color_main = if self.style == PanelStyle::ProbeColor {
+        let color_main = if self.style == PanelStyle::ChannelColor {
             Rgb565::YELLOW
         } else {
             self.info.color_primary
@@ -406,7 +418,7 @@ where
         let mut buf = [0u8; 2];
         let text_index = format_no_std::show(&mut buf, format_args!("{}", self.index))
             .map_err(|_| AppError::DataFormatError)?;
-        let color_label = if self.style == PanelStyle::ProbeColor {
+        let color_label = if self.style == PanelStyle::ChannelColor {
             Rgb565::BLACK
         } else {
             Rgb565::WHITE
@@ -453,6 +465,79 @@ where
     }
 }
 
+pub struct MeasureItem {
+    pub(crate) info: GUIInfo,
+    pub(crate) channel: Channel,
+    pub(crate) label: &'static str,
+    pub(crate) text: &'static str,
+    pub(crate) enabled: bool,
+}
+
+impl MeasureItem {
+    pub fn new(
+        index: u8,
+        channel: Channel,
+        label: &'static str,
+        text: &'static str,
+        enabled: bool,
+    ) -> Self {
+        Self {
+            info: GUIInfo {
+                size: Size::new(66, 10),
+                position: Point::new(67 * index as i32 + 4, SCREEN_HEIGHT as i32 - 11),
+                color_primary: Rgb565::YELLOW,
+                color_secondary: Rgb565::GREEN,
+            },
+            channel,
+            label,
+            text,
+            enabled,
+        }
+    }
+}
+
+impl<D> Draw<D> for MeasureItem
+where
+    D: DrawTarget<Color = Rgb565>,
+{
+    fn draw(&self, display: &mut D) -> Result<()> {
+        let color_main = if self.channel == Channel::A {
+            self.info.color_primary
+        } else {
+            self.info.color_secondary
+        };
+        Rectangle::new(self.info.position, self.info.size)
+            .into_styled(PrimitiveStyle::with_fill(color_main))
+            .draw(display)
+            .map_err(|_| AppError::DisplayError)?;
+        if !self.enabled {
+            Text::with_alignment(
+                "--",
+                self.info.size_center() + TEXT_OFFSET,
+                MonoTextStyle::new(&FONT_6X9, Rgb565::BLACK),
+                Alignment::Center,
+            )
+            .translate(self.info.position)
+            .draw(display)
+            .map_err(|_| AppError::DisplayError)?;
+            return Ok(());
+        }
+        let mut buf = [0u8; 16];
+        let text = format_no_std::show(&mut buf, format_args!("{}:{}", self.label, self.text))
+            .map_err(|_| AppError::DataFormatError)?;
+        Text::with_alignment(
+            text,
+            self.info.size_center() + TEXT_OFFSET,
+            MonoTextStyle::new(&FONT_6X9, Rgb565::BLACK),
+            Alignment::Center,
+        )
+        .translate(self.info.position)
+        .draw(display)
+        .map_err(|_| AppError::DisplayError)?;
+        Ok(())
+    }
+}
+
 pub struct App<D> {
     pub(crate) state: State,
     pub display: D,
@@ -465,6 +550,7 @@ pub struct App<D> {
     battery: Battery,
     clock: Clock,
     panel_items: [PanelItem; 8 + 6],
+    measure_items: [MeasureItem; 4],
 }
 
 impl<D> App<D>
@@ -520,20 +606,26 @@ where
             battery: Battery::new(50),
             clock: Clock::new(),
             panel_items: [
-                PanelItem::new(1, "Chann", "CHA", PanelStyle::ProbeColor),
+                PanelItem::new(1, "Chann", "CHA", PanelStyle::ChannelColor),
                 PanelItem::new(2, "T-Sca", "100ms", PanelStyle::Normal),
-                PanelItem::new(3, "V-Sca", "20mV", PanelStyle::ProbeColor),
+                PanelItem::new(3, "V-Sca", "20mV", PanelStyle::ChannelColor),
                 PanelItem::new(4, "Xpos", "0.0ns", PanelStyle::Normal),
-                PanelItem::new(5, "Ypos", "0.0ns", PanelStyle::ProbeColor),
+                PanelItem::new(5, "Ypos", "0.0ns", PanelStyle::ChannelColor),
                 PanelItem::new(6, "T-thr", "-3.03mV", PanelStyle::Normal),
-                PanelItem::new(7, "Coup", "DC", PanelStyle::ProbeColor),
+                PanelItem::new(7, "Coup", "DC", PanelStyle::ChannelColor),
                 PanelItem::new(8, "T-Typ", "CHA-U", PanelStyle::Normal),
-                PanelItem::new(1, "Probe", "X2", PanelStyle::ProbeColor),
-                PanelItem::new(2, "H-Me1", "Freq", PanelStyle::ProbeColor),
-                PanelItem::new(3, "V-Me1", "Vp-p", PanelStyle::ProbeColor),
-                PanelItem::new(4, "H-Me2", "--", PanelStyle::ProbeColor),
-                PanelItem::new(5, "V_Me2", "Vrms", PanelStyle::ProbeColor),
+                PanelItem::new(1, "Probe", "X2", PanelStyle::ChannelColor),
+                PanelItem::new(2, "H-Me1", "Freq", PanelStyle::ChannelColor),
+                PanelItem::new(3, "V-Me1", "Vp-p", PanelStyle::ChannelColor),
+                PanelItem::new(4, "H-Me2", "--", PanelStyle::ChannelColor),
+                PanelItem::new(5, "V_Me2", "Vrms", PanelStyle::ChannelColor),
                 PanelItem::new(6, "Sweep", "AUTO", PanelStyle::Normal),
+            ],
+            measure_items: [
+                MeasureItem::new(0, Channel::A, "Freq", "34kHz", true),
+                MeasureItem::new(1, Channel::A, "Vp-p", "2.3mV", false),
+                MeasureItem::new(2, Channel::B, "Freq", "--", true),
+                MeasureItem::new(3, Channel::B, "Vrms", "430uV", true),
             ],
         }
     }
@@ -553,6 +645,9 @@ where
         self.clock.draw(&mut self.display)?;
 
         for item in self.panel_items.iter().take(8) {
+            item.draw(&mut self.display)?;
+        }
+        for item in self.measure_items.iter() {
             item.draw(&mut self.display)?;
         }
 
