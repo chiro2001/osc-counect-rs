@@ -333,7 +333,10 @@ where
             format_args!("{}{}", voltage_scale.voltage, text_unit),
         )
         .map_err(|_| AppError::DataFormatError)?;
-        let disp = LineDisp { text, ..self.0.clone() };
+        let disp = LineDisp {
+            text,
+            ..self.0.clone()
+        };
         disp.draw_state(display, state)?;
         // Ok(Some(&[StateMarker::ChannelSetting]))
         Ok(None)
@@ -675,6 +678,9 @@ impl<D> Draw<D> for MeasureItem
 where
     D: DrawTarget<Color = Rgb565>,
 {
+    fn state_emit_mask(&self) -> &[StateMarker] {
+        &[StateMarker::Measures]
+    }
     fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult {
         let color_main = if self.channel == Channel::A {
             self.info.color_primary
@@ -727,5 +733,18 @@ impl Generator {
             text,
             font: MonoTextStyle::new(&FONT_6X9, Rgb565::WHITE),
         })
+    }
+}
+
+impl<D> Draw<D> for Generator
+where
+    D: DrawTarget<Color = Rgb565>,
+{
+    fn state_emit_mask(&self) -> &[StateMarker] {
+        &[StateMarker::Generator]
+    }
+    fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult {
+        self.0.draw_state(display, _state)?;
+        Ok(Some(&[StateMarker::Generator]))
     }
 }

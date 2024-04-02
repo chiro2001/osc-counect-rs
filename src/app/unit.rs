@@ -31,6 +31,16 @@ impl TimeUnit {
             _ => TimeUnit::Hour,
         }
     }
+    pub fn fixed1k(ns: u64) -> Self {
+        match ns {
+            1..=999 => TimeUnit::Nanosecond,
+            1000..=999_999 => TimeUnit::Nanosecond,
+            1_000_000..=999_999_999 => TimeUnit::Microsecond,
+            1_000_000_000..=59_999_999_999 => TimeUnit::Millisecond,
+            60_000_000_000..=3_599_999_999_999 => TimeUnit::Second,
+            _ => TimeUnit::Minute,
+        }
+    }
 }
 
 impl Into<&'static str> for TimeUnit {
@@ -80,6 +90,9 @@ impl VoltageUnit {
             _ => VoltageUnit::Volt,
         }
     }
+    pub fn fixed1k(_mv: u64) -> Self {
+        VoltageUnit::MilliVolt
+    }
 }
 
 impl Into<&'static str> for VoltageUnit {
@@ -98,7 +111,7 @@ pub struct VoltageScale {
 
 impl VoltageScale {
     pub fn from_mv(mv: u64) -> Self {
-        let unit = VoltageUnit::fixed(mv);
+        let unit = VoltageUnit::fixed1k(mv);
         let voltage = mv / unit.divider();
         Self { voltage, unit }
     }

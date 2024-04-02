@@ -42,6 +42,8 @@ pub enum StateMarker {
     Waveform,
     TimeScale,
     ChannelSetting,
+    Measures,
+    Generator,
     Endding,
     All,
     AllFlush,
@@ -67,6 +69,10 @@ pub struct State {
     pub time_scale_ns: u64,
     // TODO: channel setting
     pub channel_info: u64,
+    // TODO: measures
+    pub measures: u64,
+    // TODO: generator setting
+    pub generator: u64,
 }
 
 #[derive(Debug, Default)]
@@ -104,6 +110,8 @@ impl Default for State {
             waveform: Default::default(),
             time_scale_ns: 100_000,
             channel_info: 1250,
+            measures: Default::default(),
+            generator: Default::default(),
         }
     }
 }
@@ -274,11 +282,13 @@ where
             }
             self.updated.set(StateMarker::PanelPage, true);
         }
-        for item in self.measure_items.iter_mut() {
-            item.draw(&mut self.display, &mut self.state, &mut self.updated)?;
+        if !self.updated.at(StateMarker::Measures) {
+            for item in self.measure_items.iter_mut() {
+                item.draw(&mut self.display, &mut self.state, &mut self.updated)?;
+            }
+            self.updated.set(StateMarker::Measures, true);
         }
         self.generator
-            .0
             .draw(&mut self.display, &mut self.state, &mut self.updated)?;
 
         // self.updated[StateMarker::RunningState as usize] = false;
