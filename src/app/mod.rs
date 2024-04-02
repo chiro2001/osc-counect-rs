@@ -41,7 +41,8 @@ pub enum StateMarker {
     ChannelSetting,
     Measures,
     Generator,
-    SettingValue,
+    SettingValueTitle,
+    SettingValueContent,
     Endding,
     All,
     AllFlush,
@@ -95,15 +96,20 @@ impl Panel {
             _ => PanelStyle::Normal,
         }
     }
-    pub fn select_items(&self) -> Option<&[&[&'static str]]> {
+    pub fn select_items(&self) -> Option<&'static [&'static [&'static str]]> {
         match self {
             Panel::Channel => Some(&[&["CHA", "CHB"]]),
+            Panel::VoltageScale => Some(&[
+                &["1", "2", "5", "10", "20", "50", "100", "200", "500"],
+                &["mV", "V"],
+            ]),
             _ => None,
         }
     }
     pub fn get_setting_mode(&self) -> SettingValueMode {
         match self {
             Panel::Channel => SettingValueMode::ItemSelect,
+            Panel::VoltageScale => SettingValueMode::ItemSelect,
             _ => SettingValueMode::Invalid,
         }
     }
@@ -177,7 +183,7 @@ pub struct State {
     pub setting_time_scale: TimeScale,
     pub setting_voltage_scale: VoltageScale,
     pub setting_select_idx: [u8; 3],
-    pub setting_select_sel: u8,
+    pub setting_select_col: u8,
 }
 
 #[derive(Debug, Default)]
@@ -224,7 +230,7 @@ impl Default for State {
             setting_time_scale: Default::default(),
             setting_voltage_scale: Default::default(),
             setting_select_idx: Default::default(),
-            setting_select_sel: Default::default(),
+            setting_select_col: Default::default(),
         }
     }
 }
@@ -275,6 +281,9 @@ pub struct App<D> {
     panel_items: [PanelItem; Panel::Endding as usize],
     measure_items: [MeasureItem; 4],
     generator: Generator,
+
+    // widgets of setting value window
+    select_items: Option<SelectItem>,
 }
 
 impl<D> App<D>
@@ -332,6 +341,7 @@ where
                 MeasureItem::new(3, ProbeChannel::B, "Vrms", "430uV", true),
             ],
             generator: Generator::new("Sin 10k"),
+            select_items: Default::default(),
         }
     }
 
@@ -453,7 +463,18 @@ where
     }
 
     async fn draw_set_value_window(&mut self) -> Result<()> {
-        let window_size = Size::new(128, 84);
+        let title_height = 14;
+        let item_height = 11;
+        let window_height_min = 44 + title_height;
+        let panel = Panel::from(self.state.setting_index as usize);
+        let window_height_max = item_height * item_height + title_height;
+        let window_height = if let Some(items) = panel.select_items() {
+            items[0].len() as i32 * item_height + title_height
+        } else {
+            window_height_min
+        } as u32;
+        let window_height = window_height.clamp(window_height_min as u32, window_height_max as u32);
+        let window_size = Size::new(128, window_height);
         let window_rect = Rectangle::with_center(
             self.waveform.info.position
                 + Point::new(
@@ -462,6 +483,20 @@ where
                 ),
             window_size,
         );
+        if self.select_items.is_none() {
+            if let Some(items) = panel.select_items() {
+                let select_item = SelectItem {
+                    info: GUIInfo {
+                        size: Size::new(128, 84),
+                        position: Point::new(0, 14) + window_rect.top_left,
+                        color_primary: Rgb565::MAGENTA,
+                        color_secondary: Rgb565::BLACK,
+                    },
+                    items,
+                };
+                self.select_items = Some(select_item);
+            }
+        }
         if !self.state.setting_inited {
             window_rect
                 .clone()
@@ -470,14 +505,10 @@ where
                 .map_err(|_| AppError::DisplayError)?;
             return Ok(());
         }
-        if !self.updated.at(StateMarker::SettingValue) {
+        if !self.updated.at(StateMarker::SettingValueTitle) {
             let _pannel_item = &self.panel_items[self.state.setting_index as usize];
             let mut buf = [0u8; 16];
-            let title = format_no_std::show(
-                &mut buf,
-                format_args!("{:#?}", Panel::from(self.state.setting_index as usize)),
-            )
-            .unwrap();
+            let title = format_no_std::show(&mut buf, format_args!("{}", panel.str())).unwrap();
             Text::with_alignment(
                 title,
                 Point::new(window_size.width as i32 / 2, 10),
@@ -488,7 +519,12 @@ where
             .draw(&mut self.display)
             .map_err(|_| AppError::DisplayError)?;
 
-            self.updated.set(StateMarker::SettingValue, false);
+            self.updated.set(StateMarker::SettingValueTitle, false);
+        }
+        if let Some(select_items) = &self.select_items {
+            select_items
+                .draw(&mut self.display, &mut self.state, &mut self.updated)
+                .await?;
         }
         Ok(())
     }
@@ -573,11 +609,14 @@ impl<D> App<D> {
                     Keys::Ok => {
                         // reset states
                         self.state.setting_inited = false;
+                        self.select_items = None;
 
                         // self.state.window_next = Some(Window::Main);
                         self.state.window = Window::Main;
                         self.state.panel_focused = None;
                         // self.updated.clear();
+                        self.updated.set(StateMarker::SettingValueTitle, false);
+                        self.updated.set(StateMarker::SettingValueContent, false);
                         self.updated.set(StateMarker::PanelPage, false);
                         self.updated.set(StateMarker::Waveform, false);
                     }

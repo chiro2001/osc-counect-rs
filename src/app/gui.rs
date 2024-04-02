@@ -766,3 +766,58 @@ where
         Ok(Some(&[StateMarker::Generator]))
     }
 }
+
+pub struct SelectItem {
+    pub(crate) info: GUIInfo,
+    pub(crate) items: &'static [&'static [&'static str]],
+}
+
+impl<D> Draw<D> for SelectItem
+where
+    D: DrawTarget<Color = Rgb565>,
+{
+    fn state_emit_mask(&self) -> &[StateMarker] {
+        &[StateMarker::SettingValueContent]
+    }
+    fn draw_state(&self, display: &mut D, state: &mut State) -> StateResult {
+        let columns = self.items.len();
+        let box_size = Size::new(self.info.size.width / columns as u32, self.info.size.height);
+        for col in 0..columns {
+            let box_pos = self.info.position + Point::new(box_size.width as i32 * col as i32, 0);
+            let text_height = 11;
+            for idx in 0..self.items[col].len() {
+                let text = self.items[col][idx];
+                let text_box_pos = box_pos + Point::new(1, (text_height * idx) as i32);
+                let text_pos_center =
+                    text_box_pos + Point::new(box_size.width as i32 / 2, (text_height / 2) as i32);
+                let selected = idx == state.setting_select_idx[col] as usize;
+                let color_text = if selected {
+                    Rgb565::WHITE
+                } else {
+                    Rgb565::BLACK
+                };
+                let color_bg = if selected {
+                    Rgb565::BLACK
+                } else {
+                    self.info.color_primary
+                };
+                Rectangle::new(
+                    text_box_pos,
+                    Size::new(box_size.width - 2, text_height as u32 - 1),
+                )
+                .into_styled(PrimitiveStyle::with_fill(color_bg))
+                .draw(display)
+                .map_err(|_| AppError::DisplayError)?;
+                Text::with_alignment(
+                    text,
+                    text_pos_center + TEXT_OFFSET,
+                    MonoTextStyle::new(&FONT_6X9, color_text),
+                    Alignment::Center,
+                )
+                .draw(display)
+                .map_err(|_| AppError::DisplayError)?;
+            }
+        }
+        Ok(Some(&[StateMarker::SettingValueContent]))
+    }
+}
