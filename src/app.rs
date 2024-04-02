@@ -22,6 +22,7 @@ const SCREEN_HEIGHT: u32 = 240;
 #[derive(Debug)]
 pub enum AppError {
     DisplayError,
+    DataFormatError,
 }
 
 type Result<T, E = AppError> = core::result::Result<T, E>;
@@ -232,8 +233,8 @@ impl Battery {
     pub fn new(level: u8) -> Self {
         Self {
             info: GUIInfo {
-                size: Size::new(24, 8),
-                position: Point::new(SCREEN_WIDTH as i32 - 24, 1),
+                size: Size::new(17, 8),
+                position: Point::new(SCREEN_WIDTH as i32 - 17, 1),
                 color_primary: Rgb565::WHITE,
                 color_secondary: Rgb565::BLACK,
             },
@@ -286,6 +287,155 @@ impl<D> Draw<D> for Battery {
     }
 }
 
+pub struct Clock {
+    pub(crate) info: GUIInfo,
+    pub(crate) hour: u8,
+    pub(crate) minute: u8,
+}
+
+impl Clock {
+    pub fn new() -> Self {
+        Self {
+            info: GUIInfo {
+                size: Size::new(30, 10),
+                position: Point::new(SCREEN_WIDTH as i32 - 48, 0),
+                color_primary: Rgb565::WHITE,
+                color_secondary: Rgb565::CSS_DARK_SLATE_GRAY,
+            },
+            hour: 12,
+            minute: 30,
+        }
+    }
+    pub fn set_time(&mut self, hour: u8, minute: u8) {
+        self.hour = hour;
+        self.minute = minute;
+    }
+}
+
+impl<D> Draw<D> for Clock
+where
+    D: DrawTarget<Color = Rgb565>,
+{
+    fn draw(&self, display: &mut D) -> Result<()> {
+        Rectangle::new(self.info.position, self.info.size)
+            .into_styled(
+                PrimitiveStyleBuilder::new()
+                    .fill_color(self.info.color_secondary)
+                    .build(),
+            )
+            .draw(display)
+            .map_err(|_| AppError::DisplayError)?;
+        let mut buf = [0u8; 6];
+        let text = format_no_std::show(
+            &mut buf,
+            format_args!("{:02}:{:02}", self.hour, self.minute),
+        )
+        .map_err(|_| AppError::DataFormatError)?;
+        Text::with_alignment(
+            &text,
+            self.info.size_center() + TEXT_OFFSET,
+            MonoTextStyle::new(&FONT_6X9, self.info.color_primary),
+            Alignment::Center,
+        )
+        .translate(self.info.position)
+        .draw(display)
+        .map_err(|_| AppError::DisplayError)?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PanelStyle {
+    Normal,
+    ProbeColor,
+}
+
+pub struct PanelItem {
+    pub(crate) info: GUIInfo,
+    pub(crate) label: &'static str,
+    pub(crate) text: &'static str,
+    pub(crate) style: PanelStyle,
+}
+
+impl PanelItem {
+    pub fn new(pos: u8, label: &'static str, text: &'static str, style: PanelStyle) -> Self {
+        Self {
+            info: GUIInfo {
+                size: Size::new(48 - 2, 26),
+                position: Point::new(SCREEN_WIDTH as i32 - 48 + 1, 12 + pos as i32 * 27),
+                color_primary: Rgb565::CSS_PURPLE,
+                color_secondary: Rgb565::BLACK,
+            },
+            label,
+            text,
+            style,
+        }
+    }
+}
+
+impl<D> Draw<D> for PanelItem
+where
+    D: DrawTarget<Color = Rgb565>,
+{
+    fn draw(&self, display: &mut D) -> Result<()> {
+        let color_main = if self.style == PanelStyle::ProbeColor {
+            Rgb565::YELLOW
+        } else {
+            self.info.color_primary
+        };
+        let size_half = Size::new(self.info.size.width, self.info.size.height / 2);
+        Rectangle::new(
+            self.info.position + Point::new(0, size_half.height as i32),
+            size_half,
+        )
+        .into_styled(
+            PrimitiveStyleBuilder::new()
+                .stroke_color(color_main)
+                .stroke_width(1)
+                .fill_color(self.info.color_secondary)
+                .build(),
+        )
+        .draw(display)
+        .map_err(|_| AppError::DisplayError)?;
+        Rectangle::new(self.info.position, size_half)
+            .into_styled(PrimitiveStyleBuilder::new().fill_color(color_main).build())
+            .draw(display)
+            .map_err(|_| AppError::DisplayError)?;
+        Text::with_alignment(
+            self.label,
+            Point::new(
+                self.info.size.width as i32 / 2,
+                self.info.size.height as i32 * 1 / 4,
+            ) + TEXT_OFFSET,
+            MonoTextStyle::new(
+                &FONT_6X9,
+                if self.style == PanelStyle::ProbeColor {
+                    Rgb565::BLACK
+                } else {
+                    Rgb565::WHITE
+                },
+            ),
+            Alignment::Center,
+        )
+        .translate(self.info.position)
+        .draw(display)
+        .map_err(|_| AppError::DisplayError)?;
+        Text::with_alignment(
+            self.text,
+            Point::new(
+                self.info.size.width as i32 / 2,
+                self.info.size.height as i32 * 3 / 4,
+            ) + TEXT_OFFSET,
+            MonoTextStyle::new(&FONT_6X9, Rgb565::WHITE),
+            Alignment::Center,
+        )
+        .translate(self.info.position)
+        .draw(display)
+        .map_err(|_| AppError::DisplayError)?;
+        Ok(())
+    }
+}
+
 pub struct App<D> {
     pub(crate) state: State,
     pub display: D,
@@ -296,6 +446,8 @@ pub struct App<D> {
     channel_info1: LineDisp<'static>,
     channel_info2: LineDisp<'static>,
     battery: Battery,
+    clock: Clock,
+    panel_items: [PanelItem; 8 + 6],
 }
 
 impl<D> App<D>
@@ -324,7 +476,7 @@ where
                     color_primary: Rgb565::MAGENTA,
                     color_secondary: Rgb565::WHITE,
                 },
-                text: "T 2us",
+                text: "500ms",
                 font: MonoTextStyle::new(&FONT_6X9, Rgb565::WHITE),
             },
             overview: Overview::new(),
@@ -349,6 +501,23 @@ where
                 font: MonoTextStyle::new(&FONT_6X9, Rgb565::BLACK),
             },
             battery: Battery::new(50),
+            clock: Clock::new(),
+            panel_items: [
+                PanelItem::new(0, "Channel", "CHA", PanelStyle::ProbeColor),
+                PanelItem::new(1, "T-Scale", "100ms", PanelStyle::Normal),
+                PanelItem::new(2, "V-Scale", "20mV", PanelStyle::ProbeColor),
+                PanelItem::new(3, "Xpos", "0.0ns", PanelStyle::Normal),
+                PanelItem::new(4, "Ypos", "0.0ns", PanelStyle::ProbeColor),
+                PanelItem::new(5, "T-thr", "-3.03mV", PanelStyle::Normal),
+                PanelItem::new(6, "Couple", "DC", PanelStyle::ProbeColor),
+                PanelItem::new(7, "T-Type", "CHA-U", PanelStyle::Normal),
+                PanelItem::new(0, "Probe", "X2", PanelStyle::ProbeColor),
+                PanelItem::new(1, "H-Meas1", "Freq", PanelStyle::ProbeColor),
+                PanelItem::new(2, "V-Mesa1", "Vp-p", PanelStyle::ProbeColor),
+                PanelItem::new(3, "H-Mesa2", "--", PanelStyle::ProbeColor),
+                PanelItem::new(4, "V_Mesa2", "Vrms", PanelStyle::ProbeColor),
+                PanelItem::new(5, "Sweep", "AUTO", PanelStyle::Normal),
+            ],
         }
     }
 
@@ -364,6 +533,11 @@ where
         self.channel_info1.draw(&mut self.display)?;
         self.channel_info2.draw(&mut self.display)?;
         self.battery.draw(&mut self.display)?;
+        self.clock.draw(&mut self.display)?;
+
+        for item in self.panel_items.iter().take(8) {
+            item.draw(&mut self.display)?;
+        }
 
         Ok(())
     }
