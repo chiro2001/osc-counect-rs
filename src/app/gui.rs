@@ -514,12 +514,14 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PanelStyle {
+    #[default]
     Normal,
     ChannelColor,
 }
 
+#[derive(Default)]
 pub struct PanelItem {
     pub(crate) info: GUIInfo,
     pub(crate) label: &'static str,
