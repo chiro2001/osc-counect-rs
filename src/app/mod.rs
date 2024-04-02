@@ -4,6 +4,8 @@ mod gui;
 pub mod input;
 mod unit;
 
+use core::ops::Range;
+
 use embassy_sync::{
     blocking_mutex::raw::ThreadModeRawMutex,
     channel::{Channel, Sender},
@@ -274,17 +276,22 @@ where
             .await?;
 
         if !self.updated.at(StateMarker::PanelPage) {
-            Rectangle::new(
-                self.panel_items[0].info.position,
-                Size::new(
-                    self.panel_items[0].info.size.width,
-                    (self.panel_items[0].info.size.height + 1) * 8,
-                ),
-            )
-            .into_styled(PrimitiveStyle::with_fill(Rgb565::CSS_DARK_SLATE_GRAY))
-            .draw(&mut self.display)
-            .map_err(|_| AppError::DisplayError)?;
-            let mut drawed_panel_items = 0;
+            // Rectangle::new(
+            //     self.panel_items[0].info.position,
+            //     Size::new(
+            //         self.panel_items[0].info.size.width,
+            //         (self.panel_items[0].info.size.height + 1) * 8,
+            //     ),
+            // )
+            // .into_styled(PrimitiveStyle::with_fill(Rgb565::CSS_DARK_SLATE_GRAY))
+            // .draw(&mut self.display)
+            // .map_err(|_| AppError::DisplayError)?;
+            // let mut drawed_panel_items = 0;
+            let drawed_panel_items = if self.state.panel_page == 0 {
+                8
+            } else {
+                self.panel_items.len() - 8
+            };
             for item in self
                 .panel_items
                 .iter_mut()
@@ -293,9 +300,23 @@ where
             {
                 item.draw(&mut self.display, &mut self.state, &mut self.updated)
                     .await?;
-                drawed_panel_items += 1;
+                // drawed_panel_items += 1;
             }
             if drawed_panel_items < 8 {
+                // clear some items
+                let range = Range {
+                    start: drawed_panel_items,
+                    end: 8,
+                };
+                for i in range {
+                    Rectangle::new(
+                        self.panel_items[i].info.position,
+                        self.panel_items[i].info.size,
+                    )
+                    .into_styled(PrimitiveStyle::with_fill(Rgb565::CSS_DARK_SLATE_GRAY))
+                    .draw(&mut self.display)
+                    .map_err(|_| AppError::DisplayError)?;
+                }
                 // add info: 0 to switch page
                 Text::with_alignment(
                     "0:Page",
