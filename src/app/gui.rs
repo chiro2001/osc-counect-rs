@@ -10,7 +10,7 @@ use embedded_graphics::{
     Drawable, Pixel,
 };
 
-use super::{State, StateMarker, StateVec};
+use super::{RunningState, State, StateMarker, StateVec};
 
 pub const TEXT_OFFSET: Point = Point::new(0, 2);
 pub const SCREEN_WIDTH: u32 = 320;
@@ -22,26 +22,37 @@ pub trait Draw<D> {
     where
         D: DrawTarget<Color = Rgb565>,
     {
-        let state_mask = self.state_mask();
-        if state_mask.len() != 0 {
-            if state_mask.iter().all(|x| {
-                let idx: usize = (*x).into();
-                vec[idx]
-            }) {
-                return Ok(());
-            }
+        let state_mask = self.state_emit_mask();
+        let do_update = if state_mask.len() != 0 {
+            // if any of the state markers are not updated, start drawing
+            state_mask.iter().any(|x| !vec.at(*x))
+        } else {
+            // if no state markers are specified, always draw
+            true
+        };
+        if !do_update {
+            return Ok(());
         }
         let updated = self.draw_state(display, state)?;
         if let Some(updated) = updated {
+            // modify the state vector
             for x in updated {
-                let idx: usize = (*x).into();
-                vec[idx] = true;
+                match x {
+                    StateMarker::AllFlush => {
+                        for x in vec.iter_mut() {
+                            *x = false;
+                        }
+                    }
+                    _ => {
+                        vec.set(*x, true);
+                    }
+                }
             }
         }
         Ok(())
     }
 
-    fn state_mask(&self) -> &[StateMarker] {
+    fn state_emit_mask(&self) -> &[StateMarker] {
         // nomask: &[]
         &[]
     }
@@ -215,12 +226,12 @@ where
 pub struct RunningStateDisp;
 
 impl RunningStateDisp {
-    fn new_disp<'a>(text: &'a str) -> LineDisp<'a> {
+    fn new_disp<'a>(text: &'a str, color: Rgb565) -> LineDisp<'a> {
         LineDisp {
             info: GUIInfo {
                 size: Size::new(29, 10),
                 position: Point::new(4, 0),
-                color_primary: Rgb565::RED,
+                color_primary: color,
                 color_secondary: Rgb565::WHITE,
             },
             font: MonoTextStyle::new(&FONT_6X9, Rgb565::WHITE),
@@ -238,11 +249,19 @@ impl<D> Draw<D> for RunningStateDisp
 where
     D: DrawTarget<Color = Rgb565>,
 {
-    fn state_mask(&self) -> &[StateMarker] {
+    fn state_emit_mask(&self) -> &[StateMarker] {
         &[StateMarker::RunningState]
     }
     fn draw_state(&self, display: &mut D, state: &mut State) -> StateResult {
-        let disp = Self::new_disp(state.running_state.into());
+        let text: &str = state.running_state.into();
+        let disp = Self::new_disp(
+            text,
+            if state.running_state == RunningState::Running {
+                Rgb565::CSS_PURPLE
+            } else {
+                Rgb565::RED
+            },
+        );
         disp.draw_state(display, state)?;
         Ok(Some(&[StateMarker::RunningState]))
     }
@@ -313,7 +332,7 @@ impl Battery {
 }
 
 impl<D> Draw<D> for Battery {
-    fn state_mask(&self) -> &[StateMarker] {
+    fn state_emit_mask(&self) -> &[StateMarker] {
         &[StateMarker::Battery]
     }
     fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult
@@ -388,7 +407,7 @@ impl<D> Draw<D> for Clock
 where
     D: DrawTarget<Color = Rgb565>,
 {
-    fn state_mask(&self) -> &[StateMarker] {
+    fn state_emit_mask(&self) -> &[StateMarker] {
         &[StateMarker::Clock]
     }
     fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult {

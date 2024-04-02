@@ -1,5 +1,3 @@
-//! FSMC interface test for ILI9341 display
-
 #![allow(clippy::empty_loop)]
 #![no_main]
 #![no_std]

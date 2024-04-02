@@ -1,10 +1,12 @@
 #![allow(dead_code)]
 
 mod gui;
+mod input;
 
 use gui::*;
+use input::*;
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
 pub enum RunningState {
     #[default]
     Stopped,
@@ -28,14 +30,25 @@ impl Into<&'static str> for RunningState {
     }
 }
 
-#[derive(IntoPrimitive, Clone, Copy)]
+#[derive(IntoPrimitive, Clone, Copy, PartialEq, PartialOrd)]
 #[repr(usize)]
 pub enum StateMarker {
     PanelPage,
     RunningState,
     Battery,
     Clock,
+    Window,
     Endding,
+    All,
+    AllFlush,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
+pub enum Window {
+    #[default]
+    Main,
+    SetValue,
+    Settings,
 }
 
 #[derive(Debug)]
@@ -44,9 +57,32 @@ pub struct State {
     pub running_state: RunningState,
     pub battery: u8,
     pub clock: [char; 5],
+    pub window: Window,
 }
 
-type StateVec = [bool; StateMarker::Endding as usize];
+#[derive(Debug, Default)]
+pub struct StateVec([bool; StateMarker::Endding as usize]);
+impl StateVec {
+    pub fn clear(&mut self) {
+        for x in self.iter_mut() {
+            *x = false;
+        }
+    }
+    pub fn iter(&self) -> core::slice::Iter<bool> {
+        self.0.iter()
+    }
+    pub fn iter_mut(&mut self) -> core::slice::IterMut<bool> {
+        self.0.iter_mut()
+    }
+    pub fn at(&self, index: StateMarker) -> bool {
+        let idx: usize = index.into();
+        self.0[idx]
+    }
+    pub fn set(&mut self, index: StateMarker, value: bool) {
+        let idx: usize = index.into();
+        self.0[idx] = value;
+    }
+}
 
 impl Default for State {
     fn default() -> Self {
@@ -55,6 +91,7 @@ impl Default for State {
             running_state: Default::default(),
             battery: 50,
             clock: ['1', '2', ':', '4', '5'],
+            window: Default::default(),
         }
     }
 }
@@ -88,6 +125,8 @@ pub struct App<D> {
     pub state: State,
     pub updated: StateVec,
     pub display: D,
+
+    // widgets of main window
     waveform: Waveform,
     running_state: RunningStateDisp,
     time_scale: LineDisp<'static>,
@@ -171,7 +210,7 @@ where
         }
     }
 
-    pub async fn draw(&mut self) -> Result<()> {
+    async fn draw_main_window(&mut self) -> Result<()> {
         // if self.updated.iter().all(|&x| x) {
         //     return Ok(());
         // }
@@ -228,7 +267,68 @@ where
             .0
             .draw(&mut self.display, &mut self.state, &mut self.updated)?;
 
+        // self.updated[StateMarker::RunningState as usize] = false;
+        // if self.state.running_state == RunningState::Running {
+        //     self.state.running_state = RunningState::Stopped;
+        // } else {
+        //     self.state.running_state = RunningState::Running;
+        // }
+
         Ok(())
+    }
+
+    async fn draw_set_value_window(&mut self) -> Result<()> {
+        self.display
+            .clear(Rgb565::GREEN)
+            .map_err(|_| AppError::DisplayError)?;
+        Ok(())
+    }
+
+    async fn draw_settings_window(&mut self) -> Result<()> {
+        self.display
+            .clear(Rgb565::CSS_ALICE_BLUE)
+            .map_err(|_| AppError::DisplayError)?;
+        Ok(())
+    }
+
+    pub async fn draw(&mut self) -> Result<()> {
+        match self.state.window {
+            Window::Main => self.draw_main_window().await,
+            Window::SetValue => self.draw_set_value_window().await,
+            Window::Settings => self.draw_settings_window().await,
+        }
+    }
+}
+
+impl<D> App<D> {
+    fn clear_update_state(&mut self) {
+        for x in self.updated.iter_mut() {
+            *x = false;
+        }
+    }
+    pub fn input_key_event(&mut self, key: Keys) -> Result<()> {
+        match self.state.window {
+            Window::Main => {
+                let mut flush = false;
+                match key {
+                    Keys::Key0 => {
+                        self.state.panel_page = if self.state.panel_page >= 1 {
+                            0
+                        } else {
+                            self.state.panel_page + 1
+                        };
+                        flush = true;
+                    }
+                    _ => {}
+                }
+                if flush {
+                    self.updated.clear();
+                }
+                Ok(())
+            }
+            Window::SetValue => Ok(()),
+            Window::Settings => Ok(()),
+        }
     }
 }
 
@@ -250,14 +350,28 @@ pub async fn main_loop(
     display: embedded_graphics_simulator::SimulatorDisplay<Rgb565>,
     mut window: embedded_graphics_simulator::Window,
 ) {
+    use defmt::*;
     let mut app = App::new(display);
     'running: loop {
         app.draw().await.unwrap();
 
         window.update(&app.display);
+        use embedded_graphics_simulator::SimulatorEvent;
         for event in window.events() {
-            if event == embedded_graphics_simulator::SimulatorEvent::Quit {
-                break 'running;
+            match event {
+                SimulatorEvent::Quit => break 'running,
+                SimulatorEvent::KeyUp {
+                    keycode,
+                    keymod: _,
+                    repeat,
+                } => {
+                    if !repeat {
+                        let key = Keys::from(keycode);
+                        info!("KeyUp: {:?} sdl code {:?}", key, keycode);
+                        app.input_key_event(key).unwrap();
+                    }
+                }
+                _ => {}
             }
         }
         Timer::after_millis(20).await;
