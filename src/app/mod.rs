@@ -141,7 +141,12 @@ where
         self.clock.draw(&mut self.display)?;
 
         let mut drawed_panel_items = 0;
-        for item in self.panel_items.iter().skip(self.panel_page as usize * 8) {
+        for item in self
+            .panel_items
+            .iter()
+            .skip(self.panel_page as usize * 8)
+            .take(8)
+        {
             item.draw(&mut self.display)?;
             drawed_panel_items += 1;
         }
@@ -149,10 +154,8 @@ where
             // add info: 0 to switch page
             Text::with_alignment(
                 "0:Page",
-                Point::new(
-                    SCREEN_WIDTH as i32 - 24,
-                    SCREEN_HEIGHT as i32 - 11 * 3 + 5,
-                ) + TEXT_OFFSET,
+                Point::new(SCREEN_WIDTH as i32 - 24, SCREEN_HEIGHT as i32 - 11 * 3 + 5)
+                    + TEXT_OFFSET,
                 MonoTextStyle::new(&FONT_6X9, Rgb565::WHITE),
                 Alignment::Center,
             )
