@@ -538,6 +538,23 @@ where
     }
 }
 
+pub struct Generator(LineDisp<'static>);
+
+impl Generator {
+    pub fn new(text: &'static str) -> Self {
+        Self(LineDisp {
+            info: GUIInfo {
+                size: Size::new(48 - 1, 10),
+                position: Point::new(SCREEN_WIDTH as i32 - 48 + 1, SCREEN_HEIGHT as i32 - 11),
+                color_primary: Rgb565::CSS_ORANGE_RED,
+                color_secondary: Rgb565::WHITE,
+            },
+            text,
+            font: MonoTextStyle::new(&FONT_6X9, Rgb565::WHITE),
+        })
+    }
+}
+
 pub struct App<D> {
     pub(crate) state: State,
     pub display: D,
@@ -551,6 +568,7 @@ pub struct App<D> {
     clock: Clock,
     panel_items: [PanelItem; 8 + 6],
     measure_items: [MeasureItem; 4],
+    generator: Generator,
 }
 
 impl<D> App<D>
@@ -627,6 +645,7 @@ where
                 MeasureItem::new(2, Channel::B, "Freq", "--", true),
                 MeasureItem::new(3, Channel::B, "Vrms", "430uV", true),
             ],
+            generator: Generator::new("Sin 10k"),
         }
     }
 
@@ -650,6 +669,7 @@ where
         for item in self.measure_items.iter() {
             item.draw(&mut self.display)?;
         }
+        self.generator.0.draw(&mut self.display)?;
 
         Ok(())
     }
