@@ -41,6 +41,7 @@ pub enum StateMarker {
     ChannelSetting,
     Measures,
     Generator,
+    SettingValue,
     Endding,
     All,
     AllFlush,
@@ -58,7 +59,7 @@ pub enum Window {
 #[repr(usize)]
 pub enum Panel {
     #[default]
-    Channel,
+    Channel = 0,
     TimeScale,
     VoltageScale,
     Xpos,
@@ -73,6 +74,11 @@ pub enum Panel {
     VerMeasure2,
     Sweep,
     Endding,
+}
+pub enum SettingValueMode {
+    ItemSelect,
+    TextInput,
+    Invalid,
 }
 impl Panel {
     pub fn style(&self) -> PanelStyle {
@@ -89,9 +95,19 @@ impl Panel {
             _ => PanelStyle::Normal,
         }
     }
-}
-impl Into<&'static str> for Panel {
-    fn into(self) -> &'static str {
+    pub fn select_items(&self) -> Option<&[&[&'static str]]> {
+        match self {
+            Panel::Channel => Some(&[&["CHA", "CHB"]]),
+            _ => None,
+        }
+    }
+    pub fn get_setting_mode(&self) -> SettingValueMode {
+        match self {
+            Panel::Channel => SettingValueMode::ItemSelect,
+            _ => SettingValueMode::Invalid,
+        }
+    }
+    pub fn str_short(&self) -> &'static str {
         match self {
             Panel::Channel => "Chann",
             Panel::TimeScale => "T-Sca",
@@ -107,8 +123,32 @@ impl Into<&'static str> for Panel {
             Panel::HorMeasure2 => "H-Me2",
             Panel::VerMeasure2 => "V-Me2",
             Panel::Sweep => "Sweep",
-            Panel::Endding => "Endding",
+            Panel::Endding => "--",
         }
+    }
+    pub fn str(&self) -> &'static str {
+        match self {
+            Panel::Channel => "Channel",
+            Panel::TimeScale => "Time Scale",
+            Panel::VoltageScale => "Voltage Scale",
+            Panel::Xpos => "X pos offset",
+            Panel::Ypos => "Y pos offset",
+            Panel::TrigerLevel => "Triger Level",
+            Panel::Couple => "Couple",
+            Panel::TrigerType => "Triger Type",
+            Panel::Probe => "Probe",
+            Panel::HorMeasure1 => "Hor Measure 1",
+            Panel::VerMeasure1 => "Ver Measure 1",
+            Panel::HorMeasure2 => "Hor Measure 2",
+            Panel::VerMeasure2 => "Ver Measure 2",
+            Panel::Sweep => "Sweep",
+            Panel::Endding => "--",
+        }
+    }
+}
+impl Into<&'static str> for Panel {
+    fn into(self) -> &'static str {
+        self.str_short()
     }
 }
 
@@ -430,16 +470,26 @@ where
                 .map_err(|_| AppError::DisplayError)?;
             return Ok(());
         }
-        let pannel = &self.panel_items[self.state.setting_index as usize];
-        Text::with_alignment(
-            pannel.label,
-            Point::new(window_size.width as i32 / 2, 10),
-            MonoTextStyle::new(&FONT_7X13_BOLD, Rgb565::BLACK),
-            Alignment::Center,
-        )
-        .translate(window_rect.top_left)
-        .draw(&mut self.display)
-        .map_err(|_| AppError::DisplayError)?;
+        if !self.updated.at(StateMarker::SettingValue) {
+            let _pannel_item = &self.panel_items[self.state.setting_index as usize];
+            let mut buf = [0u8; 16];
+            let title = format_no_std::show(
+                &mut buf,
+                format_args!("{:#?}", Panel::from(self.state.setting_index as usize)),
+            )
+            .unwrap();
+            Text::with_alignment(
+                title,
+                Point::new(window_size.width as i32 / 2, 10),
+                MonoTextStyle::new(&FONT_7X13_BOLD, Rgb565::BLACK),
+                Alignment::Center,
+            )
+            .translate(window_rect.top_left)
+            .draw(&mut self.display)
+            .map_err(|_| AppError::DisplayError)?;
+
+            self.updated.set(StateMarker::SettingValue, false);
+        }
         Ok(())
     }
 
