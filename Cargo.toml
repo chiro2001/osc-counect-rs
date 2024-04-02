@@ -48,6 +48,7 @@ embedded-hal = "1.0.0"
 format_no_std = "1.0.2"
 fugit = "0.3.7"
 nb = "1"
+num_enum = { version = "0.7.2", default-features = false }
 
 [target.'cfg(all(target_arch = "arm", target_os = "none"))'.dependencies]
 embassy-stm32 = { version = "0.1.0", path = "./embassy/embassy-stm32", features = [

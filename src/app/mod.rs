@@ -1,10 +1,63 @@
 #![allow(dead_code)]
 
 mod gui;
+
 use gui::*;
 
-#[derive(Default, Debug)]
-pub struct State {}
+#[derive(Debug, Default, Clone, Copy)]
+pub enum RunningState {
+    #[default]
+    Stopped,
+    Running,
+}
+// use core::fmt::{self, Display, Formatter};
+// impl Display for RunningState {
+//     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+//         match self {
+//             RunningState::Running => write!(f, "RUN"),
+//             RunningState::Stopped => write!(f, "STOP"),
+//         }
+//     }
+// }
+impl Into<&'static str> for RunningState {
+    fn into(self) -> &'static str {
+        match self {
+            RunningState::Running => "RUN",
+            RunningState::Stopped => "STOP",
+        }
+    }
+}
+
+#[derive(IntoPrimitive)]
+#[repr(usize)]
+pub enum StateMarker {
+    PanelPage,
+    RunningState,
+    Battery,
+    Clock,
+    Endding,
+}
+
+#[derive(Debug)]
+pub struct State {
+    pub panel_page: u8,
+    pub running_state: RunningState,
+    pub battery: u8,
+    pub clock: [char; 5],
+    pub updated: [bool; StateMarker::Endding as usize],
+}
+
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            panel_page: 0,
+            running_state: Default::default(),
+            battery: 50,
+            clock: ['1', '2', ':', '4', '5'],
+            updated: [false; StateMarker::Endding as usize],
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum AppError {
@@ -29,12 +82,13 @@ use embedded_graphics::{
     text::{Alignment, Text},
     Drawable,
 };
+use num_enum::IntoPrimitive;
 
 pub struct App<D> {
     pub state: State,
     pub display: D,
     waveform: Waveform,
-    run_stop: LineDisp<'static>,
+    running_state: RunningStateDisp,
     time_scale: LineDisp<'static>,
     overview: Overview,
     channel_info1: LineDisp<'static>,
@@ -42,7 +96,6 @@ pub struct App<D> {
     battery: Battery,
     clock: Clock,
     panel_items: [PanelItem; 8 + 6],
-    panel_page: u8,
     measure_items: [MeasureItem; 4],
     generator: Generator,
 }
@@ -56,16 +109,7 @@ where
             state: Default::default(),
             display,
             waveform: Default::default(),
-            run_stop: LineDisp {
-                info: GUIInfo {
-                    size: Size::new(29, 10),
-                    position: Point::new(4, 0),
-                    color_primary: Rgb565::RED,
-                    color_secondary: Rgb565::WHITE,
-                },
-                text: "STOP",
-                font: MonoTextStyle::new(&FONT_6X9, Rgb565::WHITE),
-            },
+            running_state: Default::default(),
             time_scale: LineDisp {
                 info: GUIInfo {
                     size: Size::new(35, 10),
@@ -115,7 +159,6 @@ where
                 PanelItem::new(5, "V-Me2", "Vrms", PanelStyle::ChannelColor),
                 PanelItem::new(6, "Sweep", "AUTO", PanelStyle::Normal),
             ],
-            panel_page: 0,
             measure_items: [
                 MeasureItem::new(0, Channel::A, "Freq", "34kHz", true),
                 MeasureItem::new(1, Channel::A, "Vp-p", "2.3mV", false),
@@ -127,27 +170,35 @@ where
     }
 
     pub async fn draw(&mut self) -> Result<()> {
-        self.display
-            .clear(Rgb565::CSS_DARK_SLATE_GRAY)
-            .map_err(|_| AppError::DisplayError)?;
+        if self.state.updated.iter().all(|&x| x) {
+            return Ok(());
+        }
+        if self.state.updated.iter().all(|&x| !x) {
+            self.display
+                .clear(Rgb565::CSS_DARK_SLATE_GRAY)
+                .map_err(|_| AppError::DisplayError)?;
+        }
 
-        self.waveform.draw(&mut self.display)?;
-        self.run_stop.draw(&mut self.display)?;
-        self.time_scale.draw(&mut self.display)?;
-        self.overview.draw(&mut self.display)?;
-        self.channel_info1.draw(&mut self.display)?;
-        self.channel_info2.draw(&mut self.display)?;
-        self.battery.draw(&mut self.display)?;
-        self.clock.draw(&mut self.display)?;
+        self.waveform.draw(&mut self.display, &mut self.state)?;
+        self.running_state
+            .draw(&mut self.display, &mut self.state)?;
+        self.time_scale.draw(&mut self.display, &mut self.state)?;
+        self.overview.draw(&mut self.display, &mut self.state)?;
+        self.channel_info1
+            .draw(&mut self.display, &mut self.state)?;
+        self.channel_info2
+            .draw(&mut self.display, &mut self.state)?;
+        self.battery.draw(&mut self.display, &mut self.state)?;
+        self.clock.draw(&mut self.display, &mut self.state)?;
 
         let mut drawed_panel_items = 0;
         for item in self
             .panel_items
-            .iter()
-            .skip(self.panel_page as usize * 8)
+            .iter_mut()
+            .skip(self.state.panel_page as usize * 8)
             .take(8)
         {
-            item.draw(&mut self.display)?;
+            item.draw(&mut self.display, &mut self.state)?;
             drawed_panel_items += 1;
         }
         if drawed_panel_items < 8 {
@@ -162,10 +213,10 @@ where
             .draw(&mut self.display)
             .map_err(|_| AppError::DisplayError)?;
         }
-        for item in self.measure_items.iter() {
-            item.draw(&mut self.display)?;
+        for item in self.measure_items.iter_mut() {
+            item.draw(&mut self.display, &mut self.state)?;
         }
-        self.generator.0.draw(&mut self.display)?;
+        self.generator.0.draw(&mut self.display, &mut self.state)?;
 
         Ok(())
     }
@@ -199,6 +250,6 @@ pub async fn main_loop(
                 break 'running;
             }
         }
-        Timer::after_millis(1).await;
+        Timer::after_millis(20).await;
     }
 }
