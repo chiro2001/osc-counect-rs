@@ -7,9 +7,9 @@ extern crate alloc;
 pub mod group;
 
 use alloc::boxed::Box;
-use embedded_hal::{delay::DelayNs, digital::OutputPin};
 use core::{convert::Infallible, mem::MaybeUninit};
 use defmt::*;
+use embedded_hal::{delay::DelayNs, digital::OutputPin};
 #[cfg(feature = "lvgl")]
 use lvgl::{
     input_device::{pointer::PointerInputData, BufferStatus, Data, InputDriver},
@@ -38,13 +38,7 @@ pub trait InoutPin {
     fn is_low(&self) -> bool;
 }
 
-pub struct TM1668<
-    'd,
-    S: OutputPin<Error = Infallible>,
-    C: OutputPin<Error = Infallible>,
-    D: InoutPin,
-    DELAY,
-> {
+pub struct TM1668<'d, S, C, D, DELAY> {
     stb: S,
     clk: C,
     dio: D,

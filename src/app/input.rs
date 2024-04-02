@@ -20,15 +20,43 @@ pub enum Keys {
     Star  = 19,  Key0 = 18,  Sharp = 9,  Ok    = 8,
     Power = 31,
 }
+impl Into<&'static str> for Keys {
+    fn into(self) -> &'static str {
+        match self {
+            Keys::None => "None",
+            Keys::Left => "Left",
+            Keys::Up => "Up",
+            Keys::Down => "Down",
+            Keys::Right => "Right",
+            Keys::Key1 => "Key1",
+            Keys::Key2 => "Key2",
+            Keys::Key3 => "Key3",
+            Keys::Lock => "Lock",
+            Keys::Key4 => "Key4",
+            Keys::Key5 => "Key5",
+            Keys::Key6 => "Key6",
+            Keys::X => "X",
+            Keys::Key7 => "Key7",
+            Keys::Key8 => "Key8",
+            Keys::Key9 => "Key9",
+            Keys::Back => "Back",
+            Keys::Star => "Star",
+            Keys::Key0 => "Key0",
+            Keys::Sharp => "Sharp",
+            Keys::Ok => "Ok",
+            Keys::Power => "Power",
+        }
+    }
+}
 
 pub trait KeyboardDevice {
     fn read_key(&mut self) -> Keys;
 }
 
 #[cfg(feature = "simulator")]
-use embedded_graphics_simulator::sdl2::Keycode;
-impl From<Keycode> for Keys {
+impl From<embedded_graphics_simulator::sdl2::Keycode> for Keys {
     fn from(value: Keycode) -> Self {
+        use embedded_graphics_simulator::sdl2::Keycode;
         match value {
             Keycode::Backspace => Keys::Back,
             Keycode::Return => Keys::Ok,

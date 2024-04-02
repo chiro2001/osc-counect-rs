@@ -4,7 +4,10 @@
 
 extern crate alloc;
 
+use core::convert::Infallible;
+
 use defmt::*;
+use embedded_hal::{delay::DelayNs, digital::OutputPin};
 use {defmt_rtt as _, panic_probe as _};
 
 use ili9341::{DisplaySize240x320, Ili9341 as Ili9327, Orientation};
@@ -99,8 +102,28 @@ where
     }
 }
 
+pub struct KeyboardDriver<'d, S, C, D, DELAY>(tm1668::TM1668<'d, S, C, D, DELAY>);
+impl<'d, S, C, D, DELAY> app::input::KeyboardDevice for KeyboardDriver<'d, S, C, D, DELAY>
+where
+    S: OutputPin<Error = Infallible>,
+    C: OutputPin<Error = Infallible>,
+    D: InoutPin,
+    DELAY: DelayNs,
+{
+    fn read_key(&mut self) -> app::input::Keys {
+        let mut keys = [false; 20];
+        self.0.read_decode_keys(&mut keys);
+        for (i, k) in keys.iter().enumerate() {
+            if *k {
+                return app::input::Keys::try_from(i).unwrap();
+            }
+        }
+        app::input::Keys::None
+    }
+}
+
 #[embassy_executor::main]
-async fn main(spawner: Spawner) {
+async fn main(_spawner: Spawner) {
     // #[cfg(feature = "custom-alloc")]
     // heap_init!(32 * 1024);
     let mut config = Config::default();
@@ -258,12 +281,17 @@ async fn main(spawner: Spawner) {
     };
     let clk = Output::new(p.PE3, Level::Low, Speed::Low);
 
-    let _kbd = tm1668::TM1668::new(stb, clk, dio, &mut delay);
+    let kbd = tm1668::TM1668::new(stb, clk, dio, &mut delay);
+    let kbd_drv = KeyboardDriver(kbd);
 
-    spawner.spawn(app::main_loop(lcd)).unwrap();
+    // spawner.spawn(app::main_loop(lcd, kbd_drv)).unwrap();
 
-    loop {
-        Timer::after_millis(10000).await;
-        // debug!("main loop");
-    }
+    app::main_loop(lcd, kbd_drv).await;
+    info!("main loop end");
+    loop {}
+
+    // loop {
+    //     Timer::after_millis(10000).await;
+    //     // debug!("main loop");
+    // }
 }

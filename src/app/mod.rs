@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 mod gui;
-mod input;
+pub mod input;
 
 use gui::*;
 use input::*;
@@ -38,6 +38,7 @@ pub enum StateMarker {
     Battery,
     Clock,
     Window,
+    Waveform,
     Endding,
     All,
     AllFlush,
@@ -58,6 +59,8 @@ pub struct State {
     pub battery: u8,
     pub clock: [char; 5],
     pub window: Window,
+    // TODO: waveform data
+    pub waveform: u8,
 }
 
 #[derive(Debug, Default)]
@@ -92,6 +95,7 @@ impl Default for State {
             battery: 50,
             clock: ['1', '2', ':', '4', '5'],
             window: Default::default(),
+            waveform: Default::default(),
         }
     }
 }
@@ -221,8 +225,6 @@ where
                 .map_err(|_| AppError::DisplayError)?;
         }
 
-        self.waveform
-            .draw(&mut self.display, &mut self.state, &mut self.updated)?;
         self.running_state
             .draw(&mut self.display, &mut self.state, &mut self.updated)?;
         self.time_scale
@@ -236,6 +238,8 @@ where
         self.battery
             .draw(&mut self.display, &mut self.state, &mut self.updated)?;
         self.clock
+            .draw(&mut self.display, &mut self.state, &mut self.updated)?;
+        self.waveform
             .draw(&mut self.display, &mut self.state, &mut self.updated)?;
 
         let mut drawed_panel_items = 0;
@@ -260,6 +264,7 @@ where
             .draw(&mut self.display)
             .map_err(|_| AppError::DisplayError)?;
         }
+        self.updated.set(StateMarker::PanelPage, true);
         for item in self.measure_items.iter_mut() {
             item.draw(&mut self.display, &mut self.state, &mut self.updated)?;
         }
@@ -333,14 +338,25 @@ impl<D> App<D> {
 }
 
 #[cfg(feature = "embedded")]
-#[embassy_executor::task]
-pub async fn main_loop(display: impl DrawTarget<Color = Rgb565> + 'static) {
+// #[embassy_executor::task]
+pub async fn main_loop<D, K>(display: D, mut keyboard: K)
+where
+    D: DrawTarget<Color = Rgb565> + 'static,
+    K: KeyboardDevice,
+{
     let mut app = App::new(display);
     loop {
         use crate::info;
-        info!("Hello, world!");
+        // info!("Hello, world!");
         app.draw().await.unwrap();
-        Timer::after_millis(10000).await;
+        // Timer::after_millis(10000).await;
+        let key = keyboard.read_key();
+        if key != Keys::None {
+            let s: &str = key.into();
+            info!("Key: {:?}", s);
+            app.input_key_event(key).unwrap();
+        }
+        Timer::after_millis(10).await;
     }
 }
 

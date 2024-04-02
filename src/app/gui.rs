@@ -110,6 +110,9 @@ impl<D> Draw<D> for Waveform
 where
     D: DrawTarget<Color = Rgb565>,
 {
+    fn state_emit_mask(&self) -> &[StateMarker] {
+        &[StateMarker::Waveform]
+    }
     fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult {
         let style = PrimitiveStyleBuilder::new()
             .stroke_color(self.info.color_secondary)
@@ -178,7 +181,7 @@ where
             }
         }
 
-        Ok(None)
+        Ok(Some(&[StateMarker::Waveform]))
     }
 }
 
@@ -288,6 +291,9 @@ impl<D> Draw<D> for Overview
 where
     D: DrawTarget<Color = Rgb565>,
 {
+    fn state_emit_mask(&self) -> &[StateMarker] {
+        &[StateMarker::Waveform]
+    }
     fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult {
         Rectangle::new(self.info.position, self.info.size)
             .into_styled(
@@ -473,6 +479,9 @@ impl<D> Draw<D> for PanelItem
 where
     D: DrawTarget<Color = Rgb565>,
 {
+    fn state_emit_mask(&self) -> &[StateMarker] {
+        &[StateMarker::PanelPage]
+    }
     fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult {
         let color_main = if self.style == PanelStyle::ChannelColor {
             Rgb565::YELLOW
