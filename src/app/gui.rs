@@ -10,7 +10,10 @@ use embedded_graphics::{
     Drawable, Pixel,
 };
 
-use super::{unit::TimeScale, RunningState, State, StateMarker, StateVec};
+use super::{
+    unit::{TimeScale, VoltageScale},
+    RunningState, State, StateMarker, StateVec,
+};
 
 pub const TEXT_OFFSET: Point = Point::new(0, 2);
 pub const SCREEN_WIDTH: u32 = 320;
@@ -62,7 +65,7 @@ pub trait Draw<D> {
         D: DrawTarget<Color = Rgb565>;
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct GUIInfo {
     pub(crate) size: Size,
     pub(crate) position: Point,
@@ -185,6 +188,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct LineDisp<'a> {
     pub(crate) info: GUIInfo,
     pub(crate) text: &'a str,
@@ -299,6 +303,40 @@ where
         let disp = Self::new_disp(text);
         disp.draw_state(display, state)?;
         Ok(Some(&[StateMarker::TimeScale]))
+    }
+}
+
+pub struct ChannelSettingDisp(LineDisp<'static>);
+
+impl ChannelSettingDisp {
+    pub fn new(info: GUIInfo) -> Self {
+        Self(LineDisp {
+            info,
+            font: MonoTextStyle::new(&FONT_6X9, Rgb565::BLACK),
+            ..Default::default()
+        })
+    }
+}
+impl<D> Draw<D> for ChannelSettingDisp
+where
+    D: DrawTarget<Color = Rgb565>,
+{
+    fn state_emit_mask(&self) -> &[StateMarker] {
+        &[StateMarker::ChannelSetting]
+    }
+    fn draw_state(&self, display: &mut D, state: &mut State) -> StateResult {
+        let mut buf = [0u8; 16];
+        let voltage_scale = VoltageScale::from_mv(state.channel_info);
+        let text_unit: &str = voltage_scale.unit.into();
+        let text = format_no_std::show(
+            &mut buf,
+            format_args!("{}{}", voltage_scale.voltage, text_unit),
+        )
+        .map_err(|_| AppError::DataFormatError)?;
+        let disp = LineDisp { text, ..self.0.clone() };
+        disp.draw_state(display, state)?;
+        // Ok(Some(&[StateMarker::ChannelSetting]))
+        Ok(None)
     }
 }
 

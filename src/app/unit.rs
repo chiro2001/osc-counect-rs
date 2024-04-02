@@ -58,3 +58,48 @@ impl TimeScale {
         Self { time, unit }
     }
 }
+
+// from mV to V
+#[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
+pub enum VoltageUnit {
+    #[default]
+    MilliVolt,
+    Volt,
+}
+
+impl VoltageUnit {
+    pub fn divider(&self) -> u64 {
+        match self {
+            VoltageUnit::MilliVolt => 1,
+            VoltageUnit::Volt => 1_000,
+        }
+    }
+    pub fn fixed(mv: u64) -> Self {
+        match mv {
+            1..=999 => VoltageUnit::MilliVolt,
+            _ => VoltageUnit::Volt,
+        }
+    }
+}
+
+impl Into<&'static str> for VoltageUnit {
+    fn into(self) -> &'static str {
+        match self {
+            VoltageUnit::MilliVolt => "mV",
+            VoltageUnit::Volt => "V",
+        }
+    }
+}
+
+pub struct VoltageScale {
+    pub voltage: u64,
+    pub unit: VoltageUnit,
+}
+
+impl VoltageScale {
+    pub fn from_mv(mv: u64) -> Self {
+        let unit = VoltageUnit::fixed(mv);
+        let voltage = mv / unit.divider();
+        Self { voltage, unit }
+    }
+}

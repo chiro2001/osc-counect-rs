@@ -41,6 +41,7 @@ pub enum StateMarker {
     Window,
     Waveform,
     TimeScale,
+    ChannelSetting,
     Endding,
     All,
     AllFlush,
@@ -64,6 +65,8 @@ pub struct State {
     // TODO: waveform data
     pub waveform: u8,
     pub time_scale_ns: u64,
+    // TODO: channel setting
+    pub channel_info: u64,
 }
 
 #[derive(Debug, Default)]
@@ -100,6 +103,7 @@ impl Default for State {
             window: Default::default(),
             waveform: Default::default(),
             time_scale_ns: 100_000,
+            channel_info: 1250,
         }
     }
 }
@@ -140,8 +144,8 @@ pub struct App<D> {
     running_state: RunningStateDisp,
     time_scale: TimeScaleDisp,
     overview: Overview,
-    channel_info1: LineDisp<'static>,
-    channel_info2: LineDisp<'static>,
+    channel_info1: ChannelSettingDisp,
+    channel_info2: ChannelSettingDisp,
     battery: Battery,
     clock: Clock,
     panel_items: [PanelItem; 8 + 6],
@@ -162,26 +166,18 @@ where
             running_state: Default::default(),
             time_scale: Default::default(),
             overview: Overview::new(),
-            channel_info1: LineDisp {
-                info: GUIInfo {
-                    size: Size::new(33, 10),
-                    position: Point::new(204, 0),
-                    color_primary: Rgb565::YELLOW,
-                    color_secondary: Rgb565::BLACK,
-                },
-                text: "20mV",
-                font: MonoTextStyle::new(&FONT_6X9, Rgb565::BLACK),
-            },
-            channel_info2: LineDisp {
-                info: GUIInfo {
-                    size: Size::new(33, 10),
-                    position: Point::new(205 + 33, 0),
-                    color_primary: Rgb565::GREEN,
-                    color_secondary: Rgb565::BLACK,
-                },
-                text: "500mV",
-                font: MonoTextStyle::new(&FONT_6X9, Rgb565::BLACK),
-            },
+            channel_info1: ChannelSettingDisp::new(GUIInfo {
+                size: Size::new(33, 10),
+                position: Point::new(204, 0),
+                color_primary: Rgb565::YELLOW,
+                color_secondary: Rgb565::BLACK,
+            }),
+            channel_info2: ChannelSettingDisp::new(GUIInfo {
+                size: Size::new(33, 10),
+                position: Point::new(205 + 33, 0),
+                color_primary: Rgb565::GREEN,
+                color_secondary: Rgb565::BLACK,
+            }),
             battery: Battery::new(50),
             clock: Clock::new(),
             panel_items: [
@@ -227,10 +223,15 @@ where
             .draw(&mut self.display, &mut self.state, &mut self.updated)?;
         self.overview
             .draw(&mut self.display, &mut self.state, &mut self.updated)?;
-        self.channel_info1
-            .draw(&mut self.display, &mut self.state, &mut self.updated)?;
-        self.channel_info2
-            .draw(&mut self.display, &mut self.state, &mut self.updated)?;
+
+        if !self.updated.at(StateMarker::ChannelSetting) {
+            self.channel_info1
+                .draw(&mut self.display, &mut self.state, &mut self.updated)?;
+            self.channel_info2
+                .draw(&mut self.display, &mut self.state, &mut self.updated)?;
+            self.updated.set(StateMarker::ChannelSetting, true);
+        }
+
         self.battery
             .draw(&mut self.display, &mut self.state, &mut self.updated)?;
         self.clock
