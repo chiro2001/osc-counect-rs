@@ -120,6 +120,7 @@ use embedded_graphics::{
     geometry::{Point, Size},
     mono_font::{ascii::*, MonoTextStyle},
     pixelcolor::{Rgb565, RgbColor, WebColors},
+    primitives::{Primitive, PrimitiveStyle, Rectangle},
     text::{Alignment, Text},
     Drawable,
 };
@@ -242,29 +243,41 @@ where
         self.waveform
             .draw(&mut self.display, &mut self.state, &mut self.updated)?;
 
-        let mut drawed_panel_items = 0;
-        for item in self
-            .panel_items
-            .iter_mut()
-            .skip(self.state.panel_page as usize * 8)
-            .take(8)
-        {
-            item.draw(&mut self.display, &mut self.state, &mut self.updated)?;
-            drawed_panel_items += 1;
-        }
-        if drawed_panel_items < 8 {
-            // add info: 0 to switch page
-            Text::with_alignment(
-                "0:Page",
-                Point::new(SCREEN_WIDTH as i32 - 24, SCREEN_HEIGHT as i32 - 11 * 3 + 5)
-                    + TEXT_OFFSET,
-                MonoTextStyle::new(&FONT_6X9, Rgb565::WHITE),
-                Alignment::Center,
+        if !self.updated.at(StateMarker::PanelPage) {
+            Rectangle::new(
+                self.panel_items[0].info.position,
+                Size::new(
+                    self.panel_items[0].info.size.width,
+                    (self.panel_items[0].info.size.height + 1) * 8,
+                ),
             )
+            .into_styled(PrimitiveStyle::with_fill(Rgb565::CSS_DARK_SLATE_GRAY))
             .draw(&mut self.display)
             .map_err(|_| AppError::DisplayError)?;
+            let mut drawed_panel_items = 0;
+            for item in self
+                .panel_items
+                .iter_mut()
+                .skip(self.state.panel_page as usize * 8)
+                .take(8)
+            {
+                item.draw(&mut self.display, &mut self.state, &mut self.updated)?;
+                drawed_panel_items += 1;
+            }
+            if drawed_panel_items < 8 {
+                // add info: 0 to switch page
+                Text::with_alignment(
+                    "0:Page",
+                    Point::new(SCREEN_WIDTH as i32 - 24, SCREEN_HEIGHT as i32 - 11 * 3 + 5)
+                        + TEXT_OFFSET,
+                    MonoTextStyle::new(&FONT_6X9, Rgb565::WHITE),
+                    Alignment::Center,
+                )
+                .draw(&mut self.display)
+                .map_err(|_| AppError::DisplayError)?;
+            }
+            self.updated.set(StateMarker::PanelPage, true);
         }
-        self.updated.set(StateMarker::PanelPage, true);
         for item in self.measure_items.iter_mut() {
             item.draw(&mut self.display, &mut self.state, &mut self.updated)?;
         }
@@ -316,13 +329,16 @@ impl<D> App<D> {
             Window::Main => {
                 let mut flush = false;
                 match key {
+                    Keys::Sharp => {
+                        flush = true;
+                    }
                     Keys::Key0 => {
                         self.state.panel_page = if self.state.panel_page >= 1 {
                             0
                         } else {
                             self.state.panel_page + 1
                         };
-                        flush = true;
+                        self.updated.set(StateMarker::PanelPage, false);
                     }
                     _ => {}
                 }
