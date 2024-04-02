@@ -28,7 +28,7 @@ impl Into<&'static str> for RunningState {
     }
 }
 
-#[derive(IntoPrimitive)]
+#[derive(IntoPrimitive, Clone, Copy)]
 #[repr(usize)]
 pub enum StateMarker {
     PanelPage,
@@ -44,8 +44,9 @@ pub struct State {
     pub running_state: RunningState,
     pub battery: u8,
     pub clock: [char; 5],
-    pub updated: [bool; StateMarker::Endding as usize],
 }
+
+type StateVec = [bool; StateMarker::Endding as usize];
 
 impl Default for State {
     fn default() -> Self {
@@ -54,7 +55,6 @@ impl Default for State {
             running_state: Default::default(),
             battery: 50,
             clock: ['1', '2', ':', '4', '5'],
-            updated: [false; StateMarker::Endding as usize],
         }
     }
 }
@@ -86,6 +86,7 @@ use num_enum::IntoPrimitive;
 
 pub struct App<D> {
     pub state: State,
+    pub updated: StateVec,
     pub display: D,
     waveform: Waveform,
     running_state: RunningStateDisp,
@@ -107,6 +108,7 @@ where
     pub fn new(display: D) -> Self {
         Self {
             state: Default::default(),
+            updated: Default::default(),
             display,
             waveform: Default::default(),
             running_state: Default::default(),
@@ -170,26 +172,32 @@ where
     }
 
     pub async fn draw(&mut self) -> Result<()> {
-        if self.state.updated.iter().all(|&x| x) {
-            return Ok(());
-        }
-        if self.state.updated.iter().all(|&x| !x) {
+        // if self.updated.iter().all(|&x| x) {
+        //     return Ok(());
+        // }
+        if self.updated.iter().all(|&x| !x) {
+            // clear screen at the first time
             self.display
                 .clear(Rgb565::CSS_DARK_SLATE_GRAY)
                 .map_err(|_| AppError::DisplayError)?;
         }
 
-        self.waveform.draw(&mut self.display, &mut self.state)?;
+        self.waveform
+            .draw(&mut self.display, &mut self.state, &mut self.updated)?;
         self.running_state
-            .draw(&mut self.display, &mut self.state)?;
-        self.time_scale.draw(&mut self.display, &mut self.state)?;
-        self.overview.draw(&mut self.display, &mut self.state)?;
+            .draw(&mut self.display, &mut self.state, &mut self.updated)?;
+        self.time_scale
+            .draw(&mut self.display, &mut self.state, &mut self.updated)?;
+        self.overview
+            .draw(&mut self.display, &mut self.state, &mut self.updated)?;
         self.channel_info1
-            .draw(&mut self.display, &mut self.state)?;
+            .draw(&mut self.display, &mut self.state, &mut self.updated)?;
         self.channel_info2
-            .draw(&mut self.display, &mut self.state)?;
-        self.battery.draw(&mut self.display, &mut self.state)?;
-        self.clock.draw(&mut self.display, &mut self.state)?;
+            .draw(&mut self.display, &mut self.state, &mut self.updated)?;
+        self.battery
+            .draw(&mut self.display, &mut self.state, &mut self.updated)?;
+        self.clock
+            .draw(&mut self.display, &mut self.state, &mut self.updated)?;
 
         let mut drawed_panel_items = 0;
         for item in self
@@ -198,7 +206,7 @@ where
             .skip(self.state.panel_page as usize * 8)
             .take(8)
         {
-            item.draw(&mut self.display, &mut self.state)?;
+            item.draw(&mut self.display, &mut self.state, &mut self.updated)?;
             drawed_panel_items += 1;
         }
         if drawed_panel_items < 8 {
@@ -214,9 +222,11 @@ where
             .map_err(|_| AppError::DisplayError)?;
         }
         for item in self.measure_items.iter_mut() {
-            item.draw(&mut self.display, &mut self.state)?;
+            item.draw(&mut self.display, &mut self.state, &mut self.updated)?;
         }
-        self.generator.0.draw(&mut self.display, &mut self.state)?;
+        self.generator
+            .0
+            .draw(&mut self.display, &mut self.state, &mut self.updated)?;
 
         Ok(())
     }

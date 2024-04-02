@@ -10,14 +10,43 @@ use embedded_graphics::{
     Drawable, Pixel,
 };
 
-use super::{State, StateMarker};
+use super::{State, StateMarker, StateVec};
 
 pub const TEXT_OFFSET: Point = Point::new(0, 2);
 pub const SCREEN_WIDTH: u32 = 320;
 pub const SCREEN_HEIGHT: u32 = 240;
 
+type StateResult = Result<Option<&'static [StateMarker]>>;
 pub trait Draw<D> {
-    fn draw(&mut self, display: &mut D, _state: &mut State) -> Result<()>
+    fn draw(&self, display: &mut D, state: &mut State, vec: &mut StateVec) -> Result<()>
+    where
+        D: DrawTarget<Color = Rgb565>,
+    {
+        let state_mask = self.state_mask();
+        if state_mask.len() != 0 {
+            if state_mask.iter().all(|x| {
+                let idx: usize = (*x).into();
+                vec[idx]
+            }) {
+                return Ok(());
+            }
+        }
+        let updated = self.draw_state(display, state)?;
+        if let Some(updated) = updated {
+            for x in updated {
+                let idx: usize = (*x).into();
+                vec[idx] = true;
+            }
+        }
+        Ok(())
+    }
+
+    fn state_mask(&self) -> &[StateMarker] {
+        // nomask: &[]
+        &[]
+    }
+
+    fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult
     where
         D: DrawTarget<Color = Rgb565>;
 }
@@ -70,7 +99,7 @@ impl<D> Draw<D> for Waveform
 where
     D: DrawTarget<Color = Rgb565>,
 {
-    fn draw(&mut self, display: &mut D, _state: &mut State) -> Result<()> {
+    fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult {
         let style = PrimitiveStyleBuilder::new()
             .stroke_color(self.info.color_secondary)
             .stroke_width(1)
@@ -138,7 +167,7 @@ where
             }
         }
 
-        Ok(())
+        Ok(None)
     }
 }
 
@@ -161,7 +190,7 @@ impl<D> Draw<D> for LineDisp<'_>
 where
     D: DrawTarget<Color = Rgb565>,
 {
-    fn draw(&mut self, display: &mut D, _state: &mut State) -> Result<()> {
+    fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult {
         Rectangle::new(self.info.position, self.info.size)
             .into_styled(
                 PrimitiveStyleBuilder::new()
@@ -179,15 +208,15 @@ where
         .translate(self.info.position)
         .draw(display)
         .map_err(|_| AppError::DisplayError)?;
-        Ok(())
+        Ok(None)
     }
 }
 
-pub struct RunningStateDisp(pub LineDisp<'static>);
+pub struct RunningStateDisp;
 
 impl RunningStateDisp {
-    pub fn new() -> Self {
-        Self(LineDisp {
+    fn new_disp<'a>(text: &'a str) -> LineDisp<'a> {
+        LineDisp {
             info: GUIInfo {
                 size: Size::new(29, 10),
                 position: Point::new(4, 0),
@@ -195,28 +224,27 @@ impl RunningStateDisp {
                 color_secondary: Rgb565::WHITE,
             },
             font: MonoTextStyle::new(&FONT_6X9, Rgb565::WHITE),
+            text,
             ..Default::default()
-        })
+        }
     }
 }
 impl Default for RunningStateDisp {
     fn default() -> Self {
-        Self::new()
+        Self {}
     }
 }
 impl<D> Draw<D> for RunningStateDisp
 where
     D: DrawTarget<Color = Rgb565>,
 {
-    fn draw(&mut self, display: &mut D, state: &mut State) -> Result<()> {
-        let idx_updated: usize = StateMarker::RunningState.into();
-        if state.updated[idx_updated] {
-            return Ok(());
-        }
-        self.0.text = state.running_state.into();
-        self.0.draw(display, state)?;
-        state.updated[idx_updated] = true;
-        Ok(())
+    fn state_mask(&self) -> &[StateMarker] {
+        &[StateMarker::RunningState]
+    }
+    fn draw_state(&self, display: &mut D, state: &mut State) -> StateResult {
+        let disp = Self::new_disp(state.running_state.into());
+        disp.draw_state(display, state)?;
+        Ok(Some(&[StateMarker::RunningState]))
     }
 }
 
@@ -241,7 +269,7 @@ impl<D> Draw<D> for Overview
 where
     D: DrawTarget<Color = Rgb565>,
 {
-    fn draw(&mut self, display: &mut D, _state: &mut State) -> Result<()> {
+    fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult {
         Rectangle::new(self.info.position, self.info.size)
             .into_styled(
                 PrimitiveStyleBuilder::new()
@@ -261,7 +289,7 @@ where
         .translate(self.info.position)
         .draw(display)
         .map_err(|_| AppError::DisplayError)?;
-        Ok(())
+        Ok(None)
     }
 }
 
@@ -285,14 +313,13 @@ impl Battery {
 }
 
 impl<D> Draw<D> for Battery {
-    fn draw(&mut self, display: &mut D, state: &mut State) -> Result<()>
+    fn state_mask(&self) -> &[StateMarker] {
+        &[StateMarker::Battery]
+    }
+    fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult
     where
         D: DrawTarget<Color = Rgb565>,
     {
-        let idx_updated: usize = StateMarker::Battery.into();
-        if state.updated[idx_updated] {
-            return Ok(());
-        }
         Rectangle::new(self.info.position, self.info.size - Size::new(2, 0))
             .into_styled(
                 PrimitiveStyleBuilder::new()
@@ -328,8 +355,7 @@ impl<D> Draw<D> for Battery {
         .into_styled(PrimitiveStyle::with_fill(self.info.color_primary))
         .draw(display)
         .map_err(|_| AppError::DisplayError)?;
-        state.updated[idx_updated] = true;
-        Ok(())
+        Ok(Some(&[StateMarker::Battery]))
     }
 }
 
@@ -362,11 +388,10 @@ impl<D> Draw<D> for Clock
 where
     D: DrawTarget<Color = Rgb565>,
 {
-    fn draw(&mut self, display: &mut D, state: &mut State) -> Result<()> {
-        let idx_updated: usize = StateMarker::Clock.into();
-        if state.updated[idx_updated] {
-            return Ok(());
-        }
+    fn state_mask(&self) -> &[StateMarker] {
+        &[StateMarker::Clock]
+    }
+    fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult {
         Rectangle::new(self.info.position, self.info.size)
             .into_styled(
                 PrimitiveStyleBuilder::new()
@@ -390,8 +415,7 @@ where
         .translate(self.info.position)
         .draw(display)
         .map_err(|_| AppError::DisplayError)?;
-        state.updated[idx_updated] = true;
-        Ok(())
+        Ok(Some(&[StateMarker::Clock]))
     }
 }
 
@@ -430,7 +454,7 @@ impl<D> Draw<D> for PanelItem
 where
     D: DrawTarget<Color = Rgb565>,
 {
-    fn draw(&mut self, display: &mut D, _state: &mut State) -> Result<()> {
+    fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult {
         let color_main = if self.style == PanelStyle::ChannelColor {
             Rgb565::YELLOW
         } else {
@@ -514,7 +538,7 @@ where
         .translate(self.info.position)
         .draw(display)
         .map_err(|_| AppError::DisplayError)?;
-        Ok(())
+        Ok(None)
     }
 }
 
@@ -553,7 +577,7 @@ impl<D> Draw<D> for MeasureItem
 where
     D: DrawTarget<Color = Rgb565>,
 {
-    fn draw(&mut self, display: &mut D, _state: &mut State) -> Result<()> {
+    fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult {
         let color_main = if self.channel == Channel::A {
             self.info.color_primary
         } else {
@@ -573,7 +597,7 @@ where
             .translate(self.info.position)
             .draw(display)
             .map_err(|_| AppError::DisplayError)?;
-            return Ok(());
+            return Ok(None);
         }
         let mut buf = [0u8; 16];
         let text = format_no_std::show(&mut buf, format_args!("{}:{}", self.label, self.text))
@@ -587,7 +611,7 @@ where
         .translate(self.info.position)
         .draw(display)
         .map_err(|_| AppError::DisplayError)?;
-        Ok(())
+        Ok(None)
     }
 }
 
