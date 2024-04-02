@@ -359,26 +359,40 @@ impl<D> App<D> {
     }
 }
 
-#[cfg(feature = "embedded")]
-// #[embassy_executor::task]
-pub async fn main_loop<D, K>(display: D, mut keyboard: K)
-where
-    D: DrawTarget<Color = Rgb565> + 'static,
-    K: KeyboardDevice,
-{
-    let mut app = App::new(display);
+#[embassy_executor::task]
+async fn keyboad_task(mut keyboard: impl KeyboardDevice + 'static) {
     loop {
         use crate::info;
-        // info!("Hello, world!");
-        app.draw().await.unwrap();
-        // Timer::after_millis(10000).await;
         let key = keyboard.read_key();
         if key != Keys::None {
             let s: &str = key.into();
             info!("Key: {:?}", s);
-            app.input_key_event(key).unwrap();
         }
         Timer::after_millis(10).await;
+    }
+}
+
+#[cfg(feature = "embedded")]
+// #[embassy_executor::task]
+pub async fn main_loop<D, K>(spawner: embassy_executor::Spawner, display: D, keyboard: K)
+where
+    D: DrawTarget<Color = Rgb565> + 'static,
+    K: KeyboardDevice + 'static,
+{
+    let mut app = App::new(display);
+    spawner.spawn(keyboad_task(keyboard)).unwrap();
+    loop {
+        // use crate::info;
+        // info!("Hello, world!");
+        app.draw().await.unwrap();
+        // Timer::after_millis(10000).await;
+        // let key = keyboard.read_key();
+        // if key != Keys::None {
+        //     let s: &str = key.into();
+        //     info!("Key: {:?}", s);
+        //     app.input_key_event(key).unwrap();
+        // }
+        Timer::after_millis(20).await;
     }
 }
 

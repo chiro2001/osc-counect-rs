@@ -102,7 +102,24 @@ where
     }
 }
 
-pub struct KeyboardDriver<'d, S, C, D, DELAY>(tm1668::TM1668<'d, S, C, D, DELAY>);
+pub struct KeyboardDriver<'d, S, C, D, DELAY> {
+    driver: tm1668::TM1668<'d, S, C, D, DELAY>,
+    keys: [bool; 20],
+}
+impl<'d, S, C, D, DELAY> KeyboardDriver<'d, S, C, D, DELAY>
+where
+    S: OutputPin<Error = Infallible>,
+    C: OutputPin<Error = Infallible>,
+    D: InoutPin,
+    DELAY: DelayNs,
+{
+    pub fn new(driver: tm1668::TM1668<'d, S, C, D, DELAY>) -> Self {
+        Self {
+            driver,
+            keys: [false; 20],
+        }
+    }
+}
 impl<'d, S, C, D, DELAY> app::input::KeyboardDevice for KeyboardDriver<'d, S, C, D, DELAY>
 where
     S: OutputPin<Error = Infallible>,
@@ -112,18 +129,22 @@ where
 {
     fn read_key(&mut self) -> app::input::Keys {
         let mut keys = [false; 20];
-        self.0.read_decode_keys(&mut keys);
+        self.driver.read_decode_keys(&mut keys);
+        let mut r = app::input::Keys::None;
         for (i, k) in keys.iter().enumerate() {
-            if *k {
-                return app::input::Keys::try_from(i).unwrap();
+            // read key up
+            if !*k && self.keys[i] {
+                r = app::input::Keys::try_from(i).unwrap();
+                break;
             }
         }
-        app::input::Keys::None
+        self.keys = keys;
+        r
     }
 }
 
 #[embassy_executor::main]
-async fn main(_spawner: Spawner) {
+async fn main(spawner: Spawner) {
     // #[cfg(feature = "custom-alloc")]
     // heap_init!(32 * 1024);
     let mut config = Config::default();
@@ -176,7 +197,8 @@ async fn main(_spawner: Spawner) {
     let p = embassy_stm32::init(config);
     // let p = embassy_stm32::init(Default::default());
 
-    let mut delay = Delay {};
+    // let mut delay = Delay {};
+    static mut delay: Delay = Delay {};
 
     info!("System launched!");
 
@@ -240,7 +262,7 @@ async fn main(_spawner: Spawner) {
     let mut lcd = Ili9327::new(
         interface,
         rst,
-        &mut delay,
+        unsafe { &mut delay },
         Orientation::LandscapeFlipped,
         // Orientation::PortraitFlipped,
         DisplaySize240x320,
@@ -281,14 +303,13 @@ async fn main(_spawner: Spawner) {
     };
     let clk = Output::new(p.PE3, Level::Low, Speed::Low);
 
-    let kbd = tm1668::TM1668::new(stb, clk, dio, &mut delay);
-    let kbd_drv = KeyboardDriver(kbd);
+    let kbd = tm1668::TM1668::new(stb, clk, dio, unsafe { &mut delay });
+    let kbd_drv = KeyboardDriver::new(kbd);
 
     // spawner.spawn(app::main_loop(lcd, kbd_drv)).unwrap();
 
-    app::main_loop(lcd, kbd_drv).await;
-    info!("main loop end");
-    loop {}
+    app::main_loop(spawner, lcd, kbd_drv).await;
+    defmt::panic!("unreachable");
 
     // loop {
     //     Timer::after_millis(10000).await;
