@@ -1,15 +1,11 @@
 #![no_std]
 
-use defmt::*;
+// use defmt::*;
 use display_interface::{
     AsyncWriteOnlyDataCommand, DataFormat, DisplayError, WriteOnlyDataCommand,
 };
 use embassy_stm32::{
-    dma::{Channel, Transfer},
-    pac::{
-        self,
-        bdma::vals::{Dir, Pl, Size},
-    },
+    dma::Channel,
     PeripheralRef,
 };
 

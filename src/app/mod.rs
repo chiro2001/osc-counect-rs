@@ -4,6 +4,10 @@ mod gui;
 pub mod input;
 mod unit;
 
+use embassy_sync::{
+    blocking_mutex::raw::ThreadModeRawMutex,
+    channel::{Channel, Sender},
+};
 use gui::*;
 use input::*;
 
@@ -125,7 +129,7 @@ pub enum AppError {
 pub type Result<T, E = AppError> = core::result::Result<T, E>;
 
 #[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
-pub enum Channel {
+pub enum ProbeChannel {
     A,
     B,
 }
@@ -205,10 +209,10 @@ where
                 PanelItem::new(6, "Sweep", "AUTO", PanelStyle::Normal),
             ],
             measure_items: [
-                MeasureItem::new(0, Channel::A, "Freq", "34kHz", true),
-                MeasureItem::new(1, Channel::A, "Vp-p", "2.3mV", false),
-                MeasureItem::new(2, Channel::B, "Freq", "--", true),
-                MeasureItem::new(3, Channel::B, "Vrms", "430uV", true),
+                MeasureItem::new(0, ProbeChannel::A, "Freq", "34kHz", true),
+                MeasureItem::new(1, ProbeChannel::A, "Vp-p", "2.3mV", false),
+                MeasureItem::new(2, ProbeChannel::B, "Freq", "--", true),
+                MeasureItem::new(3, ProbeChannel::B, "Vrms", "430uV", true),
             ],
             generator: Generator::new("Sin 10k"),
         }
@@ -226,26 +230,34 @@ where
         }
 
         self.running_state
-            .draw(&mut self.display, &mut self.state, &mut self.updated)?;
+            .draw(&mut self.display, &mut self.state, &mut self.updated)
+            .await?;
         self.time_scale
-            .draw(&mut self.display, &mut self.state, &mut self.updated)?;
+            .draw(&mut self.display, &mut self.state, &mut self.updated)
+            .await?;
         self.overview
-            .draw(&mut self.display, &mut self.state, &mut self.updated)?;
+            .draw(&mut self.display, &mut self.state, &mut self.updated)
+            .await?;
 
         if !self.updated.at(StateMarker::ChannelSetting) {
             self.channel_info1
-                .draw(&mut self.display, &mut self.state, &mut self.updated)?;
+                .draw(&mut self.display, &mut self.state, &mut self.updated)
+                .await?;
             self.channel_info2
-                .draw(&mut self.display, &mut self.state, &mut self.updated)?;
+                .draw(&mut self.display, &mut self.state, &mut self.updated)
+                .await?;
             self.updated.set(StateMarker::ChannelSetting, true);
         }
 
         self.battery
-            .draw(&mut self.display, &mut self.state, &mut self.updated)?;
+            .draw(&mut self.display, &mut self.state, &mut self.updated)
+            .await?;
         self.clock
-            .draw(&mut self.display, &mut self.state, &mut self.updated)?;
+            .draw(&mut self.display, &mut self.state, &mut self.updated)
+            .await?;
         self.waveform
-            .draw(&mut self.display, &mut self.state, &mut self.updated)?;
+            .draw(&mut self.display, &mut self.state, &mut self.updated)
+            .await?;
 
         if !self.updated.at(StateMarker::PanelPage) {
             Rectangle::new(
@@ -265,7 +277,8 @@ where
                 .skip(self.state.panel_page as usize * 8)
                 .take(8)
             {
-                item.draw(&mut self.display, &mut self.state, &mut self.updated)?;
+                item.draw(&mut self.display, &mut self.state, &mut self.updated)
+                    .await?;
                 drawed_panel_items += 1;
             }
             if drawed_panel_items < 8 {
@@ -284,12 +297,14 @@ where
         }
         if !self.updated.at(StateMarker::Measures) {
             for item in self.measure_items.iter_mut() {
-                item.draw(&mut self.display, &mut self.state, &mut self.updated)?;
+                item.draw(&mut self.display, &mut self.state, &mut self.updated)
+                    .await?;
             }
             self.updated.set(StateMarker::Measures, true);
         }
         self.generator
-            .draw(&mut self.display, &mut self.state, &mut self.updated)?;
+            .draw(&mut self.display, &mut self.state, &mut self.updated)
+            .await?;
 
         // self.updated[StateMarker::RunningState as usize] = false;
         // if self.state.running_state == RunningState::Running {
@@ -359,14 +374,19 @@ impl<D> App<D> {
     }
 }
 
+static KBD_CHANNEL: Channel<ThreadModeRawMutex, Keys, 16> = Channel::new();
+
 #[embassy_executor::task]
-async fn keyboad_task(mut keyboard: impl KeyboardDevice + 'static) {
+async fn keyboad_task(
+    sender: Sender<'static, ThreadModeRawMutex, Keys, 16>,
+    mut keyboard: impl KeyboardDevice + 'static,
+) {
     loop {
-        use crate::info;
         let key = keyboard.read_key();
+        let s: &str = key.into();
         if key != Keys::None {
-            let s: &str = key.into();
-            info!("Key: {:?}", s);
+            // crate::debug!("send Key: {:?}", s);
+            sender.send(key).await;
         }
         Timer::after_millis(10).await;
     }
@@ -380,18 +400,19 @@ where
     K: KeyboardDevice + 'static,
 {
     let mut app = App::new(display);
-    spawner.spawn(keyboad_task(keyboard)).unwrap();
+    spawner
+        .spawn(keyboad_task(KBD_CHANNEL.sender(), keyboard))
+        .unwrap();
     loop {
-        // use crate::info;
-        // info!("Hello, world!");
         app.draw().await.unwrap();
-        // Timer::after_millis(10000).await;
-        // let key = keyboard.read_key();
-        // if key != Keys::None {
-        //     let s: &str = key.into();
-        //     info!("Key: {:?}", s);
-        //     app.input_key_event(key).unwrap();
-        // }
+        match KBD_CHANNEL.try_receive() {
+            Ok(key) => {
+                let s: &str = key.into();
+                crate::info!("recv Key: {:?}", s);
+                app.input_key_event(key).unwrap();
+            }
+            Err(_) => {}
+        }
         Timer::after_millis(20).await;
     }
 }

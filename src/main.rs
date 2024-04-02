@@ -1,4 +1,5 @@
 #![allow(clippy::empty_loop)]
+#![allow(static_mut_refs)]
 #![no_main]
 #![no_std]
 
@@ -198,7 +199,7 @@ async fn main(spawner: Spawner) {
     // let p = embassy_stm32::init(Default::default());
 
     // let mut delay = Delay {};
-    static mut delay: Delay = Delay {};
+    static mut DELAY: Delay = Delay {};
 
     info!("System launched!");
 
@@ -262,7 +263,7 @@ async fn main(spawner: Spawner) {
     let mut lcd = Ili9327::new(
         interface,
         rst,
-        unsafe { &mut delay },
+        unsafe { &mut DELAY },
         Orientation::LandscapeFlipped,
         // Orientation::PortraitFlipped,
         DisplaySize240x320,
@@ -303,7 +304,7 @@ async fn main(spawner: Spawner) {
     };
     let clk = Output::new(p.PE3, Level::Low, Speed::Low);
 
-    let kbd = tm1668::TM1668::new(stb, clk, dio, unsafe { &mut delay });
+    let kbd = tm1668::TM1668::new(stb, clk, dio, unsafe { &mut DELAY });
     let kbd_drv = KeyboardDriver::new(kbd);
 
     // spawner.spawn(app::main_loop(lcd, kbd_drv)).unwrap();

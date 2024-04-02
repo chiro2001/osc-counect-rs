@@ -1,4 +1,5 @@
-use crate::app::{AppError, Channel, Result};
+use crate::app::{AppError, ProbeChannel, Result};
+use embassy_time::Timer;
 use embedded_graphics::{
     draw_target::DrawTarget,
     geometry::{Point, Size},
@@ -21,7 +22,7 @@ pub const SCREEN_HEIGHT: u32 = 240;
 
 type StateResult = Result<Option<&'static [StateMarker]>>;
 pub trait Draw<D> {
-    fn draw(&self, display: &mut D, state: &mut State, vec: &mut StateVec) -> Result<()>
+    async fn draw(&self, display: &mut D, state: &mut State, vec: &mut StateVec) -> Result<()>
     where
         D: DrawTarget<Color = Rgb565>,
     {
@@ -52,6 +53,8 @@ pub trait Draw<D> {
                 }
             }
         }
+        // yeild for other tasks
+        Timer::after_ticks(0).await;
         Ok(())
     }
 
@@ -645,7 +648,7 @@ where
 
 pub struct MeasureItem {
     pub(crate) info: GUIInfo,
-    pub(crate) channel: Channel,
+    pub(crate) channel: ProbeChannel,
     pub(crate) label: &'static str,
     pub(crate) text: &'static str,
     pub(crate) enabled: bool,
@@ -654,7 +657,7 @@ pub struct MeasureItem {
 impl MeasureItem {
     pub fn new(
         index: u8,
-        channel: Channel,
+        channel: ProbeChannel,
         label: &'static str,
         text: &'static str,
         enabled: bool,
@@ -682,7 +685,7 @@ where
         &[StateMarker::Measures]
     }
     fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult {
-        let color_main = if self.channel == Channel::A {
+        let color_main = if self.channel == ProbeChannel::A {
             self.info.color_primary
         } else {
             self.info.color_secondary
