@@ -787,16 +787,29 @@ where
             let text_height = 11;
             for idx in 0..self.items[col].len() {
                 let text = self.items[col][idx];
+                crate::info!(
+                    "{}:{} {}, selected {}:{}",
+                    col,
+                    idx,
+                    text,
+                    state.setting_select_col,
+                    state.setting_select_idx[col]
+                );
                 let text_box_pos = box_pos + Point::new(1, (text_height * idx) as i32);
                 let text_pos_center =
                     text_box_pos + Point::new(box_size.width as i32 / 2, (text_height / 2) as i32);
-                let selected = idx == state.setting_select_idx[col] as usize;
-                let color_text = if selected {
-                    Rgb565::WHITE
+                let selected_col = idx == state.setting_select_idx[col] as usize;
+                let selected_item = selected_col && col == state.setting_select_col as usize;
+                let color_text = if selected_col {
+                    if selected_item {
+                        Rgb565::WHITE
+                    } else {
+                        self.info.color_primary
+                    }
                 } else {
                     Rgb565::BLACK
                 };
-                let color_bg = if selected {
+                let color_bg = if selected_col {
                     Rgb565::BLACK
                 } else {
                     self.info.color_primary

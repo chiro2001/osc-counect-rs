@@ -76,6 +76,7 @@ pub enum Panel {
     Sweep,
     Endding,
 }
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum SettingValueMode {
     ItemSelect,
     TextInput,
@@ -317,22 +318,6 @@ where
             }),
             battery: Battery::new(50),
             clock: Clock::new(),
-            // panel_items: [
-            //     PanelItem::new(0, "Chann", "CHA", PanelStyle::ChannelColor),
-            //     PanelItem::new(1, "T-Sca", "100ms", PanelStyle::Normal),
-            //     PanelItem::new(2, "V-Sca", "20mV", PanelStyle::ChannelColor),
-            //     PanelItem::new(3, "Xpos", "0.0ns", PanelStyle::Normal),
-            //     PanelItem::new(4, "Ypos", "0.0ns", PanelStyle::ChannelColor),
-            //     PanelItem::new(5, "T-thr", "-3.03mV", PanelStyle::Normal),
-            //     PanelItem::new(6, "Coup", "DC", PanelStyle::ChannelColor),
-            //     PanelItem::new(7, "T-Typ", "CHA-U", PanelStyle::Normal),
-            //     PanelItem::new(8, "Probe", "X2", PanelStyle::ChannelColor),
-            //     PanelItem::new(9, "H-Me1", "Freq", PanelStyle::ChannelColor),
-            //     PanelItem::new(10, "V-Me1", "Vp-p", PanelStyle::ChannelColor),
-            //     PanelItem::new(11, "H-Me2", "--", PanelStyle::ChannelColor),
-            //     PanelItem::new(12, "V-Me2", "Vrms", PanelStyle::ChannelColor),
-            //     PanelItem::new(13, "Sweep", "AUTO", PanelStyle::Normal),
-            // ],
             panel_items,
             measure_items: [
                 MeasureItem::new(0, ProbeChannel::A, "Freq", "34kHz", true),
@@ -549,6 +534,11 @@ where
             Window::SetValue => {
                 if !self.state.setting_inited {
                     // TODO: Read setting value from state
+                    self.state.setting_select_col = 0;
+                    self.state
+                        .setting_select_idx
+                        .iter_mut()
+                        .for_each(|x| *x = 0);
                     self.state.setting_inited = true;
                 }
             }
@@ -605,7 +595,69 @@ impl<D> App<D> {
                 Ok(())
             }
             Window::SetValue => {
+                let panel = Panel::from(self.state.setting_index as usize);
                 match key {
+                    Keys::Left => {
+                        if panel.get_setting_mode() == SettingValueMode::ItemSelect {
+                            self.state.setting_select_col = if self.state.setting_select_col >= 1 {
+                                self.state.setting_select_col - 1
+                            } else {
+                                0
+                            };
+                            self.updated.set(StateMarker::SettingValueContent, false);
+                        }
+                        self.updated.set(StateMarker::SettingValueContent, false);
+                    }
+                    Keys::Right => {
+                        if let Some(items) = panel.select_items() {
+                            self.state.setting_select_col =
+                                if self.state.setting_select_col < items.len() as u8 - 1 {
+                                    self.state.setting_select_col + 1
+                                } else {
+                                    items.len() as u8 - 1
+                                };
+                            self.updated.set(StateMarker::SettingValueContent, false);
+                        }
+                        self.updated.set(StateMarker::SettingValueContent, false);
+                    }
+                    Keys::Up => {
+                        if panel.get_setting_mode() == SettingValueMode::ItemSelect {
+                            self.state.setting_select_idx[self.state.setting_select_col as usize] =
+                                if self.state.setting_select_idx
+                                    [self.state.setting_select_col as usize]
+                                    >= 1
+                                {
+                                    self.state.setting_select_idx
+                                        [self.state.setting_select_col as usize]
+                                        - 1
+                                } else {
+                                    0
+                                };
+                            self.updated.set(StateMarker::SettingValueContent, false);
+                        }
+                    }
+                    Keys::Down => {
+                        if let Some(items) = panel.select_items() {
+                            self.state.setting_select_idx[self.state.setting_select_col as usize] =
+                                if self.state.setting_select_idx
+                                    [self.state.setting_select_col as usize]
+                                    < items[self.state.setting_select_col as usize].len() as u8 - 1
+                                {
+                                    let v = self.state.setting_select_idx
+                                        [self.state.setting_select_col as usize]
+                                        + 1;
+                                    crate::info!(
+                                        "next value: {}, items: {:?}",
+                                        v,
+                                        items[self.state.setting_select_col as usize]
+                                    );
+                                    v
+                                } else {
+                                    (items[self.state.setting_select_col as usize].len() - 1) as u8
+                                };
+                            self.updated.set(StateMarker::SettingValueContent, false);
+                        }
+                    }
                     Keys::Ok => {
                         // reset states
                         self.state.setting_inited = false;
