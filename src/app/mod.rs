@@ -414,11 +414,13 @@ impl<D> App<D> {
                     | Keys::Key6
                     | Keys::Key7
                     | Keys::Key8 => {
-                        let idx = key.digital_value() - 1;
-                        self.state.window_next = Some(Window::SetValue);
-                        self.state.setting_index = idx;
-                        self.state.panel_focused = Some(self.state.panel_page * 8 + idx);
-                        self.updated.set(StateMarker::PanelPage, false);
+                        let idx = (key.digital_value() - 1) + self.state.panel_page * 8;
+                        if idx < self.panel_items.len() as u8 {
+                            self.state.window_next = Some(Window::SetValue);
+                            self.state.setting_index = idx;
+                            self.state.panel_focused = Some(idx);
+                            self.updated.set(StateMarker::PanelPage, false);
+                        }
                     }
                     _ => {}
                 }
