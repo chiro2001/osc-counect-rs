@@ -93,6 +93,15 @@ impl VoltageUnit {
     pub fn fixed1k(_mv: u64) -> Self {
         VoltageUnit::MilliVolt
     }
+    pub fn str(&self) -> &'static str {
+        let s: &'static str = self.into();
+        s
+    }
+    pub fn next(&self) -> Self {
+        match self {
+            _ => VoltageUnit::Volt,
+        }
+    }
 }
 
 impl Into<&'static str> for VoltageUnit {
@@ -104,15 +113,45 @@ impl Into<&'static str> for VoltageUnit {
     }
 }
 
+impl Into<&'static str> for &VoltageUnit {
+    fn into(self) -> &'static str {
+        (*self).into()
+    }
+}
+
 pub struct VoltageScale {
     pub voltage: u64,
     pub unit: VoltageUnit,
+    buf: [u8; 8],
 }
 
 impl VoltageScale {
     pub fn from_mv(mv: u64) -> Self {
         let unit = VoltageUnit::fixed1k(mv);
         let voltage = mv / unit.divider();
-        Self { voltage, unit }
+        Self {
+            voltage,
+            unit,
+            buf: Default::default(),
+        }
+    }
+    pub fn str<'d>(&'d mut self) -> &'d str {
+        if self.voltage >= 1000 {
+            format_no_std::show(
+                &mut self.buf,
+                format_args!(
+                    "{}{}",
+                    self.voltage as f32 / 1000f32,
+                    self.unit.next().str()
+                ),
+            )
+            .unwrap()
+        } else {
+            format_no_std::show(
+                &mut self.buf,
+                format_args!("{}{}", self.voltage, self.unit.str()),
+            )
+            .unwrap()
+        }
     }
 }

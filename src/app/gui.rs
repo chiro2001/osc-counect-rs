@@ -192,7 +192,7 @@ where
 }
 
 #[derive(Clone)]
-pub struct LineDisp<'a> {
+struct LineDisp<'a> {
     pub(crate) info: GUIInfo,
     pub(crate) text: &'a str,
     pub(crate) font: MonoTextStyle<'static, Rgb565>,
@@ -328,14 +328,8 @@ where
         &[StateMarker::ChannelSetting]
     }
     fn draw_state(&self, display: &mut D, state: &mut State) -> StateResult {
-        let mut buf = [0u8; 16];
-        let voltage_scale = VoltageScale::from_mv(state.channel_info);
-        let text_unit: &str = voltage_scale.unit.into();
-        let text = format_no_std::show(
-            &mut buf,
-            format_args!("{}{}", voltage_scale.voltage, text_unit),
-        )
-        .map_err(|_| AppError::DataFormatError)?;
+        let mut voltage_scale = VoltageScale::from_mv(state.channel_info);
+        let text = voltage_scale.str();
         let disp = LineDisp {
             text,
             ..self.0.clone()
@@ -722,7 +716,7 @@ where
     }
 }
 
-pub struct Generator(pub LineDisp<'static>);
+pub struct Generator(LineDisp<'static>);
 
 impl Generator {
     pub fn new(text: &'static str) -> Self {

@@ -113,7 +113,7 @@ impl Default for State {
             window: Default::default(),
             waveform: Default::default(),
             time_scale_ns: 100_000,
-            channel_info: 1250,
+            channel_info: 500,
             measures: Default::default(),
             generator: Default::default(),
         }
