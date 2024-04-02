@@ -533,7 +533,7 @@ impl PanelItem {
         Self {
             info: GUIInfo {
                 size: Size::new(48 - 1, 26),
-                position: Point::new(SCREEN_WIDTH as i32 - 48 + 1, 12 + (index - 1) as i32 * 27),
+                position: Point::new(SCREEN_WIDTH as i32 - 48 + 1, 12 + (index % 8) as i32 * 27),
                 color_primary: Rgb565::CSS_PURPLE,
                 color_secondary: Rgb565::BLACK,
             },
@@ -552,13 +552,22 @@ where
     fn state_emit_mask(&self) -> &[StateMarker] {
         &[StateMarker::PanelPage]
     }
-    fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult {
+    fn draw_state(&self, display: &mut D, state: &mut State) -> StateResult {
         let color_main = if self.style == PanelStyle::ChannelColor {
             Rgb565::YELLOW
         } else {
             self.info.color_primary
         };
         let size_half = Size::new(self.info.size.width, self.info.size.height / 2);
+        let color_bg = if let Some(focused) = state.panel_focused {
+            if focused == self.index {
+                Rgb565::WHITE
+            } else {
+                Rgb565::BLACK
+            }
+        } else {
+            Rgb565::BLACK
+        };
         Rectangle::new(
             self.info.position + Point::new(0, size_half.height as i32),
             size_half,
@@ -567,7 +576,7 @@ where
             PrimitiveStyleBuilder::new()
                 .stroke_color(color_main)
                 .stroke_width(1)
-                .fill_color(self.info.color_secondary)
+                .fill_color(color_bg)
                 .build(),
         )
         .draw(display)
@@ -577,7 +586,8 @@ where
             .draw(display)
             .map_err(|_| AppError::DisplayError)?;
         let mut buf = [0u8; 2];
-        let text_index = format_no_std::show(&mut buf, format_args!("{}", self.index))
+        let index_disp = (self.index % 8) + 1;
+        let text_index = format_no_std::show(&mut buf, format_args!("{}", index_disp))
             .map_err(|_| AppError::DataFormatError)?;
         let color_label = if self.style == PanelStyle::ChannelColor {
             Rgb565::BLACK
@@ -598,7 +608,7 @@ where
         .translate(self.info.position)
         .draw(display)
         .map_err(|_| AppError::DisplayError)?;
-        if self.index == 8 {
+        if index_disp == 8 {
             Text::with_alignment(
                 "0",
                 Point::new(
@@ -624,13 +634,22 @@ where
         .translate(self.info.position)
         .draw(display)
         .map_err(|_| AppError::DisplayError)?;
+        let color_text = if let Some(focused) = state.panel_focused {
+            if focused == self.index {
+                Rgb565::BLACK
+            } else {
+                Rgb565::WHITE
+            }
+        } else {
+            Rgb565::WHITE
+        };
         Text::with_alignment(
             self.text,
             Point::new(
                 self.info.size.width as i32 / 2,
                 self.info.size.height as i32 * 3 / 4,
             ) + TEXT_OFFSET,
-            MonoTextStyle::new(&FONT_6X9, Rgb565::WHITE),
+            MonoTextStyle::new(&FONT_6X9, color_text),
             Alignment::Center,
         )
         .translate(self.info.position)

@@ -20,6 +20,38 @@ pub enum Keys {
     Star  = 19,  Key0 = 18,  Sharp = 9,  Ok    = 8,
     Power = 31,
 }
+impl Keys {
+    pub fn is_digit(&self) -> bool {
+        match self {
+            Keys::Key0
+            | Keys::Key1
+            | Keys::Key2
+            | Keys::Key3
+            | Keys::Key4
+            | Keys::Key5
+            | Keys::Key6
+            | Keys::Key7
+            | Keys::Key8
+            | Keys::Key9 => true,
+            _ => false,
+        }
+    }
+    pub fn digital_value(&self) -> u8 {
+        match self {
+            Keys::Key0 => 0,
+            Keys::Key1 => 1,
+            Keys::Key2 => 2,
+            Keys::Key3 => 3,
+            Keys::Key4 => 4,
+            Keys::Key5 => 5,
+            Keys::Key6 => 6,
+            Keys::Key7 => 7,
+            Keys::Key8 => 8,
+            Keys::Key9 => 9,
+            _ => 0,
+        }
+    }
+}
 impl Into<&'static str> for Keys {
     fn into(self) -> &'static str {
         match self {

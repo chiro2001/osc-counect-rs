@@ -64,10 +64,12 @@ pub enum Window {
 #[derive(Debug)]
 pub struct State {
     pub panel_page: u8,
+    pub panel_focused: Option<u8>,
     pub running_state: RunningState,
     pub battery: u8,
     pub clock: [char; 5],
     pub window: Window,
+    pub window_next: Option<Window>,
     // TODO: waveform data
     pub waveform: u8,
     pub time_scale_ns: u64,
@@ -77,6 +79,11 @@ pub struct State {
     pub measures: u64,
     // TODO: generator setting
     pub generator: u64,
+
+    // used in setting value window
+    pub setting_index: u8,
+    pub setting_time_scale: TimeScale,
+    pub setting_voltage_scale: VoltageScale,
 }
 
 #[derive(Debug, Default)]
@@ -107,15 +114,20 @@ impl Default for State {
     fn default() -> Self {
         Self {
             panel_page: 0,
+            panel_focused: Default::default(),
             running_state: Default::default(),
             battery: 50,
             clock: ['1', '2', ':', '4', '5'],
             window: Default::default(),
+            window_next: Default::default(),
             waveform: Default::default(),
             time_scale_ns: 100_000,
             channel_info: 500,
             measures: Default::default(),
             generator: Default::default(),
+            setting_index: Default::default(),
+            setting_time_scale: Default::default(),
+            setting_voltage_scale: Default::default(),
         }
     }
 }
@@ -145,6 +157,8 @@ use embedded_graphics::{
     Drawable,
 };
 use num_enum::IntoPrimitive;
+
+use self::unit::{TimeScale, VoltageScale};
 
 pub struct App<D> {
     pub state: State,
@@ -193,20 +207,20 @@ where
             battery: Battery::new(50),
             clock: Clock::new(),
             panel_items: [
-                PanelItem::new(1, "Chann", "CHA", PanelStyle::ChannelColor),
-                PanelItem::new(2, "T-Sca", "100ms", PanelStyle::Normal),
-                PanelItem::new(3, "V-Sca", "20mV", PanelStyle::ChannelColor),
-                PanelItem::new(4, "Xpos", "0.0ns", PanelStyle::Normal),
-                PanelItem::new(5, "Ypos", "0.0ns", PanelStyle::ChannelColor),
-                PanelItem::new(6, "T-thr", "-3.03mV", PanelStyle::Normal),
-                PanelItem::new(7, "Coup", "DC", PanelStyle::ChannelColor),
-                PanelItem::new(8, "T-Typ", "CHA-U", PanelStyle::Normal),
-                PanelItem::new(1, "Probe", "X2", PanelStyle::ChannelColor),
-                PanelItem::new(2, "H-Me1", "Freq", PanelStyle::ChannelColor),
-                PanelItem::new(3, "V-Me1", "Vp-p", PanelStyle::ChannelColor),
-                PanelItem::new(4, "H-Me2", "--", PanelStyle::ChannelColor),
-                PanelItem::new(5, "V-Me2", "Vrms", PanelStyle::ChannelColor),
-                PanelItem::new(6, "Sweep", "AUTO", PanelStyle::Normal),
+                PanelItem::new(0, "Chann", "CHA", PanelStyle::ChannelColor),
+                PanelItem::new(1, "T-Sca", "100ms", PanelStyle::Normal),
+                PanelItem::new(2, "V-Sca", "20mV", PanelStyle::ChannelColor),
+                PanelItem::new(3, "Xpos", "0.0ns", PanelStyle::Normal),
+                PanelItem::new(4, "Ypos", "0.0ns", PanelStyle::ChannelColor),
+                PanelItem::new(5, "T-thr", "-3.03mV", PanelStyle::Normal),
+                PanelItem::new(6, "Coup", "DC", PanelStyle::ChannelColor),
+                PanelItem::new(7, "T-Typ", "CHA-U", PanelStyle::Normal),
+                PanelItem::new(8, "Probe", "X2", PanelStyle::ChannelColor),
+                PanelItem::new(9, "H-Me1", "Freq", PanelStyle::ChannelColor),
+                PanelItem::new(10, "V-Me1", "Vp-p", PanelStyle::ChannelColor),
+                PanelItem::new(11, "H-Me2", "--", PanelStyle::ChannelColor),
+                PanelItem::new(12, "V-Me2", "Vrms", PanelStyle::ChannelColor),
+                PanelItem::new(13, "Sweep", "AUTO", PanelStyle::Normal),
             ],
             measure_items: [
                 MeasureItem::new(0, ProbeChannel::A, "Freq", "34kHz", true),
@@ -317,15 +331,25 @@ where
     }
 
     async fn draw_set_value_window(&mut self) -> Result<()> {
-        self.display
-            .clear(Rgb565::GREEN)
+        let window_size = Size::new(128, 84);
+        let window_rect = Rectangle::with_center(
+            self.waveform.info.position
+                + Point::new(
+                    self.waveform.info.size.width as i32 / 2,
+                    self.waveform.info.size.height as i32 / 2,
+                ),
+            window_size,
+        );
+        window_rect
+            .into_styled(PrimitiveStyle::with_fill(Rgb565::MAGENTA))
+            .draw(&mut self.display)
             .map_err(|_| AppError::DisplayError)?;
         Ok(())
     }
 
     async fn draw_settings_window(&mut self) -> Result<()> {
         self.display
-            .clear(Rgb565::CSS_ALICE_BLUE)
+            .clear(Rgb565::GREEN)
             .map_err(|_| AppError::DisplayError)?;
         Ok(())
     }
@@ -361,6 +385,20 @@ impl<D> App<D> {
                         };
                         self.updated.set(StateMarker::PanelPage, false);
                     }
+                    Keys::Key1
+                    | Keys::Key2
+                    | Keys::Key3
+                    | Keys::Key4
+                    | Keys::Key5
+                    | Keys::Key6
+                    | Keys::Key7
+                    | Keys::Key8 => {
+                        let idx = key.digital_value() - 1;
+                        self.state.window_next = Some(Window::SetValue);
+                        self.state.setting_index = idx;
+                        self.state.panel_focused = Some(self.state.panel_page * 8 + idx);
+                        self.updated.set(StateMarker::PanelPage, false);
+                    }
                     _ => {}
                 }
                 if flush {
@@ -368,7 +406,19 @@ impl<D> App<D> {
                 }
                 Ok(())
             }
-            Window::SetValue => Ok(()),
+            Window::SetValue => {
+                match key {
+                    Keys::Ok => {
+                        self.state.window_next = Some(Window::Main);
+                        self.state.panel_focused = None;
+                        // self.updated.clear();
+                        self.updated.set(StateMarker::PanelPage, false);
+                        self.updated.set(StateMarker::Waveform, false);
+                    }
+                    _ => {}
+                }
+                Ok(())
+            }
             Window::Settings => Ok(()),
         }
     }
@@ -407,6 +457,10 @@ where
         .unwrap();
     loop {
         app.draw().await.unwrap();
+        if let Some(window_next) = app.state.window_next {
+            app.state.window = window_next;
+        }
+        app.state.window_next = None;
         match KBD_CHANNEL.try_receive() {
             Ok(key) => {
                 let s: &str = key.into();
@@ -429,6 +483,11 @@ pub async fn main_loop(
     let mut app = App::new(display);
     'running: loop {
         app.draw().await.unwrap();
+
+        if let Some(window_next) = app.state.window_next {
+            app.state.window = window_next;
+        }
+        app.state.window_next = None;
 
         window.update(&app.display);
         use embedded_graphics_simulator::SimulatorEvent;

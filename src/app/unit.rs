@@ -56,6 +56,7 @@ impl Into<&'static str> for TimeUnit {
     }
 }
 
+#[derive(Debug, Default)]
 pub struct TimeScale {
     pub time: u64,
     pub unit: TimeUnit,
@@ -119,6 +120,7 @@ impl Into<&'static str> for &VoltageUnit {
     }
 }
 
+#[derive(Debug, Default)]
 pub struct VoltageScale {
     pub voltage: u64,
     pub unit: VoltageUnit,
