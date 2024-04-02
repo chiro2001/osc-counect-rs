@@ -10,7 +10,7 @@ use embedded_graphics::{
     Drawable, Pixel,
 };
 
-use super::{RunningState, State, StateMarker, StateVec};
+use super::{unit::TimeScale, RunningState, State, StateMarker, StateVec};
 
 pub const TEXT_OFFSET: Point = Point::new(0, 2);
 pub const SCREEN_WIDTH: u32 = 320;
@@ -226,6 +226,7 @@ where
     }
 }
 
+#[derive(Default)]
 pub struct RunningStateDisp;
 
 impl RunningStateDisp {
@@ -241,11 +242,6 @@ impl RunningStateDisp {
             text,
             ..Default::default()
         }
-    }
-}
-impl Default for RunningStateDisp {
-    fn default() -> Self {
-        Self {}
     }
 }
 impl<D> Draw<D> for RunningStateDisp
@@ -267,6 +263,42 @@ where
         );
         disp.draw_state(display, state)?;
         Ok(Some(&[StateMarker::RunningState]))
+    }
+}
+
+#[derive(Default)]
+pub struct TimeScaleDisp;
+
+impl TimeScaleDisp {
+    fn new_disp<'a>(text: &'a str) -> LineDisp<'a> {
+        LineDisp {
+            info: GUIInfo {
+                size: Size::new(35, 10),
+                position: Point::new(4 + 29 + 1, 0),
+                color_primary: Rgb565::MAGENTA,
+                color_secondary: Rgb565::WHITE,
+            },
+            text,
+            font: MonoTextStyle::new(&FONT_6X9, Rgb565::WHITE),
+        }
+    }
+}
+impl<D> Draw<D> for TimeScaleDisp
+where
+    D: DrawTarget<Color = Rgb565>,
+{
+    fn state_emit_mask(&self) -> &[StateMarker] {
+        &[StateMarker::TimeScale]
+    }
+    fn draw_state(&self, display: &mut D, state: &mut State) -> StateResult {
+        let mut buf = [0u8; 16];
+        let time_scale = TimeScale::from_ns(state.time_scale_ns);
+        let text_unit: &str = time_scale.unit.into();
+        let text = format_no_std::show(&mut buf, format_args!("{}{}", time_scale.time, text_unit))
+            .map_err(|_| AppError::DataFormatError)?;
+        let disp = Self::new_disp(text);
+        disp.draw_state(display, state)?;
+        Ok(Some(&[StateMarker::TimeScale]))
     }
 }
 

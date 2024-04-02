@@ -2,6 +2,7 @@
 
 mod gui;
 pub mod input;
+mod unit;
 
 use gui::*;
 use input::*;
@@ -39,6 +40,7 @@ pub enum StateMarker {
     Clock,
     Window,
     Waveform,
+    TimeScale,
     Endding,
     All,
     AllFlush,
@@ -61,6 +63,7 @@ pub struct State {
     pub window: Window,
     // TODO: waveform data
     pub waveform: u8,
+    pub time_scale_ns: u64,
 }
 
 #[derive(Debug, Default)]
@@ -96,6 +99,7 @@ impl Default for State {
             clock: ['1', '2', ':', '4', '5'],
             window: Default::default(),
             waveform: Default::default(),
+            time_scale_ns: 100_000,
         }
     }
 }
@@ -134,7 +138,7 @@ pub struct App<D> {
     // widgets of main window
     waveform: Waveform,
     running_state: RunningStateDisp,
-    time_scale: LineDisp<'static>,
+    time_scale: TimeScaleDisp,
     overview: Overview,
     channel_info1: LineDisp<'static>,
     channel_info2: LineDisp<'static>,
@@ -156,16 +160,7 @@ where
             display,
             waveform: Default::default(),
             running_state: Default::default(),
-            time_scale: LineDisp {
-                info: GUIInfo {
-                    size: Size::new(35, 10),
-                    position: Point::new(4 + 29 + 1, 0),
-                    color_primary: Rgb565::MAGENTA,
-                    color_secondary: Rgb565::WHITE,
-                },
-                text: "500ms",
-                font: MonoTextStyle::new(&FONT_6X9, Rgb565::WHITE),
-            },
+            time_scale: Default::default(),
             overview: Overview::new(),
             channel_info1: LineDisp {
                 info: GUIInfo {
