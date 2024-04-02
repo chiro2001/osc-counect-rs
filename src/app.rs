@@ -199,7 +199,7 @@ impl Overview {
     pub fn new() -> Self {
         Self {
             info: GUIInfo {
-                size: Size::new(134, 10),
+                size: Size::new(133, 10),
                 position: Point::new(70, 0),
                 color_primary: Rgb565::WHITE,
                 color_secondary: Rgb565::BLACK,
@@ -310,7 +310,7 @@ impl Clock {
         Self {
             info: GUIInfo {
                 size: Size::new(30, 10),
-                position: Point::new(SCREEN_WIDTH as i32 - 48, 0),
+                position: Point::new(SCREEN_WIDTH as i32 - 48 - 1, 0),
                 color_primary: Rgb565::WHITE,
                 color_secondary: Rgb565::CSS_DARK_SLATE_GRAY,
             },
@@ -437,6 +437,20 @@ where
         .translate(self.info.position)
         .draw(display)
         .map_err(|_| AppError::DisplayError)?;
+        if self.index == 8 {
+            Text::with_alignment(
+                "0",
+                Point::new(
+                    self.info.size.width as i32 - 7,
+                    self.info.size.height as i32 * 1 / 4,
+                ) + TEXT_OFFSET,
+                MonoTextStyle::new(&FONT_6X9, color_index),
+                Alignment::Left,
+            )
+            .translate(self.info.position)
+            .draw(display)
+            .map_err(|_| AppError::DisplayError)?;
+        }
         Text::with_alignment(
             self.label,
             Point::new(
@@ -567,6 +581,7 @@ pub struct App<D> {
     battery: Battery,
     clock: Clock,
     panel_items: [PanelItem; 8 + 6],
+    panel_page: u8,
     measure_items: [MeasureItem; 4],
     generator: Generator,
 }
@@ -604,7 +619,7 @@ where
             channel_info1: LineDisp {
                 info: GUIInfo {
                     size: Size::new(33, 10),
-                    position: Point::new(205, 0),
+                    position: Point::new(204, 0),
                     color_primary: Rgb565::YELLOW,
                     color_secondary: Rgb565::BLACK,
                 },
@@ -614,7 +629,7 @@ where
             channel_info2: LineDisp {
                 info: GUIInfo {
                     size: Size::new(33, 10),
-                    position: Point::new(205 + 33 + 1, 0),
+                    position: Point::new(205 + 33, 0),
                     color_primary: Rgb565::GREEN,
                     color_secondary: Rgb565::BLACK,
                 },
@@ -636,9 +651,10 @@ where
                 PanelItem::new(2, "H-Me1", "Freq", PanelStyle::ChannelColor),
                 PanelItem::new(3, "V-Me1", "Vp-p", PanelStyle::ChannelColor),
                 PanelItem::new(4, "H-Me2", "--", PanelStyle::ChannelColor),
-                PanelItem::new(5, "V_Me2", "Vrms", PanelStyle::ChannelColor),
+                PanelItem::new(5, "V-Me2", "Vrms", PanelStyle::ChannelColor),
                 PanelItem::new(6, "Sweep", "AUTO", PanelStyle::Normal),
             ],
+            panel_page: 0,
             measure_items: [
                 MeasureItem::new(0, Channel::A, "Freq", "34kHz", true),
                 MeasureItem::new(1, Channel::A, "Vp-p", "2.3mV", false),
@@ -663,8 +679,24 @@ where
         self.battery.draw(&mut self.display)?;
         self.clock.draw(&mut self.display)?;
 
-        for item in self.panel_items.iter().take(8) {
+        let mut drawed_panel_items = 0;
+        for item in self.panel_items.iter().skip(self.panel_page as usize * 8) {
             item.draw(&mut self.display)?;
+            drawed_panel_items += 1;
+        }
+        if drawed_panel_items < 8 {
+            // add info: 0 to switch page
+            Text::with_alignment(
+                "0:Page",
+                Point::new(
+                    SCREEN_WIDTH as i32 - 24,
+                    SCREEN_HEIGHT as i32 - 11 * 3 + 5,
+                ) + TEXT_OFFSET,
+                MonoTextStyle::new(&FONT_6X9, Rgb565::WHITE),
+                Alignment::Center,
+            )
+            .draw(&mut self.display)
+            .map_err(|_| AppError::DisplayError)?;
         }
         for item in self.measure_items.iter() {
             item.draw(&mut self.display)?;
