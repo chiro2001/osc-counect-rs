@@ -159,6 +159,30 @@ impl Into<&'static str> for Panel {
     }
 }
 
+#[derive(Default, Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub enum Coupling {
+    #[default]
+    AC,
+    DC,
+    OFF,
+}
+
+#[derive(Debug)]
+pub struct ChannelInfo {
+    pub voltage_scale_mv: u64,
+    pub coupling: Coupling,
+    pub probe: u8,
+}
+impl Default for ChannelInfo {
+    fn default() -> Self {
+        Self {
+            voltage_scale_mv: 500,
+            coupling: Default::default(),
+            probe: 1,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct State {
     pub panel_page: u8,
@@ -172,7 +196,7 @@ pub struct State {
     pub waveform: u8,
     pub time_scale_ns: u64,
     // TODO: channel setting
-    pub channel_info: u64,
+    pub channel_info: [ChannelInfo; ProbeChannel::Endding as usize],
     pub channel_current: ProbeChannel,
     // TODO: measures
     pub measures: u64,
@@ -210,6 +234,12 @@ impl StateVec {
         let idx: usize = index.into();
         self.0[idx] = value;
     }
+    pub fn confirm(&mut self, index: StateMarker) {
+        self.set(index, true);
+    }
+    pub fn request(&mut self, index: StateMarker) {
+        self.set(index, false);
+    }
 }
 
 impl Default for State {
@@ -224,7 +254,7 @@ impl Default for State {
             window_next: Default::default(),
             waveform: Default::default(),
             time_scale_ns: 100_000,
-            channel_info: 500,
+            channel_info: core::array::from_fn(|_| Default::default()),
             channel_current: Default::default(),
             measures: Default::default(),
             generator: Default::default(),
@@ -252,12 +282,14 @@ pub enum ProbeChannel {
     #[default]
     A,
     B,
+    Endding,
 }
 impl Into<&'static str> for ProbeChannel {
     fn into(self) -> &'static str {
         match self {
             ProbeChannel::A => "CHA",
             ProbeChannel::B => "CHB",
+            _ => "CH?",
         }
     }
 }
@@ -275,7 +307,7 @@ use embedded_graphics::{
 };
 use num_enum::{FromPrimitive, IntoPrimitive};
 
-use self::unit::{TimeScale, VoltageScale};
+use self::unit::{TimeScale, VoltageScale, VoltageUnit};
 
 pub struct App<D> {
     pub state: State,
@@ -316,18 +348,24 @@ where
             running_state: Default::default(),
             time_scale: Default::default(),
             overview: Overview::new(),
-            channel_info1: ChannelSettingDisp::new(GUIInfo {
-                size: Size::new(33, 10),
-                position: Point::new(204, 0),
-                color_primary: Rgb565::YELLOW,
-                color_secondary: Rgb565::BLACK,
-            }),
-            channel_info2: ChannelSettingDisp::new(GUIInfo {
-                size: Size::new(33, 10),
-                position: Point::new(205 + 33, 0),
-                color_primary: Rgb565::GREEN,
-                color_secondary: Rgb565::BLACK,
-            }),
+            channel_info1: ChannelSettingDisp::new(
+                ProbeChannel::A,
+                GUIInfo {
+                    size: Size::new(33, 10),
+                    position: Point::new(204, 0),
+                    color_primary: Rgb565::YELLOW,
+                    color_secondary: Rgb565::BLACK,
+                },
+            ),
+            channel_info2: ChannelSettingDisp::new(
+                ProbeChannel::B,
+                GUIInfo {
+                    size: Size::new(33, 10),
+                    position: Point::new(205 + 33, 0),
+                    color_primary: Rgb565::GREEN,
+                    color_secondary: Rgb565::BLACK,
+                },
+            ),
             battery: Battery::new(50),
             clock: Clock::new(),
             panel_items,
@@ -370,7 +408,7 @@ where
             self.channel_info2
                 .draw(&mut self.display, &mut self.state, &mut self.updated)
                 .await?;
-            self.updated.set(StateMarker::ChannelSetting, true);
+            self.updated.confirm(StateMarker::ChannelSetting);
         }
 
         self.battery
@@ -436,14 +474,14 @@ where
                 .draw(&mut self.display)
                 .map_err(|_| AppError::DisplayError)?;
             }
-            self.updated.set(StateMarker::PanelPage, true);
+            self.updated.confirm(StateMarker::PanelPage);
         }
         if !self.updated.at(StateMarker::Measures) {
             for item in self.measure_items.iter_mut() {
                 item.draw(&mut self.display, &mut self.state, &mut self.updated)
                     .await?;
             }
-            self.updated.set(StateMarker::Measures, true);
+            self.updated.confirm(StateMarker::Measures);
         }
         self.generator
             .draw(&mut self.display, &mut self.state, &mut self.updated)
@@ -516,7 +554,7 @@ where
             .draw(&mut self.display)
             .map_err(|_| AppError::DisplayError)?;
 
-            self.updated.set(StateMarker::SettingValueTitle, false);
+            self.updated.request(StateMarker::SettingValueTitle);
         }
         if let Some(select_items) = &self.select_items {
             select_items
@@ -557,6 +595,30 @@ where
                             let idx: usize = self.state.channel_current.into();
                             self.state.setting_select_idx[0] = idx as u8;
                         }
+                        Panel::VoltageScale => {
+                            let idx_channel: usize = self.state.channel_current.into();
+                            let mv = self.state.channel_info[idx_channel].voltage_scale_mv;
+                            let voltage_scale = VoltageScale::from_mv(mv);
+                            self.state.setting_voltage_scale = voltage_scale;
+                            self.state.setting_select_idx[0] =
+                                match self.state.setting_voltage_scale.voltage {
+                                    1 => 0,
+                                    2 => 1,
+                                    5 => 2,
+                                    10 => 3,
+                                    20 => 4,
+                                    50 => 5,
+                                    100 => 6,
+                                    200 => 7,
+                                    500 => 8,
+                                    _ => 0,
+                                };
+                            self.state.setting_select_idx[1] =
+                                match self.state.setting_voltage_scale.unit {
+                                    VoltageUnit::MilliVolt => 0,
+                                    VoltageUnit::Volt => 1,
+                                };
+                        }
                         _ => {
                             crate::warn!("not emplemented: {:?}", panel);
                         }
@@ -590,7 +652,7 @@ impl<D> App<D> {
                         } else {
                             self.state.panel_page + 1
                         };
-                        self.updated.set(StateMarker::PanelPage, false);
+                        self.updated.request(StateMarker::PanelPage);
                     }
                     Keys::Key1
                     | Keys::Key2
@@ -606,7 +668,7 @@ impl<D> App<D> {
                             self.state.window_next = Some(Window::SetValue);
                             self.state.setting_index = idx;
                             self.state.panel_focused = Some(Panel::from(idx as usize));
-                            self.updated.set(StateMarker::PanelPage, false);
+                            self.updated.request(StateMarker::PanelPage);
                         }
                     }
                     _ => {}
@@ -626,9 +688,11 @@ impl<D> App<D> {
                             } else {
                                 0
                             };
-                            self.updated.set(StateMarker::SettingValueContent, false);
+                            self.updated
+                                .request(StateMarker::SettingValueContent);
                         }
-                        self.updated.set(StateMarker::SettingValueContent, false);
+                        self.updated
+                            .request(StateMarker::SettingValueContent);
                     }
                     Keys::Right => {
                         if let Some(items) = panel.select_items() {
@@ -638,9 +702,11 @@ impl<D> App<D> {
                                 } else {
                                     items.len() as u8 - 1
                                 };
-                            self.updated.set(StateMarker::SettingValueContent, false);
+                            self.updated
+                                .request(StateMarker::SettingValueContent);
                         }
-                        self.updated.set(StateMarker::SettingValueContent, false);
+                        self.updated
+                            .request(StateMarker::SettingValueContent);
                     }
                     Keys::Up => {
                         if panel.get_setting_mode() == SettingValueMode::ItemSelect {
@@ -655,7 +721,8 @@ impl<D> App<D> {
                                 } else {
                                     0
                                 };
-                            self.updated.set(StateMarker::SettingValueContent, false);
+                            self.updated
+                                .request(StateMarker::SettingValueContent);
                         }
                     }
                     Keys::Down => {
@@ -668,16 +735,17 @@ impl<D> App<D> {
                                     let v = self.state.setting_select_idx
                                         [self.state.setting_select_col as usize]
                                         + 1;
-                                    crate::info!(
-                                        "next value: {}, items: {:?}",
-                                        v,
-                                        items[self.state.setting_select_col as usize]
-                                    );
+                                    // crate::info!(
+                                    //     "next value: {}, items: {:?}",
+                                    //     v,
+                                    //     items[self.state.setting_select_col as usize]
+                                    // );
                                     v
                                 } else {
                                     (items[self.state.setting_select_col as usize].len() - 1) as u8
                                 };
-                            self.updated.set(StateMarker::SettingValueContent, false);
+                            self.updated
+                                .request(StateMarker::SettingValueContent);
                         }
                     }
                     Keys::Ok => {
@@ -693,6 +761,33 @@ impl<D> App<D> {
                                         _ => ProbeChannel::A,
                                     };
                                     self.state.channel_current = ch;
+                                    true
+                                }
+                                Panel::VoltageScale => {
+                                    let idx = self.state.setting_select_idx[0] as usize;
+                                    let n = match idx {
+                                        0 => 1,
+                                        1 => 2,
+                                        2 => 5,
+                                        3 => 10,
+                                        4 => 20,
+                                        5 => 50,
+                                        6 => 100,
+                                        7 => 200,
+                                        8 => 500,
+                                        _ => panic!("invalid voltage scale index"),
+                                    };
+                                    let unit = match self.state.setting_select_idx[1] {
+                                        0 => VoltageUnit::MilliVolt,
+                                        1 => VoltageUnit::Volt,
+                                        _ => panic!("invalid voltage unit index"),
+                                    };
+                                    self.state.setting_voltage_scale = Default::default();
+                                    let voltage_scale = VoltageScale::new(n, unit);
+                                    let idx_channel: usize = self.state.channel_current.into();
+                                    self.state.channel_info[idx_channel].voltage_scale_mv =
+                                        voltage_scale.to_mv();
+                                    self.updated.request(StateMarker::ChannelSetting);
                                     true
                                 }
                                 _ => {
@@ -711,10 +806,13 @@ impl<D> App<D> {
                             self.state.window = Window::Main;
                             self.state.panel_focused = None;
                             // self.updated.clear();
-                            self.updated.set(StateMarker::SettingValueTitle, false);
-                            self.updated.set(StateMarker::SettingValueContent, false);
-                            self.updated.set(StateMarker::PanelPage, false);
-                            self.updated.set(StateMarker::Waveform, false);
+                            self.updated.request(StateMarker::SettingValueTitle);
+                            self.updated
+                                .request(StateMarker::SettingValueContent);
+                            self.updated.request(StateMarker::PanelPage);
+                            self.updated.request(StateMarker::Waveform);
+                        } else {
+                            crate::warn!("invalid setting value");
                         }
                     }
                     _ => {}

@@ -128,6 +128,13 @@ pub struct VoltageScale {
 }
 
 impl VoltageScale {
+    pub fn new(voltage: u64, unit: VoltageUnit) -> Self {
+        Self {
+            voltage,
+            unit,
+            buf: Default::default(),
+        }
+    }
     pub fn from_mv(mv: u64) -> Self {
         let unit = VoltageUnit::fixed1k(mv);
         let voltage = mv / unit.divider();
@@ -154,6 +161,12 @@ impl VoltageScale {
                 format_args!("{}{}", self.voltage, self.unit.str()),
             )
             .unwrap()
+        }
+    }
+    pub fn to_mv(&self) -> u64 {
+        match self.unit {
+            VoltageUnit::MilliVolt => self.voltage,
+            VoltageUnit::Volt => self.voltage * 1000,
         }
     }
 }

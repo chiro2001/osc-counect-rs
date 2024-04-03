@@ -49,7 +49,7 @@ pub trait Draw<D> {
                         }
                     }
                     _ => {
-                        vec.set(*x, true);
+                        vec.request(*x);
                     }
                 }
             }
@@ -310,15 +310,18 @@ where
     }
 }
 
-pub struct ChannelSettingDisp(LineDisp<'static>);
+pub struct ChannelSettingDisp(ProbeChannel, LineDisp<'static>);
 
 impl ChannelSettingDisp {
-    pub fn new(info: GUIInfo) -> Self {
-        Self(LineDisp {
-            info,
-            font: MonoTextStyle::new(&FONT_6X9, Rgb565::BLACK),
-            ..Default::default()
-        })
+    pub fn new(channel: ProbeChannel, info: GUIInfo) -> Self {
+        Self(
+            channel,
+            LineDisp {
+                info,
+                font: MonoTextStyle::new(&FONT_6X9, Rgb565::BLACK),
+                ..Default::default()
+            },
+        )
     }
 }
 impl<D> Draw<D> for ChannelSettingDisp
@@ -329,11 +332,12 @@ where
         &[StateMarker::ChannelSetting]
     }
     fn draw_state(&self, display: &mut D, state: &mut State) -> StateResult {
-        let mut voltage_scale = VoltageScale::from_mv(state.channel_info);
+        let idx: usize = self.0.into();
+        let mut voltage_scale = VoltageScale::from_mv(state.channel_info[idx].voltage_scale_mv);
         let text = voltage_scale.str();
         let disp = LineDisp {
             text,
-            ..self.0.clone()
+            ..self.1.clone()
         };
         disp.draw_state(display, state)?;
         // Ok(Some(&[StateMarker::ChannelSetting]))
