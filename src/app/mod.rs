@@ -28,7 +28,7 @@ impl Into<&'static str> for RunningState {
     }
 }
 
-#[derive(IntoPrimitive, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(IntoPrimitive, Debug, Clone, Copy, PartialEq, PartialOrd)]
 #[repr(usize)]
 pub enum StateMarker {
     PanelPage,
@@ -56,7 +56,7 @@ pub enum Window {
     Settings,
 }
 
-#[derive(FromPrimitive, Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(FromPrimitive, IntoPrimitive, Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
 #[repr(usize)]
 pub enum Panel {
     #[default]
@@ -162,7 +162,7 @@ impl Into<&'static str> for Panel {
 #[derive(Debug)]
 pub struct State {
     pub panel_page: u8,
-    pub panel_focused: Option<u8>,
+    pub panel_focused: Option<Panel>,
     pub running_state: RunningState,
     pub battery: u8,
     pub clock: [char; 5],
@@ -173,6 +173,7 @@ pub struct State {
     pub time_scale_ns: u64,
     // TODO: channel setting
     pub channel_info: u64,
+    pub channel_current: ProbeChannel,
     // TODO: measures
     pub measures: u64,
     // TODO: generator setting
@@ -224,6 +225,7 @@ impl Default for State {
             waveform: Default::default(),
             time_scale_ns: 100_000,
             channel_info: 500,
+            channel_current: Default::default(),
             measures: Default::default(),
             generator: Default::default(),
             setting_index: Default::default(),
@@ -244,10 +246,20 @@ pub enum AppError {
 
 pub type Result<T, E = AppError> = core::result::Result<T, E>;
 
-#[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
+#[derive(IntoPrimitive, Debug, Default, PartialEq, PartialOrd, Clone, Copy)]
+#[repr(usize)]
 pub enum ProbeChannel {
+    #[default]
     A,
     B,
+}
+impl Into<&'static str> for ProbeChannel {
+    fn into(self) -> &'static str {
+        match self {
+            ProbeChannel::A => "CHA",
+            ProbeChannel::B => "CHB",
+        }
+    }
 }
 
 use embassy_time::Timer;
@@ -294,7 +306,7 @@ where
     pub fn new(display: D) -> Self {
         let panel_items = core::array::from_fn(|i| {
             let p = Panel::from(i);
-            PanelItem::new(i as u8, p.into(), "--", p.style())
+            PanelItem::new(p, p.into(), "--", p.style())
         });
         Self {
             state: Default::default(),
@@ -533,12 +545,22 @@ where
         match self.state.window {
             Window::SetValue => {
                 if !self.state.setting_inited {
-                    // TODO: Read setting value from state
                     self.state.setting_select_col = 0;
                     self.state
                         .setting_select_idx
                         .iter_mut()
                         .for_each(|x| *x = 0);
+                    // Read setting value from state
+                    let panel = Panel::from(self.state.setting_index as usize);
+                    match panel {
+                        Panel::Channel => {
+                            let idx: usize = self.state.channel_current.into();
+                            self.state.setting_select_idx[0] = idx as u8;
+                        }
+                        _ => {
+                            crate::warn!("not emplemented: {:?}", panel);
+                        }
+                    }
                     self.state.setting_inited = true;
                 }
             }
@@ -583,7 +605,7 @@ impl<D> App<D> {
                             self.state.setting_inited = false;
                             self.state.window_next = Some(Window::SetValue);
                             self.state.setting_index = idx;
-                            self.state.panel_focused = Some(idx);
+                            self.state.panel_focused = Some(Panel::from(idx as usize));
                             self.updated.set(StateMarker::PanelPage, false);
                         }
                     }
@@ -659,18 +681,41 @@ impl<D> App<D> {
                         }
                     }
                     Keys::Ok => {
-                        // reset states
-                        self.state.setting_inited = false;
-                        self.select_items = None;
+                        let ok = {
+                            let panel = Panel::from(self.state.setting_index as usize);
+                            // FIXME: when not setting panel data?
+                            match panel {
+                                Panel::Channel => {
+                                    let idx = self.state.setting_select_idx[0] as usize;
+                                    let ch = match idx {
+                                        0 => ProbeChannel::A,
+                                        1 => ProbeChannel::B,
+                                        _ => ProbeChannel::A,
+                                    };
+                                    self.state.channel_current = ch;
+                                    true
+                                }
+                                _ => {
+                                    crate::warn!("not emplemented: {:?}", panel);
+                                    true
+                                }
+                            }
+                        };
 
-                        // self.state.window_next = Some(Window::Main);
-                        self.state.window = Window::Main;
-                        self.state.panel_focused = None;
-                        // self.updated.clear();
-                        self.updated.set(StateMarker::SettingValueTitle, false);
-                        self.updated.set(StateMarker::SettingValueContent, false);
-                        self.updated.set(StateMarker::PanelPage, false);
-                        self.updated.set(StateMarker::Waveform, false);
+                        if ok {
+                            // reset states
+                            self.state.setting_inited = false;
+                            self.select_items = None;
+
+                            // self.state.window_next = Some(Window::Main);
+                            self.state.window = Window::Main;
+                            self.state.panel_focused = None;
+                            // self.updated.clear();
+                            self.updated.set(StateMarker::SettingValueTitle, false);
+                            self.updated.set(StateMarker::SettingValueContent, false);
+                            self.updated.set(StateMarker::PanelPage, false);
+                            self.updated.set(StateMarker::Waveform, false);
+                        }
                     }
                     _ => {}
                 }

@@ -13,7 +13,7 @@ use embedded_graphics::{
 
 use super::{
     unit::{TimeScale, VoltageScale},
-    RunningState, State, StateMarker, StateVec,
+    Panel, RunningState, State, StateMarker, StateVec,
 };
 
 pub const TEXT_OFFSET: Point = Point::new(0, 2);
@@ -37,6 +37,7 @@ pub trait Draw<D> {
         if !do_update {
             return Ok(());
         }
+        // crate::info!("calling draw for {:?}", state_mask);
         let updated = self.draw_state(display, state)?;
         if let Some(updated) = updated {
             // modify the state vector
@@ -527,11 +528,12 @@ pub struct PanelItem {
     pub(crate) label: &'static str,
     pub(crate) text: &'static str,
     pub(crate) style: PanelStyle,
-    pub(crate) index: u8,
+    pub(crate) panel: Panel,
 }
 
 impl PanelItem {
-    pub fn new(index: u8, label: &'static str, text: &'static str, style: PanelStyle) -> Self {
+    pub fn new(panel: Panel, label: &'static str, text: &'static str, style: PanelStyle) -> Self {
+        let index: usize = panel.into();
         Self {
             info: GUIInfo {
                 size: Size::new(48 - 1, 26),
@@ -542,7 +544,7 @@ impl PanelItem {
             label,
             text,
             style,
-            index,
+            panel,
         }
     }
 }
@@ -562,7 +564,7 @@ where
         };
         let size_half = Size::new(self.info.size.width, self.info.size.height / 2);
         let color_bg = if let Some(focused) = state.panel_focused {
-            if focused == self.index {
+            if focused == Panel::from(self.panel as usize) {
                 Rgb565::WHITE
             } else {
                 Rgb565::BLACK
@@ -588,7 +590,8 @@ where
             .draw(display)
             .map_err(|_| AppError::DisplayError)?;
         let mut buf = [0u8; 2];
-        let index_disp = (self.index % 8) + 1;
+        let index: usize = self.panel.into();
+        let index_disp = (index % 8) + 1;
         let text_index = format_no_std::show(&mut buf, format_args!("{}", index_disp))
             .map_err(|_| AppError::DataFormatError)?;
         let color_label = if self.style == PanelStyle::ChannelColor {
@@ -637,7 +640,7 @@ where
         .draw(display)
         .map_err(|_| AppError::DisplayError)?;
         let color_text = if let Some(focused) = state.panel_focused {
-            if focused == self.index {
+            if focused == Panel::from(self.panel as usize) {
                 Rgb565::BLACK
             } else {
                 Rgb565::WHITE
@@ -645,8 +648,12 @@ where
         } else {
             Rgb565::WHITE
         };
+        let text = match self.panel {
+            Panel::Channel => state.channel_current.into(),
+            _ => self.text,
+        };
         Text::with_alignment(
-            self.text,
+            text,
             Point::new(
                 self.info.size.width as i32 / 2,
                 self.info.size.height as i32 * 3 / 4,
@@ -787,14 +794,14 @@ where
             let text_height = 11;
             for idx in 0..self.items[col].len() {
                 let text = self.items[col][idx];
-                crate::info!(
-                    "{}:{} {}, selected {}:{}",
-                    col,
-                    idx,
-                    text,
-                    state.setting_select_col,
-                    state.setting_select_idx[col]
-                );
+                // crate::info!(
+                //     "{}:{} {}, selected {}:{}",
+                //     col,
+                //     idx,
+                //     text,
+                //     state.setting_select_col,
+                //     state.setting_select_idx[col]
+                // );
                 let text_box_pos = box_pos + Point::new(1, (text_height * idx) as i32);
                 let text_pos_center =
                     text_box_pos + Point::new(box_size.width as i32 / 2, (text_height / 2) as i32);
