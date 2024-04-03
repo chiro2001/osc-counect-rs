@@ -235,9 +235,11 @@ impl StateVec {
         self.0[idx] = value;
     }
     pub fn confirm(&mut self, index: StateMarker) {
+        // crate::info!("confirm: {:?}", index);
         self.set(index, true);
     }
     pub fn request(&mut self, index: StateMarker) {
+        // crate::info!("request: {:?}", index);
         self.set(index, false);
     }
 }
@@ -543,7 +545,7 @@ where
             .draw(&mut self.display)
             .map_err(|_| AppError::DisplayError)?;
 
-            self.updated.request(StateMarker::SettingValueTitle);
+            self.updated.confirm(StateMarker::SettingValueTitle);
         }
         if let Some(select_items) = &self.select_items {
             select_items
@@ -609,7 +611,7 @@ where
                                 };
                         }
                         _ => {
-                            crate::warn!("not emplemented: {:?}", panel);
+                            // crate::warn!("not emplemented: {:?}", panel);
                         }
                     }
                     self.state.setting_inited = true;
@@ -659,6 +661,13 @@ impl<D> App<D> {
                             self.state.panel_focused = Some(Panel::from(idx as usize));
                             self.updated.request(StateMarker::PanelPage);
                         }
+                    }
+                    Keys::Lock => {
+                        self.state.running_state = match self.state.running_state {
+                            RunningState::Running => RunningState::Stopped,
+                            RunningState::Stopped => RunningState::Running,
+                        };
+                        self.updated.request(StateMarker::RunningState);
                     }
                     _ => {}
                 }
@@ -774,7 +783,7 @@ impl<D> App<D> {
                                     true
                                 }
                                 _ => {
-                                    crate::warn!("not emplemented: {:?}", panel);
+                                    // crate::warn!("not emplemented: {:?}", panel);
                                     true
                                 }
                             }

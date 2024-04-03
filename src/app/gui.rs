@@ -49,7 +49,7 @@ pub trait Draw<D> {
                         }
                     }
                     _ => {
-                        vec.request(*x);
+                        vec.confirm(*x);
                     }
                 }
             }
