@@ -652,8 +652,14 @@ where
         } else {
             Rgb565::WHITE
         };
+        let mut _voltage_scale = Default::default();
         let text = match self.panel {
             Panel::Channel => state.channel_current.into(),
+            Panel::VoltageScale => {
+                let idx: usize = state.channel_current.into();
+                _voltage_scale = VoltageScale::from_mv(state.channel_info[idx].voltage_scale_mv);
+                _voltage_scale.str()
+            }
             _ => self.text,
         };
         Text::with_alignment(
