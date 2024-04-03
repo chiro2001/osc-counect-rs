@@ -242,6 +242,11 @@ impl StateVec {
         // crate::info!("request: {:?}", index);
         self.set(index, false);
     }
+    pub fn requests(&mut self, indexes: &[StateMarker]) {
+        for index in indexes {
+            self.request(*index);
+        }
+    }
 }
 
 impl Default for State {
@@ -680,11 +685,12 @@ impl<D> App<D> {
                 let panel = Panel::from(self.state.setting_index as usize);
                 match key {
                     Keys::Left => {
-                        if panel.get_setting_mode() == SettingValueMode::ItemSelect {
+                        if let Some(items) = panel.select_items() {
                             self.state.setting_select_col = if self.state.setting_select_col >= 1 {
                                 self.state.setting_select_col - 1
                             } else {
-                                0
+                                // 0
+                                items.len() as u8 - 1
                             };
                             self.updated.request(StateMarker::SettingValueContent);
                         }
@@ -696,14 +702,15 @@ impl<D> App<D> {
                                 if self.state.setting_select_col < items.len() as u8 - 1 {
                                     self.state.setting_select_col + 1
                                 } else {
-                                    items.len() as u8 - 1
+                                    // items.len() as u8 - 1
+                                    0
                                 };
                             self.updated.request(StateMarker::SettingValueContent);
                         }
                         self.updated.request(StateMarker::SettingValueContent);
                     }
                     Keys::Up => {
-                        if panel.get_setting_mode() == SettingValueMode::ItemSelect {
+                        if let Some(items) = panel.select_items() {
                             self.state.setting_select_idx[self.state.setting_select_col as usize] =
                                 if self.state.setting_select_idx
                                     [self.state.setting_select_col as usize]
@@ -713,7 +720,8 @@ impl<D> App<D> {
                                         [self.state.setting_select_col as usize]
                                         - 1
                                 } else {
-                                    0
+                                    // 0
+                                    (items[self.state.setting_select_col as usize].len() - 1) as u8
                                 };
                             self.updated.request(StateMarker::SettingValueContent);
                         }
@@ -735,7 +743,8 @@ impl<D> App<D> {
                                     // );
                                     v
                                 } else {
-                                    (items[self.state.setting_select_col as usize].len() - 1) as u8
+                                    // (items[self.state.setting_select_col as usize].len() - 1) as u8
+                                    0
                                 };
                             self.updated.request(StateMarker::SettingValueContent);
                         }
@@ -798,10 +807,12 @@ impl<D> App<D> {
                             self.state.window = Window::Main;
                             self.state.panel_focused = None;
                             // self.updated.clear();
-                            self.updated.request(StateMarker::SettingValueTitle);
-                            self.updated.request(StateMarker::SettingValueContent);
-                            self.updated.request(StateMarker::PanelPage);
-                            self.updated.request(StateMarker::Waveform);
+                            self.updated.requests(&[
+                                StateMarker::SettingValueTitle,
+                                StateMarker::SettingValueContent,
+                                StateMarker::PanelPage,
+                                StateMarker::Waveform,
+                            ]);
                         } else {
                             crate::warn!("invalid setting value");
                         }
