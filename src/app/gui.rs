@@ -562,7 +562,7 @@ where
     }
     fn draw_state(&self, display: &mut D, state: &mut State) -> StateResult {
         let color_main = if self.style == PanelStyle::ChannelColor {
-            Rgb565::YELLOW
+            state.channel_current.color()
         } else {
             self.info.color_primary
         };
@@ -711,11 +711,7 @@ where
         &[StateMarker::Measures]
     }
     fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult {
-        let color_main = if self.channel == ProbeChannel::A {
-            self.info.color_primary
-        } else {
-            self.info.color_secondary
-        };
+        let color_main = self.channel.color();
         Rectangle::new(self.info.position, self.info.size)
             .into_styled(PrimitiveStyle::with_fill(color_main))
             .draw(display)

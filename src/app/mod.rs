@@ -293,6 +293,15 @@ impl Into<&'static str> for ProbeChannel {
         }
     }
 }
+impl ProbeChannel {
+    pub fn color(&self) -> Rgb565 {
+        match self {
+            ProbeChannel::A => Rgb565::YELLOW,
+            ProbeChannel::B => Rgb565::GREEN,
+            _ => Rgb565::RED,
+        }
+    }
+}
 
 use embassy_time::Timer;
 use embedded_graphics::{
@@ -353,7 +362,7 @@ where
                 GUIInfo {
                     size: Size::new(33, 10),
                     position: Point::new(204, 0),
-                    color_primary: Rgb565::YELLOW,
+                    color_primary: ProbeChannel::A.color(),
                     color_secondary: Rgb565::BLACK,
                 },
             ),
@@ -362,7 +371,7 @@ where
                 GUIInfo {
                     size: Size::new(33, 10),
                     position: Point::new(205 + 33, 0),
-                    color_primary: Rgb565::GREEN,
+                    color_primary: ProbeChannel::B.color(),
                     color_secondary: Rgb565::BLACK,
                 },
             ),
@@ -422,17 +431,6 @@ where
             .await?;
 
         if !self.updated.at(StateMarker::PanelPage) {
-            // Rectangle::new(
-            //     self.panel_items[0].info.position,
-            //     Size::new(
-            //         self.panel_items[0].info.size.width,
-            //         (self.panel_items[0].info.size.height + 1) * 8,
-            //     ),
-            // )
-            // .into_styled(PrimitiveStyle::with_fill(Rgb565::CSS_DARK_SLATE_GRAY))
-            // .draw(&mut self.display)
-            // .map_err(|_| AppError::DisplayError)?;
-            // let mut drawed_panel_items = 0;
             let drawed_panel_items = if self.state.panel_page == 0 {
                 8
             } else {
@@ -446,7 +444,6 @@ where
             {
                 item.draw(&mut self.display, &mut self.state, &mut self.updated)
                     .await?;
-                // drawed_panel_items += 1;
             }
             if drawed_panel_items < 8 {
                 // clear some items
@@ -486,14 +483,6 @@ where
         self.generator
             .draw(&mut self.display, &mut self.state, &mut self.updated)
             .await?;
-
-        // self.updated[StateMarker::RunningState as usize] = false;
-        // if self.state.running_state == RunningState::Running {
-        //     self.state.running_state = RunningState::Stopped;
-        // } else {
-        //     self.state.running_state = RunningState::Running;
-        // }
-
         Ok(())
     }
 
@@ -688,11 +677,9 @@ impl<D> App<D> {
                             } else {
                                 0
                             };
-                            self.updated
-                                .request(StateMarker::SettingValueContent);
+                            self.updated.request(StateMarker::SettingValueContent);
                         }
-                        self.updated
-                            .request(StateMarker::SettingValueContent);
+                        self.updated.request(StateMarker::SettingValueContent);
                     }
                     Keys::Right => {
                         if let Some(items) = panel.select_items() {
@@ -702,11 +689,9 @@ impl<D> App<D> {
                                 } else {
                                     items.len() as u8 - 1
                                 };
-                            self.updated
-                                .request(StateMarker::SettingValueContent);
+                            self.updated.request(StateMarker::SettingValueContent);
                         }
-                        self.updated
-                            .request(StateMarker::SettingValueContent);
+                        self.updated.request(StateMarker::SettingValueContent);
                     }
                     Keys::Up => {
                         if panel.get_setting_mode() == SettingValueMode::ItemSelect {
@@ -721,8 +706,7 @@ impl<D> App<D> {
                                 } else {
                                     0
                                 };
-                            self.updated
-                                .request(StateMarker::SettingValueContent);
+                            self.updated.request(StateMarker::SettingValueContent);
                         }
                     }
                     Keys::Down => {
@@ -744,8 +728,7 @@ impl<D> App<D> {
                                 } else {
                                     (items[self.state.setting_select_col as usize].len() - 1) as u8
                                 };
-                            self.updated
-                                .request(StateMarker::SettingValueContent);
+                            self.updated.request(StateMarker::SettingValueContent);
                         }
                     }
                     Keys::Ok => {
@@ -807,8 +790,7 @@ impl<D> App<D> {
                             self.state.panel_focused = None;
                             // self.updated.clear();
                             self.updated.request(StateMarker::SettingValueTitle);
-                            self.updated
-                                .request(StateMarker::SettingValueContent);
+                            self.updated.request(StateMarker::SettingValueContent);
                             self.updated.request(StateMarker::PanelPage);
                             self.updated.request(StateMarker::Waveform);
                         } else {
