@@ -633,7 +633,7 @@ where
             }
             Err(_) => {}
         }
-        Timer::after_millis(50).await;
+        // Timer::after_millis(50).await;
     }
 }
 
