@@ -1,6 +1,9 @@
 use num_enum::IntoPrimitive;
 
-use super::{unit::{TimeScale, VoltageScale}, ChannelInfo, Panel, ProbeChannel, WaveformStorage, Window};
+use super::{
+    unit::{TimeScale, VoltageScale},
+    ChannelInfo, Panel, ProbeChannel, WaveformStorage, Window,
+};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
 pub enum RunningState {
@@ -26,6 +29,7 @@ pub enum StateMarker {
     Clock,
     Window,
     Waveform,
+    WaveformData,
     TimeScale,
     ChannelSetting,
     Measures,
@@ -128,4 +132,3 @@ impl Default for State {
         }
     }
 }
-

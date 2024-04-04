@@ -195,6 +195,32 @@ where
         self.generator
             .draw(&mut self.display, &mut self.state, &mut self.updated)
             .await?;
+
+        // generate random data for testing
+        static mut OFFSET: f64 = 0.0;
+        use libm::*;
+        // self.state
+        //     .waveform
+        //     .data_last
+        //     .iter_mut()
+        //     .zip(self.state.waveform.linked.iter_mut())
+        //     .enumerate()
+        //     .for_each(|(i, (x, y))| {
+        //         *x = *y;
+        //         *y = (sin(i as f64 * 0.1 + unsafe { OFFSET }) * 2.0) as f32;
+        //     });
+        // let _ = self.state.waveform.pop();
+        let data_new = (0..self.state.waveform.len)
+            .map(|i| (sin(i as f64 * 0.1 + unsafe { OFFSET }) * 2.0) as f32);
+        self.state.waveform.append_iter(data_new)?;
+        unsafe {
+            OFFSET += 0.1;
+            if OFFSET >= 2.0 * 3.14159265 {
+                OFFSET = 0.0;
+                self.updated.request(StateMarker::Waveform);
+            }
+        }
+        self.updated.request(StateMarker::WaveformData);
         Ok(())
     }
 
@@ -380,16 +406,16 @@ impl<D> App<D> {
                     }
                     Keys::X => {
                         // generate random data for testing
-                        use libm::*;
-                        self.state
-                            .waveform
-                            .data
-                            .iter_mut()
-                            .enumerate()
-                            .for_each(|(i, x)| {
-                                *x = (sin(i as f64 * 0.01) * 1.0) as f32;
-                            });
-                        self.updated.request(StateMarker::Waveform);
+                        // use libm::*;
+                        // self.state
+                        //     .waveform
+                        //     .linked
+                        //     .iter_mut()
+                        //     .enumerate()
+                        //     .for_each(|(i, x)| {
+                        //         *x = (sin(i as f64 * 0.01) * 1.0) as f32;
+                        //     });
+                        // self.updated.request(StateMarker::Waveform);
                     }
                     _ => {}
                 }

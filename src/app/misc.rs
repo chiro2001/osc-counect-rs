@@ -8,6 +8,9 @@ pub type Result<T, E = AppError> = core::result::Result<T, E>;
 pub enum AppError {
     DisplayError,
     DataFormatError,
+    NotImplemented,
+    Unexpected,
+    LimitExceeded,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
@@ -182,20 +185,95 @@ impl ProbeChannel {
     }
 }
 
-const WAVEFORM_LEN: usize = 1024 * 2;
+const WAVEFORM_LEN: usize = 64;
+const WAVEFORM_HISTORY_LEN: usize = 10;
 #[derive(Debug)]
 pub struct WaveformStorage {
-    pub data: [f32; WAVEFORM_LEN],
+    pub linked: heapless::Deque<(bool, usize), WAVEFORM_HISTORY_LEN>,
+    pub data: [[f32; WAVEFORM_LEN]; WAVEFORM_HISTORY_LEN],
     pub len: usize,
     pub unit: VoltageUnit,
 }
 
 impl Default for WaveformStorage {
     fn default() -> Self {
+        let mut linked = heapless::Deque::new();
+        for i in 0..WAVEFORM_HISTORY_LEN {
+            linked.push_back((false, i)).unwrap();
+        }
         Self {
-            data: [0.0; WAVEFORM_LEN],
+            linked,
+            data: core::array::from_fn(|_| [0.0; WAVEFORM_LEN]),
             len: WAVEFORM_LEN,
             unit: VoltageUnit::MilliVolt,
         }
     }
 }
+
+impl WaveformStorage {
+    pub fn clear(&mut self) {
+        self.linked.clear();
+    }
+    pub fn append(&mut self, data: &[f32]) -> Result<()> {
+        self.append_iter(data.iter().cloned())
+    }
+    pub fn append_iter<I>(&mut self, data: I) -> Result<()>
+    where
+        I: IntoIterator<Item = f32>,
+    {
+        // find a free slot, if full, auto drop
+        let back = self.linked.pop_back().ok_or(AppError::Unexpected)?;
+        let (_, slot) = back;
+        // copy data
+        self.data[slot]
+            .iter_mut()
+            .zip(data.into_iter())
+            .for_each(|(x, y)| *x = y);
+        // link data
+        self.linked
+            .push_front((true, slot))
+            .map_err(|_| AppError::LimitExceeded)?;
+        Ok(())
+    }
+    pub fn pop(&mut self) -> Option<&[f32]> {
+        let slot = self.linked.pop_front().and_then(
+            |(avaliable, x)| {
+                if avaliable {
+                    Some(x)
+                } else {
+                    None
+                }
+            },
+        );
+        if let Some(slot) = slot {
+            self.linked.push_back((false, slot)).unwrap();
+            Some(&self.data[slot])
+        } else {
+            None
+        }
+    }
+    // pub fn iter<'a, T>(&'a self) -> IterWaveform<'a, T> {
+    //     let it = self.linked.iter();
+    //     IterWaveform { it, parent: self }
+    // }
+}
+
+// pub struct IterWaveform<'a, T> {
+//     it: T,
+//     parent: &'a WaveformStorage,
+// }
+
+// impl<'a, T> Iterator for IterWaveform<'a, T>
+// where
+//     T: Iterator<Item = &'a (bool, usize)>,
+// {
+//     type Item = &'a [f32];
+//     fn next(&mut self) -> Option<Self::Item> {
+//         let next = self.it.next();
+//         self.it = next;
+//         match next {
+//             Some((_, x)) => Some(&self.parent.data[*x]),
+//             None => None,
+//         }
+//     }
+// }

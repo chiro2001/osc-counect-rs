@@ -38,7 +38,11 @@ pub trait Draw<D> {
             return Ok(());
         }
         // crate::info!("calling draw for {:?}", state_mask);
-        let updated = self.draw_state(display, state)?;
+        let updated = self.draw_state(display, state);
+        let updated = match updated {
+            Ok(x) => Ok(x),
+            Err(_) => self.draw_state_vec(display, state, vec),
+        }?;
         if let Some(updated) = updated {
             // modify the state vector
             for x in updated {
@@ -64,9 +68,19 @@ pub trait Draw<D> {
         &[]
     }
 
-    fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult
+    fn draw_state(&self, _display: &mut D, _state: &mut State) -> StateResult
     where
-        D: DrawTarget<Color = Rgb565>;
+        D: DrawTarget<Color = Rgb565>,
+    {
+        Err(AppError::NotImplemented)
+    }
+
+    fn draw_state_vec(&self, _display: &mut D, _state: &mut State, _vec: &StateVec) -> StateResult
+    where
+        D: DrawTarget<Color = Rgb565>,
+    {
+        Err(AppError::NotImplemented)
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -118,98 +132,103 @@ where
     D: DrawTarget<Color = Rgb565>,
 {
     fn state_emit_mask(&self) -> &[StateMarker] {
-        &[StateMarker::Waveform]
+        &[StateMarker::Waveform, StateMarker::WaveformData]
     }
-    fn draw_state(&self, display: &mut D, state: &mut State) -> StateResult {
+    fn draw_state_vec(&self, display: &mut D, state: &mut State, vec: &StateVec) -> StateResult {
+        let update_full = !vec.at(StateMarker::Waveform);
+        let update_data = update_full || !vec.at(StateMarker::WaveformData);
         let style = PrimitiveStyleBuilder::new()
             .stroke_color(self.info.color_secondary)
             .stroke_width(1)
             .fill_color(Rgb565::BLACK)
             .build();
-        Rectangle::new(self.info.position, self.info.size)
+        if update_full {
+            Rectangle::new(self.info.position, self.info.size)
+                .draw_styled(&style, display)
+                .map_err(|_| AppError::DisplayError)?;
+            let center = self.info.size_center();
+            Line::new(
+                Point::new(center.x, 0),
+                Point::new(center.x, self.info.height() - 1),
+            )
+            .translate(self.info.position)
             .draw_styled(&style, display)
             .map_err(|_| AppError::DisplayError)?;
-        let center = self.info.size_center();
-        Line::new(
-            Point::new(center.x, 0),
-            Point::new(center.x, self.info.height() - 1),
-        )
-        .translate(self.info.position)
-        .draw_styled(&style, display)
-        .map_err(|_| AppError::DisplayError)?;
-        Line::new(
-            Point::new(0, center.y),
-            Point::new(self.info.width() - 1, center.y),
-        )
-        .translate(self.info.position)
-        .draw_styled(&style, display)
-        .map_err(|_| AppError::DisplayError)?;
+            Line::new(
+                Point::new(0, center.y),
+                Point::new(self.info.width() - 1, center.y),
+            )
+            .translate(self.info.position)
+            .draw_styled(&style, display)
+            .map_err(|_| AppError::DisplayError)?;
 
-        let dl = 1;
-        // Draw point grid
-        for i in 0..(self.info.size.height as i32 / 40 + 1) {
-            for j in 0..(self.info.size.width as i32 / 8) {
-                let x = j * 8 + 6 - 1;
-                let y = i * 40 + 28 - 1;
-                if x == center.x as i32 {
-                    continue;
-                }
-                if y == center.y as i32 {
-                    Line::new(Point::new(x, y - dl), Point::new(x, y + dl))
-                        .translate(self.info.position)
-                        .draw_styled(&style, display)
-                        .map_err(|_| AppError::DisplayError)?;
-                } else {
-                    let p = Point::new(x, y) + self.info.position;
-                    Pixel(p, self.info.color_primary)
-                        .draw(display)
-                        .map_err(|_| AppError::DisplayError)?;
+            let dl = 1;
+            // Draw point grid
+            for i in 0..(self.info.size.height as i32 / 40 + 1) {
+                for j in 0..(self.info.size.width as i32 / 8) {
+                    let x = j * 8 + 6 - 1;
+                    let y = i * 40 + 28 - 1;
+                    if x == center.x as i32 {
+                        continue;
+                    }
+                    if y == center.y as i32 {
+                        Line::new(Point::new(x, y - dl), Point::new(x, y + dl))
+                            .translate(self.info.position)
+                            .draw_styled(&style, display)
+                            .map_err(|_| AppError::DisplayError)?;
+                    } else {
+                        let p = Point::new(x, y) + self.info.position;
+                        Pixel(p, self.info.color_primary)
+                            .draw(display)
+                            .map_err(|_| AppError::DisplayError)?;
+                    }
                 }
             }
-        }
-        for i in 0..(self.info.size.width as i32 / 40 + 1) {
-            for j in 0..(self.info.size.height as i32 / 8 + 1) {
-                let x = i * 40 + 14 - 1;
-                let y = j * 8 + 4 - 1;
-                if y == center.y as i32 {
-                    continue;
-                }
-                if x == center.x as i32 {
-                    Line::new(Point::new(x - dl, y), Point::new(x + dl, y))
-                        .translate(self.info.position)
-                        .draw_styled(&style, display)
-                        .map_err(|_| AppError::DisplayError)?;
-                } else {
-                    let p = Point::new(x, y) + self.info.position;
-                    Pixel(p, Rgb565::CSS_DARK_SLATE_GRAY)
-                        .draw(display)
-                        .map_err(|_| AppError::DisplayError)?;
+            for i in 0..(self.info.size.width as i32 / 40 + 1) {
+                for j in 0..(self.info.size.height as i32 / 8 + 1) {
+                    let x = i * 40 + 14 - 1;
+                    let y = j * 8 + 4 - 1;
+                    if y == center.y as i32 {
+                        continue;
+                    }
+                    if x == center.x as i32 {
+                        Line::new(Point::new(x - dl, y), Point::new(x + dl, y))
+                            .translate(self.info.position)
+                            .draw_styled(&style, display)
+                            .map_err(|_| AppError::DisplayError)?;
+                    } else {
+                        let p = Point::new(x, y) + self.info.position;
+                        Pixel(p, Rgb565::CSS_DARK_SLATE_GRAY)
+                            .draw(display)
+                            .map_err(|_| AppError::DisplayError)?;
+                    }
                 }
             }
         }
 
-        let color = ProbeChannel::from(state.channel_current).color();
-        self.draw_values(display, &state.waveform, color)?;
-
-        Ok(Some(&[StateMarker::Waveform]))
+        if update_data {
+            let update_only = state.waveform.linked.len() > 3;
+            let color = ProbeChannel::from(state.channel_current).color();
+            self.draw_values(display, &mut state.waveform, color, update_only)?;
+        }
+        if update_data && !update_full {
+            Ok(Some(&[StateMarker::WaveformData]))
+        } else {
+            Ok(Some(&[StateMarker::Waveform, StateMarker::WaveformData]))
+        }
     }
 }
 
 impl Waveform {
-    fn draw_values<D>(
-        &self,
-        display: &mut D,
-        storage: &WaveformStorage,
-        color: Rgb565,
-    ) -> Result<()>
+    fn draw_list_values_color<D>(&self, display: &mut D, data: &[f32], color: Rgb565) -> Result<()>
     where
         D: DrawTarget<Color = Rgb565>,
     {
         let screen_offset = self.info.position + Point::new(0, self.info.height() / 2);
         let mut pt_last = Point::new(0, 0);
-        for (i, pt) in storage.data.iter().enumerate() {
+        for (i, pt) in data.iter().enumerate() {
             let pt = Point::new(
-                (i * (self.info.width() as usize) / storage.len) as i32,
+                (i * (self.info.width() as usize) / data.len()) as i32,
                 ((*pt) * (self.info.height() as f32) / 6.0) as i32,
             );
             if i != 0 {
@@ -219,6 +238,59 @@ impl Waveform {
                     .map_err(|_| AppError::DisplayError)?;
             }
             pt_last = pt;
+        }
+        Ok(())
+    }
+
+    fn draw_values<D>(
+        &self,
+        display: &mut D,
+        storage: &mut WaveformStorage,
+        color: Rgb565,
+        update_only: bool,
+    ) -> Result<()>
+    where
+        D: DrawTarget<Color = Rgb565>,
+    {
+        let color_secondary = Rgb565::new(color.r() / 2, color.g() / 2, color.b() / 2);
+        if !update_only {
+            for (idx, it) in storage.linked.iter().enumerate() {
+                if !it.0 {
+                    continue;
+                }
+                let data = &storage.data[it.1][..storage.len];
+                let color = if idx == 0 { color } else { color_secondary };
+                self.draw_list_values_color(display, data, color)?;
+            }
+        } else {
+            // clear tail and draw head
+            let tail = storage.linked.pop_back().ok_or(AppError::Unexpected)?;
+            if tail.0 {
+                let data = &storage.data[tail.1][..storage.len];
+                self.draw_list_values_color(display, data, Rgb565::BLACK)?;
+            }
+            storage
+                .linked
+                .push_back(tail)
+                .map_err(|_| AppError::Unexpected)?;
+            let head = storage.linked.pop_front().ok_or(AppError::Unexpected)?;
+            if head.0 {
+                let data = &storage.data[head.1][..storage.len];
+                self.draw_list_values_color(display, data, color)?;
+            }
+            let head2 = storage.linked.pop_front().ok_or(AppError::Unexpected)?;
+            if head2.0 {
+                let data = &storage.data[head2.1][..storage.len];
+                self.draw_list_values_color(display, data, color_secondary)?;
+            }
+            storage
+                .linked
+                .push_front(head2)
+                .map_err(|_| AppError::Unexpected)?;
+            storage
+                .linked
+                .push_front(head)
+                .map_err(|_| AppError::Unexpected)?;
         }
         Ok(())
     }
