@@ -18,12 +18,13 @@ use misc::*;
 use state::*;
 use unit::*;
 
+pub use misc::GuiColor;
+
 use embassy_time::Timer;
 use embedded_graphics::{
     draw_target::DrawTarget,
     geometry::{Point, Size},
     mono_font::{ascii::*, MonoTextStyle},
-    pixelcolor::{Rgb565, RgbColor, WebColors},
     primitives::{Primitive, PrimitiveStyle, Rectangle},
     text::{Alignment, Text},
     transform::Transform,
@@ -54,7 +55,7 @@ pub struct App<D> {
 
 impl<D> App<D>
 where
-    D: DrawTarget<Color = Rgb565> + 'static,
+    D: DrawTarget<Color = GuiColor> + 'static,
 {
     pub fn new(display: D) -> Self {
         let panel_items = core::array::from_fn(|i| {
@@ -75,7 +76,7 @@ where
                     size: Size::new(33, 10),
                     position: Point::new(204, 0),
                     color_primary: ProbeChannel::A.color(),
-                    color_secondary: Rgb565::BLACK,
+                    color_secondary: gui_color(0),
                 },
             ),
             channel_info2: ChannelSettingDisp::new(
@@ -84,7 +85,7 @@ where
                     size: Size::new(33, 10),
                     position: Point::new(205 + 33, 0),
                     color_primary: ProbeChannel::B.color(),
-                    color_secondary: Rgb565::BLACK,
+                    color_secondary: gui_color(0),
                 },
             ),
             battery: Battery::new(50),
@@ -108,7 +109,7 @@ where
         if self.updated.iter().all(|&x| !x) {
             // clear screen at the first time
             self.display
-                .clear(Rgb565::CSS_DARK_SLATE_GRAY)
+                .clear(GUI_BG_COLOR)
                 .map_err(|_| AppError::DisplayError)?;
         }
 
@@ -168,7 +169,7 @@ where
                         self.panel_items[i].info.position,
                         self.panel_items[i].info.size,
                     )
-                    .into_styled(PrimitiveStyle::with_fill(Rgb565::CSS_DARK_SLATE_GRAY))
+                    .into_styled(PrimitiveStyle::with_fill(GUI_BG_COLOR))
                     .draw(&mut self.display)
                     .map_err(|_| AppError::DisplayError)?;
                 }
@@ -177,7 +178,7 @@ where
                     "0:Page",
                     Point::new(SCREEN_WIDTH as i32 - 24, SCREEN_HEIGHT as i32 - 11 * 3 + 5)
                         + TEXT_OFFSET,
-                    MonoTextStyle::new(&FONT_6X9, Rgb565::WHITE),
+                    MonoTextStyle::new(&FONT_6X9, gui_color(15)),
                     Alignment::Center,
                 )
                 .draw(&mut self.display)
@@ -251,8 +252,8 @@ where
                     info: GUIInfo {
                         size: Size::new(128, 84),
                         position: Point::new(0, 14) + window_rect.top_left,
-                        color_primary: Rgb565::MAGENTA,
-                        color_secondary: Rgb565::BLACK,
+                        color_primary: gui_color(5),
+                        color_secondary: gui_color(0),
                     },
                     items,
                 };
@@ -262,7 +263,7 @@ where
         if !self.state.setting_inited {
             window_rect
                 .clone()
-                .into_styled(PrimitiveStyle::with_fill(Rgb565::MAGENTA))
+                .into_styled(PrimitiveStyle::with_fill(gui_color(5)))
                 .draw(&mut self.display)
                 .map_err(|_| AppError::DisplayError)?;
             return Ok(());
@@ -274,7 +275,7 @@ where
             Text::with_alignment(
                 title,
                 Point::new(window_size.width as i32 / 2, 10),
-                MonoTextStyle::new(&FONT_7X13_BOLD, Rgb565::BLACK),
+                MonoTextStyle::new(&FONT_7X13_BOLD, gui_color(0)),
                 Alignment::Center,
             )
             .translate(window_rect.top_left)
@@ -293,7 +294,7 @@ where
 
     async fn draw_settings_window(&mut self) -> Result<()> {
         self.display
-            .clear(Rgb565::GREEN)
+            .clear(gui_color(3))
             .map_err(|_| AppError::DisplayError)?;
         Ok(())
     }
@@ -590,7 +591,7 @@ async fn keyboad_task(
 // #[embassy_executor::task]
 pub async fn main_loop<D, K>(spawner: embassy_executor::Spawner, display: D, keyboard: K)
 where
-    D: DrawTarget<Color = Rgb565> + 'static,
+    D: DrawTarget<Color = GuiColor> + 'static,
     K: KeyboardDevice + 'static,
 {
     let mut app = App::new(display);
@@ -619,7 +620,7 @@ where
 #[cfg(feature = "simulator")]
 // #[embassy_executor::task]
 pub async fn main_loop(
-    display: embedded_graphics_simulator::SimulatorDisplay<Rgb565>,
+    display: embedded_graphics_simulator::SimulatorDisplay<GuiColor>,
     mut window: embedded_graphics_simulator::Window,
 ) {
     use defmt::*;

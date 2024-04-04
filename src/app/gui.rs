@@ -4,7 +4,10 @@ use embedded_graphics::{
     draw_target::DrawTarget,
     geometry::{Point, Size},
     mono_font::{ascii::*, MonoTextStyle},
-    pixelcolor::{Rgb565, RgbColor, WebColors},
+    pixelcolor::{
+        raw::{RawData, RawU4},
+        GrayColor,
+    },
     primitives::*,
     text::{Alignment, Text},
     transform::Transform,
@@ -12,8 +15,9 @@ use embedded_graphics::{
 };
 
 use super::{
+    gui_color,
     unit::{TimeScale, VoltageScale},
-    Panel, PanelStyle, RunningState, State, StateMarker, StateVec, WaveformStorage,
+    GuiColor, Panel, PanelStyle, RunningState, State, StateMarker, StateVec, WaveformStorage,
 };
 
 pub const TEXT_OFFSET: Point = Point::new(0, 2);
@@ -24,7 +28,7 @@ type StateResult = Result<Option<&'static [StateMarker]>>;
 pub trait Draw<D> {
     async fn draw(&self, display: &mut D, state: &mut State, vec: &mut StateVec) -> Result<()>
     where
-        D: DrawTarget<Color = Rgb565>,
+        D: DrawTarget<Color = GuiColor>,
     {
         let state_mask = self.state_emit_mask();
         let do_update = if state_mask.len() != 0 {
@@ -70,14 +74,14 @@ pub trait Draw<D> {
 
     fn draw_state(&self, _display: &mut D, _state: &mut State) -> StateResult
     where
-        D: DrawTarget<Color = Rgb565>,
+        D: DrawTarget<Color = GuiColor>,
     {
         Err(AppError::NotImplemented)
     }
 
     fn draw_state_vec(&self, _display: &mut D, _state: &mut State, _vec: &StateVec) -> StateResult
     where
-        D: DrawTarget<Color = Rgb565>,
+        D: DrawTarget<Color = GuiColor>,
     {
         Err(AppError::NotImplemented)
     }
@@ -87,8 +91,8 @@ pub trait Draw<D> {
 pub struct GUIInfo {
     pub(crate) size: Size,
     pub(crate) position: Point,
-    pub(crate) color_primary: Rgb565,
-    pub(crate) color_secondary: Rgb565,
+    pub(crate) color_primary: GuiColor,
+    pub(crate) color_secondary: GuiColor,
 }
 
 impl GUIInfo {
@@ -119,8 +123,8 @@ impl Default for Waveform {
             info: GUIInfo {
                 size: Size::new(SCREEN_WIDTH - 48 - 4 - 1, SCREEN_HEIGHT - 12 - 12 - 1),
                 position: Point::new(4, 12),
-                color_primary: Rgb565::CSS_DARK_SLATE_GRAY,
-                color_secondary: Rgb565::CSS_LIGHT_GRAY,
+                color_primary: gui_color(1),
+                color_secondary: gui_color(7),
                 ..Default::default()
             },
         }
@@ -129,7 +133,7 @@ impl Default for Waveform {
 
 impl<D> Draw<D> for Waveform
 where
-    D: DrawTarget<Color = Rgb565>,
+    D: DrawTarget<Color = GuiColor>,
 {
     fn state_emit_mask(&self) -> &[StateMarker] {
         &[StateMarker::Waveform, StateMarker::WaveformData]
@@ -140,7 +144,7 @@ where
         let style = PrimitiveStyleBuilder::new()
             .stroke_color(self.info.color_secondary)
             .stroke_width(1)
-            .fill_color(Rgb565::BLACK)
+            .fill_color(GuiColor::BLACK)
             .build();
         if update_full {
             Rectangle::new(self.info.position, self.info.size)
@@ -198,7 +202,7 @@ where
                             .map_err(|_| AppError::DisplayError)?;
                     } else {
                         let p = Point::new(x, y) + self.info.position;
-                        Pixel(p, Rgb565::CSS_DARK_SLATE_GRAY)
+                        Pixel(p, gui_color(1))
                             .draw(display)
                             .map_err(|_| AppError::DisplayError)?;
                     }
@@ -220,9 +224,14 @@ where
 }
 
 impl Waveform {
-    fn draw_list_values_color<D>(&self, display: &mut D, data: &[f32], color: Rgb565) -> Result<()>
+    fn draw_list_values_color<D>(
+        &self,
+        display: &mut D,
+        data: &[f32],
+        color: GuiColor,
+    ) -> Result<()>
     where
-        D: DrawTarget<Color = Rgb565>,
+        D: DrawTarget<Color = GuiColor>,
     {
         let screen_offset = self.info.position + Point::new(0, self.info.height() / 2);
         let mut pt_last = Point::new(0, 0);
@@ -246,13 +255,14 @@ impl Waveform {
         &self,
         display: &mut D,
         storage: &mut WaveformStorage,
-        color: Rgb565,
+        color: GuiColor,
         update_only: bool,
     ) -> Result<()>
     where
-        D: DrawTarget<Color = Rgb565>,
+        D: DrawTarget<Color = GuiColor>,
     {
-        let color_secondary = Rgb565::new(color.r() / 2, color.g() / 2, color.b() / 2);
+        // let color_secondary = GuiColor::new(color.r() / 2, color.g() / 2, color.b() / 2);
+        let color_secondary = gui_color(RawU4::from(color).into_inner() + 9);
         if !update_only {
             for (idx, it) in storage.linked.iter().enumerate() {
                 if !it.0 {
@@ -267,7 +277,7 @@ impl Waveform {
             let tail = storage.linked.pop_back().ok_or(AppError::Unexpected)?;
             if tail.0 {
                 let data = &storage.data[tail.1][..storage.len];
-                self.draw_list_values_color(display, data, Rgb565::BLACK)?;
+                self.draw_list_values_color(display, data, GuiColor::BLACK)?;
             }
             storage
                 .linked
@@ -300,21 +310,21 @@ impl Waveform {
 struct LineDisp<'a> {
     pub(crate) info: GUIInfo,
     pub(crate) text: &'a str,
-    pub(crate) font: MonoTextStyle<'static, Rgb565>,
+    pub(crate) font: MonoTextStyle<'static, GuiColor>,
 }
 impl<'a> Default for LineDisp<'a> {
     fn default() -> Self {
         Self {
             info: Default::default(),
             text: Default::default(),
-            font: MonoTextStyle::new(&FONT_6X9, Rgb565::WHITE),
+            font: MonoTextStyle::new(&FONT_6X9, GuiColor::WHITE),
         }
     }
 }
 
 impl<D> Draw<D> for LineDisp<'_>
 where
-    D: DrawTarget<Color = Rgb565>,
+    D: DrawTarget<Color = GuiColor>,
 {
     fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult {
         Rectangle::new(self.info.position, self.info.size)
@@ -342,15 +352,15 @@ where
 pub struct RunningStateDisp;
 
 impl RunningStateDisp {
-    fn new_disp<'a>(text: &'a str, color: Rgb565) -> LineDisp<'a> {
+    fn new_disp<'a>(text: &'a str, color: GuiColor) -> LineDisp<'a> {
         LineDisp {
             info: GUIInfo {
                 size: Size::new(29, 10),
                 position: Point::new(4, 0),
                 color_primary: color,
-                color_secondary: Rgb565::WHITE,
+                color_secondary: GuiColor::WHITE,
             },
-            font: MonoTextStyle::new(&FONT_6X9, Rgb565::WHITE),
+            font: MonoTextStyle::new(&FONT_6X9, GuiColor::WHITE),
             text,
             ..Default::default()
         }
@@ -358,7 +368,7 @@ impl RunningStateDisp {
 }
 impl<D> Draw<D> for RunningStateDisp
 where
-    D: DrawTarget<Color = Rgb565>,
+    D: DrawTarget<Color = GuiColor>,
 {
     fn state_emit_mask(&self) -> &[StateMarker] {
         &[StateMarker::RunningState]
@@ -368,9 +378,9 @@ where
         let disp = Self::new_disp(
             text,
             if state.running_state == RunningState::Running {
-                Rgb565::CSS_PURPLE
+                gui_color(8)
             } else {
-                Rgb565::RED
+                gui_color(4)
             },
         );
         disp.draw_state(display, state)?;
@@ -387,17 +397,17 @@ impl TimeScaleDisp {
             info: GUIInfo {
                 size: Size::new(35, 10),
                 position: Point::new(4 + 29 + 1, 0),
-                color_primary: Rgb565::MAGENTA,
-                color_secondary: Rgb565::WHITE,
+                color_primary: gui_color(5),
+                color_secondary: GuiColor::WHITE,
             },
             text,
-            font: MonoTextStyle::new(&FONT_6X9, Rgb565::WHITE),
+            font: MonoTextStyle::new(&FONT_6X9, GuiColor::WHITE),
         }
     }
 }
 impl<D> Draw<D> for TimeScaleDisp
 where
-    D: DrawTarget<Color = Rgb565>,
+    D: DrawTarget<Color = GuiColor>,
 {
     fn state_emit_mask(&self) -> &[StateMarker] {
         &[StateMarker::TimeScale]
@@ -422,7 +432,7 @@ impl ChannelSettingDisp {
             channel,
             LineDisp {
                 info,
-                font: MonoTextStyle::new(&FONT_6X9, Rgb565::BLACK),
+                font: MonoTextStyle::new(&FONT_6X9, GuiColor::BLACK),
                 ..Default::default()
             },
         )
@@ -430,7 +440,7 @@ impl ChannelSettingDisp {
 }
 impl<D> Draw<D> for ChannelSettingDisp
 where
-    D: DrawTarget<Color = Rgb565>,
+    D: DrawTarget<Color = GuiColor>,
 {
     fn state_emit_mask(&self) -> &[StateMarker] {
         &[StateMarker::ChannelSetting]
@@ -459,8 +469,8 @@ impl Overview {
             info: GUIInfo {
                 size: Size::new(133, 10),
                 position: Point::new(70, 0),
-                color_primary: Rgb565::WHITE,
-                color_secondary: Rgb565::BLACK,
+                color_primary: GuiColor::WHITE,
+                color_secondary: GuiColor::BLACK,
             },
             text: "Roll Mode",
         }
@@ -468,7 +478,7 @@ impl Overview {
 }
 impl<D> Draw<D> for Overview
 where
-    D: DrawTarget<Color = Rgb565>,
+    D: DrawTarget<Color = GuiColor>,
 {
     fn state_emit_mask(&self) -> &[StateMarker] {
         &[StateMarker::Waveform]
@@ -508,8 +518,8 @@ impl Battery {
             info: GUIInfo {
                 size: Size::new(17, 8),
                 position: Point::new(SCREEN_WIDTH as i32 - 17, 1),
-                color_primary: Rgb565::WHITE,
-                color_secondary: Rgb565::BLACK,
+                color_primary: GuiColor::WHITE,
+                color_secondary: GuiColor::BLACK,
             },
             level,
         }
@@ -522,7 +532,7 @@ impl<D> Draw<D> for Battery {
     }
     fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult
     where
-        D: DrawTarget<Color = Rgb565>,
+        D: DrawTarget<Color = GuiColor>,
     {
         Rectangle::new(self.info.position, self.info.size - Size::new(2, 0))
             .into_styled(
@@ -575,8 +585,8 @@ impl Clock {
             info: GUIInfo {
                 size: Size::new(30, 10),
                 position: Point::new(SCREEN_WIDTH as i32 - 48 - 1, 0),
-                color_primary: Rgb565::WHITE,
-                color_secondary: Rgb565::CSS_DARK_SLATE_GRAY,
+                color_primary: GuiColor::WHITE,
+                color_secondary: gui_color(1),
             },
             hour: 12,
             minute: 30,
@@ -590,7 +600,7 @@ impl Clock {
 
 impl<D> Draw<D> for Clock
 where
-    D: DrawTarget<Color = Rgb565>,
+    D: DrawTarget<Color = GuiColor>,
 {
     fn state_emit_mask(&self) -> &[StateMarker] {
         &[StateMarker::Clock]
@@ -639,8 +649,8 @@ impl PanelItem {
             info: GUIInfo {
                 size: Size::new(48 - 1, 26),
                 position: Point::new(SCREEN_WIDTH as i32 - 48 + 1, 12 + (index % 8) as i32 * 27),
-                color_primary: Rgb565::CSS_PURPLE,
-                color_secondary: Rgb565::BLACK,
+                color_primary: gui_color(8),
+                color_secondary: GuiColor::BLACK,
             },
             label,
             text,
@@ -652,7 +662,7 @@ impl PanelItem {
 
 impl<D> Draw<D> for PanelItem
 where
-    D: DrawTarget<Color = Rgb565>,
+    D: DrawTarget<Color = GuiColor>,
 {
     fn state_emit_mask(&self) -> &[StateMarker] {
         &[StateMarker::PanelPage]
@@ -666,12 +676,12 @@ where
         let size_half = Size::new(self.info.size.width, self.info.size.height / 2);
         let color_bg = if let Some(focused) = state.panel_focused {
             if focused == Panel::from(self.panel as usize) {
-                Rgb565::WHITE
+                GuiColor::WHITE
             } else {
-                Rgb565::BLACK
+                GuiColor::BLACK
             }
         } else {
-            Rgb565::BLACK
+            GuiColor::BLACK
         };
         Rectangle::new(
             self.info.position + Point::new(0, size_half.height as i32),
@@ -696,14 +706,14 @@ where
         let text_index = format_no_std::show(&mut buf, format_args!("{}", index_disp))
             .map_err(|_| AppError::DataFormatError)?;
         let color_label = if self.style == PanelStyle::ChannelColor {
-            Rgb565::BLACK
+            GuiColor::BLACK
         } else {
-            Rgb565::WHITE
+            GuiColor::WHITE
         };
         let color_index = if self.style == PanelStyle::Normal {
-            Rgb565::CYAN
+            gui_color(6)
         } else {
-            Rgb565::CSS_DARK_RED
+            gui_color(10)
         };
         Text::with_alignment(
             text_index,
@@ -742,12 +752,12 @@ where
         .map_err(|_| AppError::DisplayError)?;
         let color_text = if let Some(focused) = state.panel_focused {
             if focused == Panel::from(self.panel as usize) {
-                Rgb565::BLACK
+                GuiColor::BLACK
             } else {
-                Rgb565::WHITE
+                GuiColor::WHITE
             }
         } else {
-            Rgb565::WHITE
+            GuiColor::WHITE
         };
         let mut _voltage_scale = Default::default();
         let text = match self.panel {
@@ -795,8 +805,8 @@ impl MeasureItem {
             info: GUIInfo {
                 size: Size::new(66, 10),
                 position: Point::new(67 * index as i32 + 4, SCREEN_HEIGHT as i32 - 11),
-                color_primary: Rgb565::YELLOW,
-                color_secondary: Rgb565::GREEN,
+                color_primary: gui_color(2),
+                color_secondary: gui_color(3),
             },
             channel,
             label,
@@ -808,7 +818,7 @@ impl MeasureItem {
 
 impl<D> Draw<D> for MeasureItem
 where
-    D: DrawTarget<Color = Rgb565>,
+    D: DrawTarget<Color = GuiColor>,
 {
     fn state_emit_mask(&self) -> &[StateMarker] {
         &[StateMarker::Measures]
@@ -823,7 +833,7 @@ where
             Text::with_alignment(
                 "--",
                 self.info.size_center() + TEXT_OFFSET,
-                MonoTextStyle::new(&FONT_6X9, Rgb565::BLACK),
+                MonoTextStyle::new(&FONT_6X9, GuiColor::BLACK),
                 Alignment::Center,
             )
             .translate(self.info.position)
@@ -837,7 +847,7 @@ where
         Text::with_alignment(
             text,
             self.info.size_center() + TEXT_OFFSET,
-            MonoTextStyle::new(&FONT_6X9, Rgb565::BLACK),
+            MonoTextStyle::new(&FONT_6X9, GuiColor::BLACK),
             Alignment::Center,
         )
         .translate(self.info.position)
@@ -855,18 +865,18 @@ impl Generator {
             info: GUIInfo {
                 size: Size::new(48 - 1, 10),
                 position: Point::new(SCREEN_WIDTH as i32 - 48 + 1, SCREEN_HEIGHT as i32 - 11),
-                color_primary: Rgb565::CSS_ORANGE_RED,
-                color_secondary: Rgb565::WHITE,
+                color_primary: gui_color(9),
+                color_secondary: GuiColor::WHITE,
             },
             text,
-            font: MonoTextStyle::new(&FONT_6X9, Rgb565::WHITE),
+            font: MonoTextStyle::new(&FONT_6X9, GuiColor::WHITE),
         })
     }
 }
 
 impl<D> Draw<D> for Generator
 where
-    D: DrawTarget<Color = Rgb565>,
+    D: DrawTarget<Color = GuiColor>,
 {
     fn state_emit_mask(&self) -> &[StateMarker] {
         &[StateMarker::Generator]
@@ -884,7 +894,7 @@ pub struct SelectItem {
 
 impl<D> Draw<D> for SelectItem
 where
-    D: DrawTarget<Color = Rgb565>,
+    D: DrawTarget<Color = GuiColor>,
 {
     fn state_emit_mask(&self) -> &[StateMarker] {
         &[StateMarker::SettingValueContent]
@@ -912,15 +922,15 @@ where
                 let selected_item = selected_col && col == state.setting_select_col as usize;
                 let color_text = if selected_col {
                     if selected_item {
-                        Rgb565::WHITE
+                        GuiColor::WHITE
                     } else {
                         self.info.color_primary
                     }
                 } else {
-                    Rgb565::BLACK
+                    GuiColor::BLACK
                 };
                 let color_bg = if selected_col {
-                    Rgb565::BLACK
+                    GuiColor::BLACK
                 } else {
                     self.info.color_primary
                 };

@@ -1,4 +1,4 @@
-use embedded_graphics::pixelcolor::{Rgb565, RgbColor};
+use embedded_graphics::pixelcolor::{Gray4, Rgb565, RgbColor, WebColors};
 use num_enum::{FromPrimitive, IntoPrimitive};
 
 use super::VoltageUnit;
@@ -12,6 +12,32 @@ pub enum AppError {
     Unexpected,
     LimitExceeded,
 }
+
+pub type GuiColor = Gray4;
+pub const fn gui_color(r: u8) -> GuiColor {
+    Gray4::new(r)
+}
+const COLOR_HALF_YELLOW: Rgb565 = Rgb565::new(Rgb565::MAX_R / 2, Rgb565::MAX_G / 2, 0);
+const COLOR_HALF_GREEN: Rgb565 = Rgb565::new(0, Rgb565::MAX_G / 2, 0);
+pub const GUI_COLOR_LUT: [Rgb565; 16] = [
+    Rgb565::BLACK,               // 0
+    Rgb565::CSS_DARK_SLATE_GRAY, // 1
+    Rgb565::YELLOW,              // 2
+    Rgb565::GREEN,               // 3
+    Rgb565::RED,                 // 4
+    Rgb565::MAGENTA,             // 5
+    Rgb565::CYAN,                // 6
+    Rgb565::CSS_LIGHT_GRAY,      // 7
+    Rgb565::CSS_PURPLE,          // 8
+    Rgb565::CSS_ORANGE_RED,      // 9
+    Rgb565::CSS_DARK_RED,        // 10
+    COLOR_HALF_YELLOW,           // 11
+    COLOR_HALF_GREEN,            // 12
+    Rgb565::WHITE,               // 13
+    Rgb565::WHITE,               // 14
+    Rgb565::WHITE,               // 15
+];
+pub const GUI_BG_COLOR: GuiColor = gui_color(1);
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
 pub enum Window {
@@ -176,11 +202,11 @@ impl Into<&'static str> for ProbeChannel {
     }
 }
 impl ProbeChannel {
-    pub fn color(&self) -> Rgb565 {
+    pub fn color(&self) -> GuiColor {
         match self {
-            ProbeChannel::A => Rgb565::YELLOW,
-            ProbeChannel::B => Rgb565::GREEN,
-            _ => Rgb565::RED,
+            ProbeChannel::A => gui_color(2),
+            ProbeChannel::B => gui_color(3),
+            _ => gui_color(4),
         }
     }
 }

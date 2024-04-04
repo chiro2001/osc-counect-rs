@@ -9,6 +9,8 @@ use embedded_graphics_simulator::{
     OutputSettingsBuilder, SimulatorDisplay, Window,
 };
 
+use crate::app::GuiColor;
+
 mod app;
 
 #[embassy_executor::main]
@@ -16,7 +18,7 @@ async fn main(_spawner: Spawner) -> () {
     env_logger::init();
     info!("Simulator started");
 
-    let display = SimulatorDisplay::<Rgb565>::new(Size::new(320, 240));
+    let display = SimulatorDisplay::<GuiColor>::new(Size::new(320, 240));
     let output_settings = OutputSettingsBuilder::new().scale(3).build();
     let window = Window::new("osc simulator", &output_settings);
 
