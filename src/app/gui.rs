@@ -10,9 +10,10 @@ use embedded_graphics::{
     draw_target::DrawTarget,
     framebuffer::Framebuffer,
     geometry::{Point, Size},
+    iterator::raw::RawDataSlice,
     mono_font::{ascii::*, MonoTextStyle},
     pixelcolor::{
-        raw::{LittleEndian, RawData, RawU4},
+        raw::{ByteOrder, LittleEndian, RawData, RawU16, RawU4},
         GrayColor, Rgb565,
     },
     primitives::*,
@@ -126,7 +127,9 @@ impl GUIInfo {
 pub struct Waveform {
     pub(crate) info: GUIInfo,
 }
-const WF_WIDTH_WIDTH: u32 = (SCREEN_WIDTH - 48 - 4 - 1) / 1;
+// const WF_WIDTH_WIDTH: u32 = (SCREEN_WIDTH - 48 - 4 - 1) / 1;
+// const WF_WIDTH_HEIGHT: u32 = (SCREEN_HEIGHT - 12 - 12) / 1;
+const WF_WIDTH_WIDTH: u32 = (SCREEN_WIDTH - 48 - 8) / 1;
 const WF_WIDTH_HEIGHT: u32 = (SCREEN_HEIGHT - 12 - 12) / 1;
 impl Default for Waveform {
     fn default() -> Self {
@@ -200,6 +203,37 @@ impl From<WaveformColor> for Rgb565 {
 //         (color.0, color.1)
 //     }
 // }
+// type WaveformCombinedColorRaw = (WaveformColorRaw, WaveformColorExRaw);
+type WaveformCombinedColorRaw = RawU16;
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+pub struct WaveformCombinedColor(WaveformColorRaw, WaveformColorExRaw);
+impl WaveformCombinedColor {
+    pub fn new(color: u8, color_ex: u8) -> Self {
+        Self(color.into(), color_ex.into())
+    }
+}
+impl PixelColor for WaveformCombinedColor {
+    type Raw = WaveformCombinedColorRaw;
+}
+impl From<WaveformCombinedColorRaw> for WaveformCombinedColor {
+    fn from(data: WaveformCombinedColorRaw) -> Self {
+        Self(
+            (((data.into_inner() >> 8) & 0xff) as u8).into(),
+            ((data.into_inner() & 0xff) as u8).into(),
+        )
+    }
+}
+impl From<WaveformCombinedColor> for WaveformCombinedColorRaw {
+    fn from(color: WaveformCombinedColor) -> Self {
+        RawU16::new((color.0.into_inner() as u16) << 8 | color.1.into_inner() as u16)
+    }
+}
+impl From<WaveformCombinedColor> for Rgb565 {
+    fn from(color: WaveformCombinedColor) -> Self {
+        let (color, color_ex) = (color.0.into_inner(), color.1.into_inner());
+        GUI_COLOR_LUT_4[color as usize]
+    }
+}
 
 static mut WF_FRAME_BUFFER: Framebuffer<
     WaveformColor,
@@ -251,6 +285,74 @@ static mut WF_FRAME_BUFFER_EX: Framebuffer<
         )
     },
 >::new();
+
+// struct ContiguousPixels<'a, C, BO>
+// where
+//     C: PixelColor + From<<C as PixelColor>::Raw>,
+//     BO: ByteOrder,
+//     RawDataSlice<'a, C::Raw, BO>: IntoIterator<Item = C::Raw>,
+// {
+//     iter: <RawDataSlice<'a, C::Raw, BO> as IntoIterator>::IntoIter,
+
+//     remaining_x: u32,
+//     width: u32,
+
+//     remaining_y: u32,
+//     row_skip: usize,
+// }
+
+// impl<'a, C, BO> ContiguousPixels<'a, C, BO>
+// where
+//     C: PixelColor + From<<C as PixelColor>::Raw>,
+//     BO: ByteOrder,
+//     RawDataSlice<'a, C::Raw, BO>: IntoIterator<Item = C::Raw>,
+// {
+//     fn new(data: &'a [C], size: Size, initial_skip: usize, row_skip: usize) -> Self {
+//         let mut iter = RawDataSlice::new(data).into_iter();
+
+//         if initial_skip > 0 {
+//             iter.nth(initial_skip - 1);
+//         }
+
+//         // Set `remaining_y` to `0` if `width == 0` to prevent integer underflow in `next`.
+//         let remaining_y = if size.width > 0 { size.height } else { 0 };
+
+//         Self {
+//             iter,
+//             remaining_x: size.width,
+//             width: size.width,
+//             remaining_y,
+//             row_skip,
+//         }
+//     }
+// }
+
+// impl<'a, C, BO> Iterator for ContiguousPixels<'a, C, BO>
+// where
+//     C: PixelColor + From<<C as PixelColor>::Raw>,
+//     BO: ByteOrder,
+//     RawDataSlice<'a, C::Raw, BO>: IntoIterator<Item = C::Raw>,
+// {
+//     type Item = C;
+
+//     fn next(&mut self) -> Option<Self::Item> {
+//         if self.remaining_x > 0 {
+//             self.remaining_x -= 1;
+
+//             self.iter.next()
+//         } else {
+//             if self.remaining_y == 0 {
+//                 return None;
+//             }
+
+//             self.remaining_y -= 1;
+//             self.remaining_x = self.width - 1;
+
+//             self.iter.nth(self.row_skip)
+//         }
+//         .map(|c| c.into())
+//     }
+// }
 
 const fn waveform_color(r: u8) -> WaveformColor {
     WaveformColor::new(r)
@@ -361,16 +463,69 @@ where
             let color = ProbeChannel::from(state.channel_current).color_waveform();
             self.draw_values(display, &mut state.waveform, color, update_only)?;
         }
-        let im = display.as_image();
+        // let im = display.as_image();
         let mut display_translated = display_target.translated(self.info.position);
         let mut display_converted = display_translated.color_converted();
-        im.draw(&mut display_converted)
+        // im.draw(&mut display_converted)
+        //     .map_err(|_| AppError::DisplayError)?;
+        // let im_ex = display_ex.as_image();
+        // let mut display_converted_ex = display_translated.color_converted();
+        // im_ex
+        //     .draw(&mut display_converted_ex)
+        //     .map_err(|_| AppError::DisplayError)?;
+        let data = display.data();
+        let data_ex = display_ex.data();
+        // for (i, (d, d_ex)) in data
+        //     .iter()
+        //     .zip(data_ex.iter().flat_map(|x| [x, x].into_iter()))
+        //     .enumerate()
+        // {
+        //     for j in 0..4 {
+        //         let d = d >> (j * 2) & 0b11;
+        //         let d_ex = d_ex >> j & 0b1;
+        //         let pixel = (d << 1) | d_ex;
+        //         let index = i * 4 + j;
+        //         let p = Point::new(
+        //             (index % WF_WIDTH_WIDTH as usize) as i32,
+        //             (index / WF_WIDTH_WIDTH as usize) as i32,
+        //         );
+        //         // let p = p + self.info.position;
+        //         Pixel(p, Rgb565::new(pixel * 20, pixel * 20, pixel * 20))
+        //             .draw(&mut display_converted)
+        //             .map_err(|_| AppError::DisplayError)?;
+        //     }
+        // }
+        let contiguous = data
+            .iter()
+            .zip(data_ex.iter().flat_map(|x| [x, x].into_iter()))
+            .flat_map(|(d, d_ex)| {
+                (0..4).map(move |j| {
+                    let d = d >> ((3 - j) * 2) & 0b11;
+                    let d_ex = d_ex >> (3 - j) & 0b1;
+                    WaveformCombinedColor::new(d, d_ex)
+                })
+            });
+
+        /// Returns the length of each row in bytes.
+        // const fn bytes_per_row(width: u32, bits_per_pixel: usize) -> usize {
+        //     (width as usize * bits_per_pixel + 7) / 8
+        // }
+        // let data_width = {
+        //     let pixels_per_byte = 8 / 2 as u32;
+        //     bytes_per_row(self.info.size.width, 2) as u32 * pixels_per_byte
+        // };
+        // let row_skip = data_width - self.info.size.width;
+        // ContiguousPixels::new(data, self.info.size, 0, row_skip as usize);
+        // let contiguous = data.iter().flat_map(|d| {
+        //     (0..4).map(move |j| {
+        //         let d = d >> (j * 2) & 0b11;
+        //         WaveformColor::new(d)
+        //     })
+        // });
+        display_converted
+            .fill_contiguous(&Rectangle::new(Point::zero(), self.info.size), contiguous)
             .map_err(|_| AppError::DisplayError)?;
-        let im_ex = display_ex.as_image();
-        let mut display_converted = display_translated.color_converted();
-        im_ex
-            .draw(&mut display_converted)
-            .map_err(|_| AppError::DisplayError)?;
+
         if update_data && !update_full {
             Ok(Some(&[StateMarker::WaveformData]))
         } else {
