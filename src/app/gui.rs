@@ -180,6 +180,27 @@ impl From<WaveformColor> for Rgb565 {
     }
 }
 
+// type WaveformCombinedColorRaw<'a> = (&'a WaveformColor, &'a WaveformColorEx);
+// pub struct WaveformCombinedColor<'a>(&'a WaveformColor, &'a WaveformColorEx);
+// impl<'a> WaveformCombinedColor<'a> {
+//     pub fn new(color: &'a WaveformColor, color_ex: &'a WaveformColorEx) -> Self {
+//         Self(color, color_ex)
+//     }
+// }
+// impl<'a> PixelColor for WaveformCombinedColor<'a> {
+//     type Raw = WaveformCombinedColorRaw<'a>;
+// }
+// impl<'a> From<WaveformCombinedColorRaw<'a>> for WaveformCombinedColor<'a> {
+//     fn from(data: WaveformCombinedColorRaw<'a>) -> Self {
+//         Self(data.0, data.1)
+//     }
+// }
+// impl<'a> From<WaveformCombinedColor<'a>> for WaveformCombinedColorRaw<'a> {
+//     fn from(color: WaveformCombinedColor<'a>) -> Self {
+//         (color.0, color.1)
+//     }
+// }
+
 static mut WF_FRAME_BUFFER: Framebuffer<
     WaveformColor,
     WaveformColorRaw,
@@ -247,20 +268,27 @@ where
         let fb_ex = unsafe { &mut WF_FRAME_BUFFER_EX };
         let display_target = display;
         let display = fb;
+        let display_ex = fb_ex;
         let update_full = !vec.at(StateMarker::Waveform);
         let update_data = update_full || !vec.at(StateMarker::WaveformData);
         use waveform_color as gui_color;
+        // let style = PrimitiveStyleBuilder::new()
+        //     // .stroke_color(self.info.color_secondary)
+        //     .stroke_color(gui_color(1))
+        //     .stroke_width(1)
+        //     .fill_color(gui_color(0))
+        //     .build();
         let style = PrimitiveStyleBuilder::new()
             // .stroke_color(self.info.color_secondary)
-            .stroke_color(gui_color(1))
+            .stroke_color(WaveformColorEx::On)
             .stroke_width(1)
-            .fill_color(gui_color(0))
+            .fill_color(WaveformColorEx::Off)
             .build();
         // let trans = self.info.position;
         let trans = Point::zero();
         if update_full {
             Rectangle::new(trans, self.info.size)
-                .draw_styled(&style, display)
+                .draw_styled(&style, display_ex)
                 .map_err(|_| AppError::DisplayError)?;
             let center = self.info.size_center();
             Line::new(
@@ -268,14 +296,14 @@ where
                 Point::new(center.x, self.info.height() - 1),
             )
             .translate(trans)
-            .draw_styled(&style, display)
+            .draw_styled(&style, display_ex)
             .map_err(|_| AppError::DisplayError)?;
             Line::new(
                 Point::new(0, center.y),
                 Point::new(self.info.width() - 1, center.y),
             )
             .translate(trans)
-            .draw_styled(&style, display)
+            .draw_styled(&style, display_ex)
             .map_err(|_| AppError::DisplayError)?;
 
             let dl = 1;
@@ -290,12 +318,15 @@ where
                     if y == center.y as i32 {
                         Line::new(Point::new(x, y - dl), Point::new(x, y + dl))
                             .translate(trans)
-                            .draw_styled(&style, display)
+                            .draw_styled(&style, display_ex)
                             .map_err(|_| AppError::DisplayError)?;
                     } else {
                         let p = Point::new(x, y) + trans;
-                        Pixel(p, gui_color(1))
-                            .draw(display)
+                        // Pixel(p, gui_color(1))
+                        //     .draw(display)
+                        //     .map_err(|_| AppError::DisplayError)?;
+                        Pixel(p, WaveformColorEx::On)
+                            .draw(display_ex)
                             .map_err(|_| AppError::DisplayError)?;
                     }
                 }
@@ -310,12 +341,15 @@ where
                     if x == center.x as i32 {
                         Line::new(Point::new(x - dl, y), Point::new(x + dl, y))
                             .translate(trans)
-                            .draw_styled(&style, display)
+                            .draw_styled(&style, display_ex)
                             .map_err(|_| AppError::DisplayError)?;
                     } else {
                         let p = Point::new(x, y) + trans;
-                        Pixel(p, gui_color(1))
-                            .draw(display)
+                        // Pixel(p, gui_color(1))
+                        //     .draw(display_ex)
+                        //     .map_err(|_| AppError::DisplayError)?;
+                        Pixel(p, WaveformColorEx::On)
+                            .draw(display_ex)
                             .map_err(|_| AppError::DisplayError)?;
                     }
                 }
@@ -328,10 +362,14 @@ where
             self.draw_values(display, &mut state.waveform, color, update_only)?;
         }
         let im = display.as_image();
-        // let mut display_translated = display_target.translated(self.info.position);
-        let mut display_converted = display_target.color_converted();
-        let mut display_translated = display_converted.translated(self.info.position);
-        im.draw(&mut display_translated)
+        let mut display_translated = display_target.translated(self.info.position);
+        let mut display_converted = display_translated.color_converted();
+        im.draw(&mut display_converted)
+            .map_err(|_| AppError::DisplayError)?;
+        let im_ex = display_ex.as_image();
+        let mut display_converted = display_translated.color_converted();
+        im_ex
+            .draw(&mut display_converted)
             .map_err(|_| AppError::DisplayError)?;
         if update_data && !update_full {
             Ok(Some(&[StateMarker::WaveformData]))
