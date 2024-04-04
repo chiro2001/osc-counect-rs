@@ -1,7 +1,7 @@
 use embedded_graphics::pixelcolor::{raw::RawU16, Gray2, Gray4, Rgb565, RgbColor, WebColors};
 use num_enum::{FromPrimitive, IntoPrimitive};
 
-use super::VoltageUnit;
+use super::{VoltageUnit, WaveformColor};
 
 pub type Result<T, E = AppError> = core::result::Result<T, E>;
 #[derive(Debug)]
@@ -35,9 +35,9 @@ pub const GUI_COLOR_LUT_16: [Rgb565; 16] = [
 ];
 pub const GUI_COLOR_LUT_4: [Rgb565; 4] = [
     Rgb565::BLACK,  // 0
-    Rgb565::YELLOW, // 1
-    Rgb565::GREEN,  // 2
-    Rgb565::WHITE,  // 3
+    Rgb565::WHITE,  // 1
+    Rgb565::YELLOW, // 2
+    Rgb565::GREEN,  // 3
 ];
 // pub type GuiColor = Gray4;
 // pub const fn gui_color(r: u8) -> GuiColor {
@@ -220,16 +220,16 @@ impl ProbeChannel {
             _ => gui_color(4),
         }
     }
-    pub fn color4(&self) -> Gray2 {
+    pub fn color_waveform(&self) -> WaveformColor {
         match self {
-            ProbeChannel::A => Gray2::new(1),
-            ProbeChannel::B => Gray2::new(2),
-            _ => Gray2::new(3),
+            ProbeChannel::A => WaveformColor::new(2),
+            ProbeChannel::B => WaveformColor::new(3),
+            _ => WaveformColor::new(0),
         }
     }
 }
 
-const WAVEFORM_LEN: usize = 128;
+const WAVEFORM_LEN: usize = 64;
 const WAVEFORM_HISTORY_LEN: usize = 15;
 #[derive(Debug)]
 pub struct WaveformStorage {

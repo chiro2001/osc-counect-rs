@@ -6,7 +6,6 @@ use super::{
 };
 use crate::app::{AppError, ProbeChannel, Result};
 use embassy_time::Timer;
-use embedded_graphics::prelude::RgbColor;
 use embedded_graphics::{
     draw_target::DrawTarget,
     framebuffer::Framebuffer,
@@ -14,7 +13,7 @@ use embedded_graphics::{
     mono_font::{ascii::*, MonoTextStyle},
     pixelcolor::{
         raw::{LittleEndian, RawData, RawU4},
-        GrayColor,
+        GrayColor, Rgb565,
     },
     primitives::*,
     text::{Alignment, Text},
@@ -29,6 +28,7 @@ use embedded_graphics::{
     image::ImageDrawable,
     pixelcolor::{raw::RawU1, BinaryColor},
 };
+use embedded_graphics::{pixelcolor::PixelColor, prelude::RgbColor};
 
 pub const TEXT_OFFSET: Point = Point::new(0, 2);
 pub const SCREEN_WIDTH: u32 = 320;
@@ -141,10 +141,45 @@ impl Default for Waveform {
         }
     }
 }
-type WaveformColor = Gray2;
+
 type WaveformColorRaw = RawU2;
-type WaveformColorEx = BinaryColor;
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+pub struct WaveformColor(WaveformColorRaw);
 type WaveformColorExRaw = RawU1;
+type WaveformColorEx = BinaryColor;
+
+impl WaveformColor {
+    pub const fn new(luma: u8) -> Self {
+        Self(WaveformColorRaw::new(luma))
+    }
+}
+impl PixelColor for WaveformColor {
+    type Raw = WaveformColorRaw;
+}
+impl GrayColor for WaveformColor {
+    fn luma(&self) -> u8 {
+        self.0.into_inner()
+    }
+    const BLACK: Self = Self::new(0);
+    const WHITE: Self = Self::new(1);
+}
+impl From<WaveformColorRaw> for WaveformColor {
+    fn from(data: WaveformColorRaw) -> Self {
+        Self(data)
+    }
+}
+impl From<WaveformColor> for WaveformColorRaw {
+    fn from(color: WaveformColor) -> Self {
+        color.0
+    }
+}
+impl From<WaveformColor> for Rgb565 {
+    fn from(color: WaveformColor) -> Self {
+        let luma = color.luma();
+        GUI_COLOR_LUT_4[luma as usize]
+    }
+}
+
 static mut WF_FRAME_BUFFER: Framebuffer<
     WaveformColor,
     WaveformColorRaw,
@@ -197,7 +232,7 @@ static mut WF_FRAME_BUFFER_EX: Framebuffer<
 >::new();
 
 const fn waveform_color(r: u8) -> WaveformColor {
-    Gray2::new(r)
+    WaveformColor::new(r)
 }
 
 impl<D> Draw<D> for Waveform
@@ -209,6 +244,7 @@ where
     }
     fn draw_state_vec(&self, display: &mut D, state: &mut State, vec: &StateVec) -> StateResult {
         let fb = unsafe { &mut WF_FRAME_BUFFER };
+        let fb_ex = unsafe { &mut WF_FRAME_BUFFER_EX };
         let display_target = display;
         let display = fb;
         let update_full = !vec.at(StateMarker::Waveform);
@@ -216,7 +252,8 @@ where
         use waveform_color as gui_color;
         let style = PrimitiveStyleBuilder::new()
             // .stroke_color(self.info.color_secondary)
-            // .stroke_width(1)
+            .stroke_color(gui_color(1))
+            .stroke_width(1)
             .fill_color(gui_color(0))
             .build();
         // let trans = self.info.position;
@@ -287,7 +324,7 @@ where
 
         if update_data {
             let update_only = state.waveform.linked.len() > 3;
-            let color = ProbeChannel::from(state.channel_current).color4();
+            let color = ProbeChannel::from(state.channel_current).color_waveform();
             self.draw_values(display, &mut state.waveform, color, update_only)?;
         }
         let im = display.as_image();
