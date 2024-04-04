@@ -12,8 +12,7 @@ use embedded_graphics::{
 };
 
 use super::{
-    unit::{TimeScale, VoltageScale},
-    Panel, RunningState, State, StateMarker, StateVec,
+    unit::{TimeScale, VoltageScale}, Panel, PanelStyle, RunningState, State, StateMarker, StateVec
 };
 
 pub const TEXT_OFFSET: Point = Point::new(0, 2);
@@ -517,13 +516,6 @@ where
         .map_err(|_| AppError::DisplayError)?;
         Ok(Some(&[StateMarker::Clock]))
     }
-}
-
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PanelStyle {
-    #[default]
-    Normal,
-    ChannelColor,
 }
 
 #[derive(Default)]

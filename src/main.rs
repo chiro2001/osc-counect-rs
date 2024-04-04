@@ -16,12 +16,11 @@ use ili9341::{DisplaySize240x320, Ili9341 as Ili9327, Orientation};
 use embassy_executor::Spawner;
 use embassy_stm32::{
     bind_interrupts,
-    dma::Transfer,
     gpio::{Flex, OutputType, Pull},
     peripherals::ADC1,
     time::Hertz,
     timer::{CaptureCompare16bitInstance, Channel},
-    Peripheral, PeripheralRef,
+    PeripheralRef,
 };
 use embassy_stm32::{
     gpio::{Level, Output, Speed},
