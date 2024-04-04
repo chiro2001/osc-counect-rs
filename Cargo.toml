@@ -14,7 +14,7 @@ embassy-executor = { version = "0.5.0", path = "./embassy/embassy-executor", fea
     "executor-thread",
     # "defmt",
     "integrated-timers",
-    "task-arena-size-12288"
+    "task-arena-size-12288",
     # "task-arena-size-10240"
 ] }
 embassy-time = { version = "0.3.0", path = "./embassy/embassy-time", features = [
@@ -62,7 +62,10 @@ embassy-stm32 = { version = "0.1.0", path = "./embassy/embassy-stm32", features 
 ] }
 cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
 cortex-m-rt = { version = "0.7.3" }
-ili9341 = { path = "ili9327", features = ["async", "gray4"] }
+ili9341 = { path = "ili9327", features = [
+    "async",
+    # "gray4",
+] }
 rtt-target = "0.5.0"
 panic-rtt-target = { version = "0.1.2", features = ["cortex-m"] }
 display-interface-fsmc = { path = "display-interface-fsmc", features = [

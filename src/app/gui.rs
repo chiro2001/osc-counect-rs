@@ -1,12 +1,12 @@
 use super::{
     gui_color,
     unit::{TimeScale, VoltageScale},
-    GuiColor, Panel, PanelStyle, RunningState, State, StateMarker, StateVec, WaveformStorage,
+    GuiColor, GuiColorRaw, Panel, PanelStyle, RunningState, State, StateMarker, StateVec,
+    WaveformStorage, GUI_COLOR_LUT_4,
 };
 use crate::app::{AppError, ProbeChannel, Result};
 use embassy_time::Timer;
-use embedded_graphics::draw_target::DrawTargetExt;
-use embedded_graphics::image::ImageDrawable;
+use embedded_graphics::prelude::RgbColor;
 use embedded_graphics::{
     draw_target::DrawTarget,
     framebuffer::Framebuffer,
@@ -20,6 +20,14 @@ use embedded_graphics::{
     text::{Alignment, Text},
     transform::Transform,
     Drawable, Pixel,
+};
+use embedded_graphics::{
+    draw_target::DrawTargetExt,
+    pixelcolor::{raw::RawU2, Gray2},
+};
+use embedded_graphics::{
+    image::ImageDrawable,
+    pixelcolor::{raw::RawU1, BinaryColor},
 };
 
 pub const TEXT_OFFSET: Point = Point::new(0, 2);
@@ -118,8 +126,8 @@ impl GUIInfo {
 pub struct Waveform {
     pub(crate) info: GUIInfo,
 }
-const WF_WIDTH_WIDTH: u32 = SCREEN_WIDTH - 48 - 4 - 1;
-const WF_WIDTH_HEIGHT: u32 = (SCREEN_HEIGHT - 12 - 12) / 2;
+const WF_WIDTH_WIDTH: u32 = (SCREEN_WIDTH - 48 - 4 - 1) / 1;
+const WF_WIDTH_HEIGHT: u32 = (SCREEN_HEIGHT - 12 - 12) / 1;
 impl Default for Waveform {
     fn default() -> Self {
         Self {
@@ -133,32 +141,64 @@ impl Default for Waveform {
         }
     }
 }
-
+type WaveformColor = Gray2;
+type WaveformColorRaw = RawU2;
+type WaveformColorEx = BinaryColor;
+type WaveformColorExRaw = RawU1;
 static mut WF_FRAME_BUFFER: Framebuffer<
-    GuiColor,
-    RawU4,
+    WaveformColor,
+    WaveformColorRaw,
     LittleEndian,
     { WF_WIDTH_WIDTH as usize },
     { WF_WIDTH_HEIGHT as usize },
     {
-        embedded_graphics::framebuffer::buffer_size::<GuiColor>(
+        embedded_graphics::framebuffer::buffer_size::<WaveformColor>(
             WF_WIDTH_WIDTH as usize,
             WF_WIDTH_HEIGHT as usize,
         )
     },
 > = Framebuffer::<
-    GuiColor,
-    RawU4,
+    WaveformColor,
+    WaveformColorRaw,
     LittleEndian,
     { WF_WIDTH_WIDTH as usize },
     { WF_WIDTH_HEIGHT as usize },
     {
-        embedded_graphics::framebuffer::buffer_size::<GuiColor>(
+        embedded_graphics::framebuffer::buffer_size::<WaveformColor>(
             WF_WIDTH_WIDTH as usize,
             WF_WIDTH_HEIGHT as usize,
         )
     },
 >::new();
+static mut WF_FRAME_BUFFER_EX: Framebuffer<
+    WaveformColorEx,
+    WaveformColorExRaw,
+    LittleEndian,
+    { WF_WIDTH_WIDTH as usize },
+    { WF_WIDTH_HEIGHT as usize },
+    {
+        embedded_graphics::framebuffer::buffer_size::<WaveformColorEx>(
+            WF_WIDTH_WIDTH as usize,
+            WF_WIDTH_HEIGHT as usize,
+        )
+    },
+> = Framebuffer::<
+    WaveformColorEx,
+    WaveformColorExRaw,
+    LittleEndian,
+    { WF_WIDTH_WIDTH as usize },
+    { WF_WIDTH_HEIGHT as usize },
+    {
+        embedded_graphics::framebuffer::buffer_size::<WaveformColorEx>(
+            WF_WIDTH_WIDTH as usize,
+            WF_WIDTH_HEIGHT as usize,
+        )
+    },
+>::new();
+
+const fn waveform_color(r: u8) -> WaveformColor {
+    Gray2::new(r)
+}
 
 impl<D> Draw<D> for Waveform
 where
@@ -173,10 +213,11 @@ where
         let display = fb;
         let update_full = !vec.at(StateMarker::Waveform);
         let update_data = update_full || !vec.at(StateMarker::WaveformData);
+        use waveform_color as gui_color;
         let style = PrimitiveStyleBuilder::new()
-            .stroke_color(self.info.color_secondary)
-            .stroke_width(1)
-            .fill_color(GuiColor::BLACK)
+            // .stroke_color(self.info.color_secondary)
+            // .stroke_width(1)
+            .fill_color(gui_color(0))
             .build();
         // let trans = self.info.position;
         let trans = Point::zero();
@@ -216,7 +257,7 @@ where
                             .map_err(|_| AppError::DisplayError)?;
                     } else {
                         let p = Point::new(x, y) + trans;
-                        Pixel(p, self.info.color_primary)
+                        Pixel(p, gui_color(1))
                             .draw(display)
                             .map_err(|_| AppError::DisplayError)?;
                     }
@@ -246,11 +287,13 @@ where
 
         if update_data {
             let update_only = state.waveform.linked.len() > 3;
-            let color = ProbeChannel::from(state.channel_current).color();
+            let color = ProbeChannel::from(state.channel_current).color4();
             self.draw_values(display, &mut state.waveform, color, update_only)?;
         }
         let im = display.as_image();
-        let mut display_translated = display_target.translated(self.info.position);
+        // let mut display_translated = display_target.translated(self.info.position);
+        let mut display_converted = display_target.color_converted();
+        let mut display_translated = display_converted.translated(self.info.position);
         im.draw(&mut display_translated)
             .map_err(|_| AppError::DisplayError)?;
         if update_data && !update_full {
@@ -266,10 +309,10 @@ impl Waveform {
         &self,
         display: &mut D,
         data: &[f32],
-        color: GuiColor,
+        color: WaveformColor,
     ) -> Result<()>
     where
-        D: DrawTarget<Color = GuiColor>,
+        D: DrawTarget<Color = WaveformColor>,
     {
         let screen_offset = self.info.position + Point::new(0, self.info.height() / 2);
         let mut pt_last = Point::new(0, 0);
@@ -293,14 +336,16 @@ impl Waveform {
         &self,
         display: &mut D,
         storage: &mut WaveformStorage,
-        color: GuiColor,
+        color: WaveformColor,
         update_only: bool,
     ) -> Result<()>
     where
-        D: DrawTarget<Color = GuiColor>,
+        D: DrawTarget<Color = WaveformColor>,
     {
         // let color_secondary = GuiColor::new(color.r() / 2, color.g() / 2, color.b() / 2);
-        let color_secondary = gui_color(RawU4::from(color).into_inner() + 9);
+        // let color_secondary = gui_color(GuiColorRaw::from(color).into_inner() + 9);
+        use waveform_color as gui_color;
+        let color_secondary = color;
         if !update_only {
             for (idx, it) in storage.linked.iter().enumerate() {
                 if !it.0 {
@@ -315,7 +360,7 @@ impl Waveform {
             let tail = storage.linked.pop_back().ok_or(AppError::Unexpected)?;
             if tail.0 {
                 let data = &storage.data[tail.1][..storage.len];
-                self.draw_list_values_color(display, data, GuiColor::BLACK)?;
+                self.draw_list_values_color(display, data, gui_color(0))?;
             }
             storage
                 .linked
@@ -355,7 +400,7 @@ impl<'a> Default for LineDisp<'a> {
         Self {
             info: Default::default(),
             text: Default::default(),
-            font: MonoTextStyle::new(&FONT_6X9, GuiColor::WHITE),
+            font: MonoTextStyle::new(&FONT_6X9, gui_color(15)),
         }
     }
 }
@@ -396,9 +441,9 @@ impl RunningStateDisp {
                 size: Size::new(29, 10),
                 position: Point::new(4, 0),
                 color_primary: color,
-                color_secondary: GuiColor::WHITE,
+                color_secondary: gui_color(15),
             },
-            font: MonoTextStyle::new(&FONT_6X9, GuiColor::WHITE),
+            font: MonoTextStyle::new(&FONT_6X9, gui_color(15)),
             text,
             ..Default::default()
         }
@@ -436,10 +481,10 @@ impl TimeScaleDisp {
                 size: Size::new(35, 10),
                 position: Point::new(4 + 29 + 1, 0),
                 color_primary: gui_color(5),
-                color_secondary: GuiColor::WHITE,
+                color_secondary: gui_color(15),
             },
             text,
-            font: MonoTextStyle::new(&FONT_6X9, GuiColor::WHITE),
+            font: MonoTextStyle::new(&FONT_6X9, gui_color(15)),
         }
     }
 }
@@ -470,7 +515,7 @@ impl ChannelSettingDisp {
             channel,
             LineDisp {
                 info,
-                font: MonoTextStyle::new(&FONT_6X9, GuiColor::BLACK),
+                font: MonoTextStyle::new(&FONT_6X9, gui_color(0)),
                 ..Default::default()
             },
         )
@@ -507,8 +552,8 @@ impl Overview {
             info: GUIInfo {
                 size: Size::new(133, 10),
                 position: Point::new(70, 0),
-                color_primary: GuiColor::WHITE,
-                color_secondary: GuiColor::BLACK,
+                color_primary: gui_color(15),
+                color_secondary: gui_color(0),
             },
             text: "Roll Mode",
         }
@@ -556,8 +601,8 @@ impl Battery {
             info: GUIInfo {
                 size: Size::new(17, 8),
                 position: Point::new(SCREEN_WIDTH as i32 - 17, 1),
-                color_primary: GuiColor::WHITE,
-                color_secondary: GuiColor::BLACK,
+                color_primary: gui_color(15),
+                color_secondary: gui_color(0),
             },
             level,
         }
@@ -623,7 +668,7 @@ impl Clock {
             info: GUIInfo {
                 size: Size::new(30, 10),
                 position: Point::new(SCREEN_WIDTH as i32 - 48 - 1, 0),
-                color_primary: GuiColor::WHITE,
+                color_primary: gui_color(15),
                 color_secondary: gui_color(1),
             },
             hour: 12,
@@ -688,7 +733,7 @@ impl PanelItem {
                 size: Size::new(48 - 1, 26),
                 position: Point::new(SCREEN_WIDTH as i32 - 48 + 1, 12 + (index % 8) as i32 * 27),
                 color_primary: gui_color(8),
-                color_secondary: GuiColor::BLACK,
+                color_secondary: gui_color(0),
             },
             label,
             text,
@@ -714,12 +759,12 @@ where
         let size_half = Size::new(self.info.size.width, self.info.size.height / 2);
         let color_bg = if let Some(focused) = state.panel_focused {
             if focused == Panel::from(self.panel as usize) {
-                GuiColor::WHITE
+                gui_color(15)
             } else {
-                GuiColor::BLACK
+                gui_color(0)
             }
         } else {
-            GuiColor::BLACK
+            gui_color(0)
         };
         Rectangle::new(
             self.info.position + Point::new(0, size_half.height as i32),
@@ -744,9 +789,9 @@ where
         let text_index = format_no_std::show(&mut buf, format_args!("{}", index_disp))
             .map_err(|_| AppError::DataFormatError)?;
         let color_label = if self.style == PanelStyle::ChannelColor {
-            GuiColor::BLACK
+            gui_color(0)
         } else {
-            GuiColor::WHITE
+            gui_color(15)
         };
         let color_index = if self.style == PanelStyle::Normal {
             gui_color(6)
@@ -790,12 +835,12 @@ where
         .map_err(|_| AppError::DisplayError)?;
         let color_text = if let Some(focused) = state.panel_focused {
             if focused == Panel::from(self.panel as usize) {
-                GuiColor::BLACK
+                gui_color(0)
             } else {
-                GuiColor::WHITE
+                gui_color(15)
             }
         } else {
-            GuiColor::WHITE
+            gui_color(15)
         };
         let mut _voltage_scale = Default::default();
         let text = match self.panel {
@@ -871,7 +916,7 @@ where
             Text::with_alignment(
                 "--",
                 self.info.size_center() + TEXT_OFFSET,
-                MonoTextStyle::new(&FONT_6X9, GuiColor::BLACK),
+                MonoTextStyle::new(&FONT_6X9, gui_color(0)),
                 Alignment::Center,
             )
             .translate(self.info.position)
@@ -885,7 +930,7 @@ where
         Text::with_alignment(
             text,
             self.info.size_center() + TEXT_OFFSET,
-            MonoTextStyle::new(&FONT_6X9, GuiColor::BLACK),
+            MonoTextStyle::new(&FONT_6X9, gui_color(0)),
             Alignment::Center,
         )
         .translate(self.info.position)
@@ -904,10 +949,10 @@ impl Generator {
                 size: Size::new(48 - 1, 10),
                 position: Point::new(SCREEN_WIDTH as i32 - 48 + 1, SCREEN_HEIGHT as i32 - 11),
                 color_primary: gui_color(9),
-                color_secondary: GuiColor::WHITE,
+                color_secondary: gui_color(15),
             },
             text,
-            font: MonoTextStyle::new(&FONT_6X9, GuiColor::WHITE),
+            font: MonoTextStyle::new(&FONT_6X9, gui_color(15)),
         })
     }
 }
@@ -960,15 +1005,15 @@ where
                 let selected_item = selected_col && col == state.setting_select_col as usize;
                 let color_text = if selected_col {
                     if selected_item {
-                        GuiColor::WHITE
+                        gui_color(15)
                     } else {
                         self.info.color_primary
                     }
                 } else {
-                    GuiColor::BLACK
+                    gui_color(0)
                 };
                 let color_bg = if selected_col {
-                    GuiColor::BLACK
+                    gui_color(0)
                 } else {
                     self.info.color_primary
                 };
