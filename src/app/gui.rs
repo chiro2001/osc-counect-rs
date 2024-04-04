@@ -1,23 +1,25 @@
+use super::{
+    gui_color,
+    unit::{TimeScale, VoltageScale},
+    GuiColor, Panel, PanelStyle, RunningState, State, StateMarker, StateVec, WaveformStorage,
+};
 use crate::app::{AppError, ProbeChannel, Result};
 use embassy_time::Timer;
+use embedded_graphics::draw_target::DrawTargetExt;
+use embedded_graphics::image::ImageDrawable;
 use embedded_graphics::{
     draw_target::DrawTarget,
+    framebuffer::Framebuffer,
     geometry::{Point, Size},
     mono_font::{ascii::*, MonoTextStyle},
     pixelcolor::{
-        raw::{RawData, RawU4},
+        raw::{LittleEndian, RawData, RawU4},
         GrayColor,
     },
     primitives::*,
     text::{Alignment, Text},
     transform::Transform,
     Drawable, Pixel,
-};
-
-use super::{
-    gui_color,
-    unit::{TimeScale, VoltageScale},
-    GuiColor, Panel, PanelStyle, RunningState, State, StateMarker, StateVec, WaveformStorage,
 };
 
 pub const TEXT_OFFSET: Point = Point::new(0, 2);
@@ -116,12 +118,13 @@ impl GUIInfo {
 pub struct Waveform {
     pub(crate) info: GUIInfo,
 }
-
+const WF_WIDTH_WIDTH: u32 = SCREEN_WIDTH - 48 - 4 - 1;
+const WF_WIDTH_HEIGHT: u32 = (SCREEN_HEIGHT - 12 - 12) / 2;
 impl Default for Waveform {
     fn default() -> Self {
         Self {
             info: GUIInfo {
-                size: Size::new(SCREEN_WIDTH - 48 - 4 - 1, SCREEN_HEIGHT - 12 - 12 - 1),
+                size: Size::new(WF_WIDTH_WIDTH, WF_WIDTH_HEIGHT),
                 position: Point::new(4, 12),
                 color_primary: gui_color(1),
                 color_secondary: gui_color(7),
@@ -131,6 +134,32 @@ impl Default for Waveform {
     }
 }
 
+static mut WF_FRAME_BUFFER: Framebuffer<
+    GuiColor,
+    RawU4,
+    LittleEndian,
+    { WF_WIDTH_WIDTH as usize },
+    { WF_WIDTH_HEIGHT as usize },
+    {
+        embedded_graphics::framebuffer::buffer_size::<GuiColor>(
+            WF_WIDTH_WIDTH as usize,
+            WF_WIDTH_HEIGHT as usize,
+        )
+    },
+> = Framebuffer::<
+    GuiColor,
+    RawU4,
+    LittleEndian,
+    { WF_WIDTH_WIDTH as usize },
+    { WF_WIDTH_HEIGHT as usize },
+    {
+        embedded_graphics::framebuffer::buffer_size::<GuiColor>(
+            WF_WIDTH_WIDTH as usize,
+            WF_WIDTH_HEIGHT as usize,
+        )
+    },
+>::new();
+
 impl<D> Draw<D> for Waveform
 where
     D: DrawTarget<Color = GuiColor>,
@@ -139,6 +168,9 @@ where
         &[StateMarker::Waveform, StateMarker::WaveformData]
     }
     fn draw_state_vec(&self, display: &mut D, state: &mut State, vec: &StateVec) -> StateResult {
+        let fb = unsafe { &mut WF_FRAME_BUFFER };
+        let display_target = display;
+        let display = fb;
         let update_full = !vec.at(StateMarker::Waveform);
         let update_data = update_full || !vec.at(StateMarker::WaveformData);
         let style = PrimitiveStyleBuilder::new()
@@ -146,8 +178,10 @@ where
             .stroke_width(1)
             .fill_color(GuiColor::BLACK)
             .build();
+        // let trans = self.info.position;
+        let trans = Point::zero();
         if update_full {
-            Rectangle::new(self.info.position, self.info.size)
+            Rectangle::new(trans, self.info.size)
                 .draw_styled(&style, display)
                 .map_err(|_| AppError::DisplayError)?;
             let center = self.info.size_center();
@@ -155,14 +189,14 @@ where
                 Point::new(center.x, 0),
                 Point::new(center.x, self.info.height() - 1),
             )
-            .translate(self.info.position)
+            .translate(trans)
             .draw_styled(&style, display)
             .map_err(|_| AppError::DisplayError)?;
             Line::new(
                 Point::new(0, center.y),
                 Point::new(self.info.width() - 1, center.y),
             )
-            .translate(self.info.position)
+            .translate(trans)
             .draw_styled(&style, display)
             .map_err(|_| AppError::DisplayError)?;
 
@@ -177,11 +211,11 @@ where
                     }
                     if y == center.y as i32 {
                         Line::new(Point::new(x, y - dl), Point::new(x, y + dl))
-                            .translate(self.info.position)
+                            .translate(trans)
                             .draw_styled(&style, display)
                             .map_err(|_| AppError::DisplayError)?;
                     } else {
-                        let p = Point::new(x, y) + self.info.position;
+                        let p = Point::new(x, y) + trans;
                         Pixel(p, self.info.color_primary)
                             .draw(display)
                             .map_err(|_| AppError::DisplayError)?;
@@ -197,11 +231,11 @@ where
                     }
                     if x == center.x as i32 {
                         Line::new(Point::new(x - dl, y), Point::new(x + dl, y))
-                            .translate(self.info.position)
+                            .translate(trans)
                             .draw_styled(&style, display)
                             .map_err(|_| AppError::DisplayError)?;
                     } else {
-                        let p = Point::new(x, y) + self.info.position;
+                        let p = Point::new(x, y) + trans;
                         Pixel(p, gui_color(1))
                             .draw(display)
                             .map_err(|_| AppError::DisplayError)?;
@@ -215,6 +249,10 @@ where
             let color = ProbeChannel::from(state.channel_current).color();
             self.draw_values(display, &mut state.waveform, color, update_only)?;
         }
+        let im = display.as_image();
+        let mut display_translated = display_target.translated(self.info.position);
+        im.draw(&mut display_translated)
+            .map_err(|_| AppError::DisplayError)?;
         if update_data && !update_full {
             Ok(Some(&[StateMarker::WaveformData]))
         } else {

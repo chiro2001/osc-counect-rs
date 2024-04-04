@@ -57,22 +57,6 @@ pub struct App<D> {
     // widgets of setting value window
     select_items: Option<SelectItem>,
 }
-use embedded_graphics::framebuffer::Framebuffer;
-static mut FRAME_BUFFER: Framebuffer<
-    Gray4,
-    RawU4,
-    LittleEndian,
-    { SCREEN_WIDTH as usize },
-    { SCREEN_HEIGHT as usize / 2 },
-    { buffer_size::<Gray4>(SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize / 2) },
-> = Framebuffer::<
-    Gray4,
-    RawU4,
-    LittleEndian,
-    { SCREEN_WIDTH as usize },
-    { SCREEN_HEIGHT as usize / 2 },
-    { buffer_size::<Gray4>(SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize / 2) },
->::new();
 
 impl<D> App<D>
 where
@@ -123,15 +107,8 @@ where
         }
     }
 
-    async fn draw_main_window<DD>(&mut self, display: Option<&mut DD>) -> Result<()>
-    where
-        DD: DrawTarget<Color = GuiColor>,
-    {
-        let display = display.unwrap();
-        // let display = display.unwrap_or(&mut self.display);
-        // if self.updated.iter().all(|&x| x) {
-        //     return Ok(());
-        // }
+    async fn draw_main_window(&mut self) -> Result<()> {
+        let display = &mut self.display;
         if self.updated.iter().all(|&x| !x) {
             // clear screen at the first time
             display
@@ -251,8 +228,8 @@ where
         Ok(())
     }
 
-    async fn draw_set_value_window(&mut self, display: Option<&mut D>) -> Result<()> {
-        let display = display.unwrap_or(&mut self.display);
+    async fn draw_set_value_window(&mut self) -> Result<()> {
+        let display = &mut self.display;
         let title_height = 14;
         let item_height = 11;
         let window_height_min = 44 + title_height;
@@ -319,35 +296,35 @@ where
         Ok(())
     }
 
-    async fn draw_settings_window(&mut self, display: Option<&mut D>) -> Result<()> {
-        let display = display.unwrap_or(&mut self.display);
+    async fn draw_settings_window(&mut self) -> Result<()> {
+        let display = &mut self.display;
         display
             .clear(gui_color(3))
             .map_err(|_| AppError::DisplayError)?;
         Ok(())
     }
 
-    // pub async fn draw(&mut self) -> Result<()> {
-    //     match self.state.window {
-    //         Window::Main => self.draw_main_window::<D>(None).await,
-    //         Window::SetValue => self.draw_set_value_window(None).await,
-    //         Window::Settings => self.draw_settings_window(None).await,
-    //     }
-    // }
-
-    pub async fn draw_buffered(&mut self) -> Result<()> {
-        let fb = unsafe { &mut FRAME_BUFFER };
+    pub async fn draw(&mut self) -> Result<()> {
         match self.state.window {
-            Window::Main => self.draw_main_window(Some(fb)).await,
-            // Window::SetValue => self.draw_set_value_window(Some(fb)).await,
-            // Window::Settings => self.draw_settings_window(Some(fb)).await,
-            _ => Ok(()),
-        }?;
-        let im = fb.as_image();
-        im.draw(&mut self.display)
-            .map_err(|_| AppError::DisplayError)?;
-        Ok(())
+            Window::Main => self.draw_main_window().await,
+            Window::SetValue => self.draw_set_value_window().await,
+            Window::Settings => self.draw_settings_window().await,
+        }
     }
+
+    // pub async fn draw_buffered(&mut self) -> Result<()> {
+    //     let fb = unsafe { &mut FRAME_BUFFER };
+    //     match self.state.window {
+    //         Window::Main => self.draw_main_window(Some(fb)).await,
+    //         // Window::SetValue => self.draw_set_value_window(Some(fb)).await,
+    //         // Window::Settings => self.draw_settings_window(Some(fb)).await,
+    //         _ => Ok(()),
+    //     }?;
+    //     let im = fb.as_image();
+    //     im.draw(&mut self.display)
+    //         .map_err(|_| AppError::DisplayError)?;
+    //     Ok(())
+    // }
 
     pub async fn value_init(&mut self) -> Result<()> {
         match self.state.window {
@@ -641,8 +618,8 @@ where
         .spawn(keyboad_task(KBD_CHANNEL.sender(), keyboard))
         .unwrap();
     loop {
-        // app.draw().await.unwrap();
-        app.draw_buffered().await.unwrap();
+        app.draw().await.unwrap();
+        // app.draw_buffered().await.unwrap();
         app.value_init().await.unwrap();
         if let Some(window_next) = app.state.window_next {
             app.state.window = window_next;
