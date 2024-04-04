@@ -4,10 +4,7 @@
 use display_interface::{
     AsyncWriteOnlyDataCommand, DataFormat, DisplayError, WriteOnlyDataCommand,
 };
-use embassy_stm32::{
-    dma::Channel,
-    PeripheralRef,
-};
+use embassy_stm32::{dma::Channel, PeripheralRef};
 
 #[doc = r"FSMC Register block"]
 #[repr(C)]
@@ -418,38 +415,28 @@ where
             DataFormat::U8Iter(iter) => {
                 for d in iter {
                     unsafe {
-                        *self.ram = d as u16;
+                        core::ptr::write_volatile(self.ram, d as u16);
                     }
                 }
             }
             DataFormat::U8(val) => {
                 for d in val {
                     unsafe {
-                        *self.ram = *d as u16;
+                        core::ptr::write_volatile(self.ram, *d as u16);
                     }
                 }
             }
             DataFormat::U16BEIter(iter) => {
                 for d in iter {
                     unsafe {
-                        *self.ram = d;
+                        core::ptr::write_volatile(self.ram, d);
                     }
                 }
             }
             DataFormat::U16(val) => {
-                // let transfer = unsafe {
-                //     Transfer::new_write(
-                //         self.channel.clone_unchecked(),
-                //         (),
-                //         val,
-                //         self.ram,
-                //         Default::default(),
-                //     )
-                // };
-                // transfer.blocking_wait();
                 for d in val {
                     unsafe {
-                        *self.ram = *d;
+                        core::ptr::write_volatile(self.ram, *d);
                     }
                 }
             }
@@ -494,84 +481,28 @@ where
             DataFormat::U8Iter(iter) => {
                 for d in iter {
                     unsafe {
-                        *self.ram = d as u16;
+                        core::ptr::write_volatile(self.ram, d as u16);
                     }
                 }
             }
             DataFormat::U8(val) => {
                 for d in val {
                     unsafe {
-                        *self.ram = *d as u16;
+                        core::ptr::write_volatile(self.ram, *d as u16);
                     }
                 }
             }
             DataFormat::U16BEIter(iter) => {
                 for d in iter {
                     unsafe {
-                        *self.ram = d;
+                        core::ptr::write_volatile(self.ram, d);
                     }
                 }
             }
             DataFormat::U16(val) => {
-                if val.len() > 16 {
-                    // let transfer = unsafe {
-                    //     Transfer::new_write(
-                    //         &mut self.channel,
-                    //         (),
-                    //         val,
-                    //         self.ram,
-                    //         Default::default(),
-                    //     )
-                    // };
-                    // // transfer.await;
-                    // transfer.blocking_wait();
-
-                    // for d in val {
-                    //     unsafe {
-                    //         *self.ram = *d;
-                    //     }
-                    // }
-
-                    // while !pac::DMA1.isr().read().tcif(4) {
-                    //     info!("dma pending");
-                    // }
-                    // pac::DMA1.ch(4).mar().write(|w| *w = val.as_ptr() as u32);
-                    // pac::DMA1.ch(4).par().write(|w| *w = self.ram as u32);
-                    // pac::DMA1.ch(4).ndtr().write(|w| w.set_ndt(val.len() as _));
-                    // pac::DMA1.ch(4).cr().write(|w| {
-                    //     w.set_pl(Pl::LOW);
-                    //     w.set_dir(Dir::FROMMEMORY);
-                    //     w.set_mem2mem(true);
-                    //     w.set_msize(Size::BITS16);
-                    //     w.set_psize(Size::BITS16);
-                    //     w.set_minc(true);
-                    //     w.set_pinc(false);
-                    // });
-                    // info!("dma starting");
-                    // transfer.await;
-                    // transfer.blocking_wait();
-                    // while transfer.is_running() {
-                    //     info!("dma running, remaining: {}", transfer.get_remaining_transfers());
-                    //     Timer::after_millis(100).await;
-                    // }
-                    // pac::DMA1.ch(4).cr().modify(|w| w.set_en(true));
-                    // while !pac::DMA1.isr().read().tcif(4) {
-                    //     info!("dma pending");
-                    // }
-                    // info!("dma pass, len {}", val.len());
-                    // pac::DMA1.ifcr().write(|w| w.set_tcif(4, false));
-                    // pac::DMA1.ch(4).cr().modify(|w| w.set_en(false));
-                    // small_delay(&val as _);
-                    for d in val {
-                        unsafe {
-                            *self.ram = *d;
-                        }
-                    }
-                } else {
-                    for d in val {
-                        unsafe {
-                            *self.ram = *d;
-                        }
+                for d in val {
+                    unsafe {
+                        core::ptr::write_volatile(self.ram, *d);
                     }
                 }
             }
