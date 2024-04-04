@@ -342,10 +342,9 @@ impl<D> App<D> {
     pub fn input_key_event(&mut self, key: Keys) -> Result<()> {
         match self.state.window {
             Window::Main => {
-                let mut flush = false;
                 match key {
                     Keys::Sharp => {
-                        flush = true;
+                        self.updated.clear();
                     }
                     Keys::Key0 => {
                         self.state.panel_page = if self.state.panel_page >= 1 {
@@ -379,10 +378,20 @@ impl<D> App<D> {
                         };
                         self.updated.request(StateMarker::RunningState);
                     }
+                    Keys::X => {
+                        // generate random data for testing
+                        use libm::*;
+                        self.state
+                            .waveform
+                            .data
+                            .iter_mut()
+                            .enumerate()
+                            .for_each(|(i, x)| {
+                                *x = (sin(i as f64 * 0.01) * 1.0) as f32;
+                            });
+                        self.updated.request(StateMarker::Waveform);
+                    }
                     _ => {}
-                }
-                if flush {
-                    self.updated.clear();
                 }
                 Ok(())
             }

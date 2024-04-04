@@ -1,6 +1,6 @@
 use num_enum::IntoPrimitive;
 
-use super::{unit::{TimeScale, VoltageScale}, ChannelInfo, Panel, ProbeChannel, Window};
+use super::{unit::{TimeScale, VoltageScale}, ChannelInfo, Panel, ProbeChannel, WaveformStorage, Window};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
 pub enum RunningState {
@@ -47,7 +47,7 @@ pub struct State {
     pub window: Window,
     pub window_next: Option<Window>,
     // TODO: waveform data
-    pub waveform: u8,
+    pub waveform: WaveformStorage,
     pub time_scale_ns: u64,
     // channel settings
     pub channel_info: [ChannelInfo; ProbeChannel::Endding as usize],

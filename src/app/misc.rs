@@ -1,6 +1,8 @@
 use embedded_graphics::pixelcolor::{Rgb565, RgbColor};
 use num_enum::{FromPrimitive, IntoPrimitive};
 
+use super::VoltageUnit;
+
 pub type Result<T, E = AppError> = core::result::Result<T, E>;
 #[derive(Debug)]
 pub enum AppError {
@@ -176,6 +178,24 @@ impl ProbeChannel {
             ProbeChannel::A => Rgb565::YELLOW,
             ProbeChannel::B => Rgb565::GREEN,
             _ => Rgb565::RED,
+        }
+    }
+}
+
+const WAVEFORM_LEN: usize = 1024 * 2;
+#[derive(Debug)]
+pub struct WaveformStorage {
+    pub data: [f32; WAVEFORM_LEN],
+    pub len: usize,
+    pub unit: VoltageUnit,
+}
+
+impl Default for WaveformStorage {
+    fn default() -> Self {
+        Self {
+            data: [0.0; WAVEFORM_LEN],
+            len: WAVEFORM_LEN,
+            unit: VoltageUnit::MilliVolt,
         }
     }
 }

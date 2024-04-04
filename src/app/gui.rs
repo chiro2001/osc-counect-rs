@@ -12,7 +12,8 @@ use embedded_graphics::{
 };
 
 use super::{
-    unit::{TimeScale, VoltageScale}, Panel, PanelStyle, RunningState, State, StateMarker, StateVec
+    unit::{TimeScale, VoltageScale},
+    Panel, PanelStyle, RunningState, State, StateMarker, StateVec, WaveformStorage,
 };
 
 pub const TEXT_OFFSET: Point = Point::new(0, 2);
@@ -119,7 +120,7 @@ where
     fn state_emit_mask(&self) -> &[StateMarker] {
         &[StateMarker::Waveform]
     }
-    fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult {
+    fn draw_state(&self, display: &mut D, state: &mut State) -> StateResult {
         let style = PrimitiveStyleBuilder::new()
             .stroke_color(self.info.color_secondary)
             .stroke_width(1)
@@ -187,7 +188,39 @@ where
             }
         }
 
+        let color = ProbeChannel::from(state.channel_current).color();
+        self.draw_values(display, &state.waveform, color)?;
+
         Ok(Some(&[StateMarker::Waveform]))
+    }
+}
+
+impl Waveform {
+    fn draw_values<D>(
+        &self,
+        display: &mut D,
+        storage: &WaveformStorage,
+        color: Rgb565,
+    ) -> Result<()>
+    where
+        D: DrawTarget<Color = Rgb565>,
+    {
+        let screen_offset = self.info.position + Point::new(0, self.info.height() / 2);
+        let mut pt_last = Point::new(0, 0);
+        for (i, pt) in storage.data.iter().enumerate() {
+            let pt = Point::new(
+                (i * (self.info.width() as usize) / storage.len) as i32,
+                ((*pt) * (self.info.height() as f32) / 6.0) as i32,
+            );
+            if i != 0 {
+                Line::new(pt_last, pt)
+                    .translate(screen_offset)
+                    .draw_styled(&PrimitiveStyle::with_stroke(color, 1), display)
+                    .map_err(|_| AppError::DisplayError)?;
+            }
+            pt_last = pt;
+        }
+        Ok(())
     }
 }
 
