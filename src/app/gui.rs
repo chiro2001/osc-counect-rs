@@ -274,14 +274,14 @@ impl Waveform {
                 .push_back(tail)
                 .map_err(|_| AppError::Unexpected)?;
             let head = storage.linked.pop_front().ok_or(AppError::Unexpected)?;
-            if head.0 {
-                let data = &storage.data[head.1][..storage.len];
-                self.draw_list_values_color(display, data, color)?;
-            }
             let head2 = storage.linked.pop_front().ok_or(AppError::Unexpected)?;
             if head2.0 {
                 let data = &storage.data[head2.1][..storage.len];
                 self.draw_list_values_color(display, data, color_secondary)?;
+            }
+            if head.0 {
+                let data = &storage.data[head.1][..storage.len];
+                self.draw_list_values_color(display, data, color)?;
             }
             storage
                 .linked
