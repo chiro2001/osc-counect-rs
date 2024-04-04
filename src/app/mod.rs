@@ -21,16 +21,21 @@ use unit::*;
 pub use misc::GuiColor;
 
 use embassy_time::Timer;
+use embedded_graphics::image::ImageDrawable;
 use embedded_graphics::{
     draw_target::DrawTarget,
+    framebuffer::buffer_size,
     geometry::{Point, Size},
     mono_font::{ascii::*, MonoTextStyle},
+    pixelcolor::{
+        raw::{LittleEndian, RawU4},
+        Gray4,
+    },
     primitives::{Primitive, PrimitiveStyle, Rectangle},
     text::{Alignment, Text},
     transform::Transform,
     Drawable,
 };
-
 pub struct App<D> {
     pub state: State,
     pub updated: StateVec,
@@ -52,6 +57,22 @@ pub struct App<D> {
     // widgets of setting value window
     select_items: Option<SelectItem>,
 }
+use embedded_graphics::framebuffer::Framebuffer;
+static mut FRAME_BUFFER: Framebuffer<
+    Gray4,
+    RawU4,
+    LittleEndian,
+    { SCREEN_WIDTH as usize },
+    { SCREEN_HEIGHT as usize / 2 },
+    { buffer_size::<Gray4>(SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize / 2) },
+> = Framebuffer::<
+    Gray4,
+    RawU4,
+    LittleEndian,
+    { SCREEN_WIDTH as usize },
+    { SCREEN_HEIGHT as usize / 2 },
+    { buffer_size::<Gray4>(SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize / 2) },
+>::new();
 
 impl<D> App<D>
 where
@@ -102,45 +123,50 @@ where
         }
     }
 
-    async fn draw_main_window(&mut self) -> Result<()> {
+    async fn draw_main_window<DD>(&mut self, display: Option<&mut DD>) -> Result<()>
+    where
+        DD: DrawTarget<Color = GuiColor>,
+    {
+        let display = display.unwrap();
+        // let display = display.unwrap_or(&mut self.display);
         // if self.updated.iter().all(|&x| x) {
         //     return Ok(());
         // }
         if self.updated.iter().all(|&x| !x) {
             // clear screen at the first time
-            self.display
+            display
                 .clear(GUI_BG_COLOR)
                 .map_err(|_| AppError::DisplayError)?;
         }
 
         self.running_state
-            .draw(&mut self.display, &mut self.state, &mut self.updated)
+            .draw(display, &mut self.state, &mut self.updated)
             .await?;
         self.time_scale
-            .draw(&mut self.display, &mut self.state, &mut self.updated)
+            .draw(display, &mut self.state, &mut self.updated)
             .await?;
         self.overview
-            .draw(&mut self.display, &mut self.state, &mut self.updated)
+            .draw(display, &mut self.state, &mut self.updated)
             .await?;
 
         if !self.updated.at(StateMarker::ChannelSetting) {
             self.channel_info1
-                .draw(&mut self.display, &mut self.state, &mut self.updated)
+                .draw(display, &mut self.state, &mut self.updated)
                 .await?;
             self.channel_info2
-                .draw(&mut self.display, &mut self.state, &mut self.updated)
+                .draw(display, &mut self.state, &mut self.updated)
                 .await?;
             self.updated.confirm(StateMarker::ChannelSetting);
         }
 
         self.battery
-            .draw(&mut self.display, &mut self.state, &mut self.updated)
+            .draw(display, &mut self.state, &mut self.updated)
             .await?;
         self.clock
-            .draw(&mut self.display, &mut self.state, &mut self.updated)
+            .draw(display, &mut self.state, &mut self.updated)
             .await?;
         self.waveform
-            .draw(&mut self.display, &mut self.state, &mut self.updated)
+            .draw(display, &mut self.state, &mut self.updated)
             .await?;
 
         if !self.updated.at(StateMarker::PanelPage) {
@@ -155,7 +181,7 @@ where
                 .skip(self.state.panel_page as usize * 8)
                 .take(8)
             {
-                item.draw(&mut self.display, &mut self.state, &mut self.updated)
+                item.draw(display, &mut self.state, &mut self.updated)
                     .await?;
             }
             if drawed_panel_items < 8 {
@@ -170,7 +196,7 @@ where
                         self.panel_items[i].info.size,
                     )
                     .into_styled(PrimitiveStyle::with_fill(GUI_BG_COLOR))
-                    .draw(&mut self.display)
+                    .draw(display)
                     .map_err(|_| AppError::DisplayError)?;
                 }
                 // add info: 0 to switch page
@@ -181,20 +207,20 @@ where
                     MonoTextStyle::new(&FONT_6X9, gui_color(15)),
                     Alignment::Center,
                 )
-                .draw(&mut self.display)
+                .draw(display)
                 .map_err(|_| AppError::DisplayError)?;
             }
             self.updated.confirm(StateMarker::PanelPage);
         }
         if !self.updated.at(StateMarker::Measures) {
             for item in self.measure_items.iter_mut() {
-                item.draw(&mut self.display, &mut self.state, &mut self.updated)
+                item.draw(display, &mut self.state, &mut self.updated)
                     .await?;
             }
             self.updated.confirm(StateMarker::Measures);
         }
         self.generator
-            .draw(&mut self.display, &mut self.state, &mut self.updated)
+            .draw(display, &mut self.state, &mut self.updated)
             .await?;
 
         // generate random data for testing
@@ -225,7 +251,8 @@ where
         Ok(())
     }
 
-    async fn draw_set_value_window(&mut self) -> Result<()> {
+    async fn draw_set_value_window(&mut self, display: Option<&mut D>) -> Result<()> {
+        let display = display.unwrap_or(&mut self.display);
         let title_height = 14;
         let item_height = 11;
         let window_height_min = 44 + title_height;
@@ -264,7 +291,7 @@ where
             window_rect
                 .clone()
                 .into_styled(PrimitiveStyle::with_fill(gui_color(5)))
-                .draw(&mut self.display)
+                .draw(display)
                 .map_err(|_| AppError::DisplayError)?;
             return Ok(());
         }
@@ -279,32 +306,47 @@ where
                 Alignment::Center,
             )
             .translate(window_rect.top_left)
-            .draw(&mut self.display)
+            .draw(display)
             .map_err(|_| AppError::DisplayError)?;
 
             self.updated.confirm(StateMarker::SettingValueTitle);
         }
         if let Some(select_items) = &self.select_items {
             select_items
-                .draw(&mut self.display, &mut self.state, &mut self.updated)
+                .draw(display, &mut self.state, &mut self.updated)
                 .await?;
         }
         Ok(())
     }
 
-    async fn draw_settings_window(&mut self) -> Result<()> {
-        self.display
+    async fn draw_settings_window(&mut self, display: Option<&mut D>) -> Result<()> {
+        let display = display.unwrap_or(&mut self.display);
+        display
             .clear(gui_color(3))
             .map_err(|_| AppError::DisplayError)?;
         Ok(())
     }
 
-    pub async fn draw(&mut self) -> Result<()> {
+    // pub async fn draw(&mut self) -> Result<()> {
+    //     match self.state.window {
+    //         Window::Main => self.draw_main_window::<D>(None).await,
+    //         Window::SetValue => self.draw_set_value_window(None).await,
+    //         Window::Settings => self.draw_settings_window(None).await,
+    //     }
+    // }
+
+    pub async fn draw_buffered(&mut self) -> Result<()> {
+        let fb = unsafe { &mut FRAME_BUFFER };
         match self.state.window {
-            Window::Main => self.draw_main_window().await,
-            Window::SetValue => self.draw_set_value_window().await,
-            Window::Settings => self.draw_settings_window().await,
-        }
+            Window::Main => self.draw_main_window(Some(fb)).await,
+            // Window::SetValue => self.draw_set_value_window(Some(fb)).await,
+            // Window::Settings => self.draw_settings_window(Some(fb)).await,
+            _ => Ok(()),
+        }?;
+        let im = fb.as_image();
+        im.draw(&mut self.display)
+            .map_err(|_| AppError::DisplayError)?;
+        Ok(())
     }
 
     pub async fn value_init(&mut self) -> Result<()> {
@@ -599,7 +641,8 @@ where
         .spawn(keyboad_task(KBD_CHANNEL.sender(), keyboard))
         .unwrap();
     loop {
-        app.draw().await.unwrap();
+        // app.draw().await.unwrap();
+        app.draw_buffered().await.unwrap();
         app.value_init().await.unwrap();
         if let Some(window_next) = app.state.window_next {
             app.state.window = window_next;
