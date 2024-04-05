@@ -402,6 +402,17 @@ where
         #[cfg(not(feature = "waveform_3bit"))]
         let display = display_ex;
 
+        // draw trigger level
+        let trigger_color = state.trigger_channel.color_waveform();
+        // FIXME: normalize
+        let trigger_level_pixel = center.y - (state.trigger_level_mv as i32 * 2 / 10);
+        Line::new(
+            Point::new(0, trigger_level_pixel),
+            Point::new(self.info.width() as i32, trigger_level_pixel),
+        )
+        .draw_styled(&PrimitiveStyle::with_stroke(trigger_color, 1), display)
+        .map_err(|_| AppError::DisplayError)?;
+
         if update_data {
             for channel in 0..(ProbeChannel::Endding as usize) {
                 let update_only = state.waveform[channel].linked.len() > 3;
@@ -1235,6 +1246,8 @@ where
             )
             .draw(display)
             .map_err(|_| AppError::DisplayError)?;
+        let trigger_level_pixel_offset = -(state.trigger_level_mv as i32 * 2 / 10);
+        let center = center + Point::new(0, trigger_level_pixel_offset);
         Rectangle::with_center(center, Size::new(6, 8))
             .into_styled(
                 PrimitiveStyleBuilder::new()

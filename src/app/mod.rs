@@ -139,6 +139,9 @@ where
         self.clock
             .draw(display, &mut self.state, &mut self.updated)
             .await?;
+        self.trigger_level
+            .draw(display, &mut self.state, &mut self.updated)
+            .await?;
         self.waveform
             .draw(display, &mut self.state, &mut self.updated)
             .await?;
@@ -194,9 +197,6 @@ where
             self.updated.confirm(StateMarker::Measures);
         }
         self.generator
-            .draw(display, &mut self.state, &mut self.updated)
-            .await?;
-        self.trigger_level
             .draw(display, &mut self.state, &mut self.updated)
             .await?;
 
