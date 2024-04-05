@@ -47,6 +47,7 @@ pub struct App<D> {
     panel_items: [PanelItem; Panel::Endding as usize],
     measure_items: [MeasureItem; 4],
     generator: Generator,
+    trigger_level: TriggerLevelDisp,
 
     // widgets of setting value window
     select_items: Option<SelectItem>,
@@ -97,6 +98,7 @@ where
                 MeasureItem::new(3, ProbeChannel::B, "Vrms", "430uV", true),
             ],
             generator: Generator::new("Sin 10k"),
+            trigger_level: Default::default(),
             select_items: Default::default(),
         }
     }
@@ -193,21 +195,13 @@ where
         self.generator
             .draw(display, &mut self.state, &mut self.updated)
             .await?;
+        self.trigger_level
+            .draw(display, &mut self.state, &mut self.updated)
+            .await?;
 
         // generate random data for testing
         static mut OFFSET: f64 = 0.0;
         use libm::*;
-        // self.state
-        //     .waveform
-        //     .data_last
-        //     .iter_mut()
-        //     .zip(self.state.waveform.linked.iter_mut())
-        //     .enumerate()
-        //     .for_each(|(i, (x, y))| {
-        //         *x = *y;
-        //         *y = (sin(i as f64 * 0.1 + unsafe { OFFSET }) * 2.0) as f32;
-        //     });
-        // let _ = self.state.waveform.pop();
         for channel in 0..(ProbeChannel::Endding as usize) {
             let data_new = (0..self.state.waveform[channel].len).map(|i| {
                 (sin(i as f64 * 0.3 + unsafe { OFFSET })

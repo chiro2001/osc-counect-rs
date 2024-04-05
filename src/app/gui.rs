@@ -4,7 +4,7 @@ use super::{
     gui_color,
     unit::{TimeScale, VoltageScale},
     GuiColor, Panel, PanelStyle, RunningState, State, StateMarker, StateVec, WaveformStorage,
-    GUI_COLOR_LUT_4,
+    GUI_BG_COLOR, GUI_COLOR_LUT_4,
 };
 use crate::app::{AppError, ProbeChannel, Result};
 use embassy_time::Timer;
@@ -1213,5 +1213,44 @@ where
             }
         }
         Ok(Some(&[StateMarker::SettingValueContent]))
+    }
+}
+
+#[derive(Default, Debug)]
+pub struct TriggerLevelDisp;
+impl<D> Draw<D> for TriggerLevelDisp
+where
+    D: DrawTarget<Color = GuiColor>,
+{
+    fn state_emit_mask(&self) -> &[StateMarker] {
+        &[StateMarker::TriggerLevel]
+    }
+    fn draw_state(&self, display: &mut D, state: &mut State) -> StateResult {
+        let center = Point::new(3, 12 + WF_WIDTH_HEIGHT as i32 / 2);
+        Rectangle::with_center(center, Size::new(6, WF_WIDTH_HEIGHT))
+            .into_styled(
+                PrimitiveStyleBuilder::new()
+                    .fill_color(GUI_BG_COLOR)
+                    .build(),
+            )
+            .draw(display)
+            .map_err(|_| AppError::DisplayError)?;
+        Rectangle::with_center(center, Size::new(6, 8))
+            .into_styled(
+                PrimitiveStyleBuilder::new()
+                    .fill_color(state.trigger_channel.color())
+                    .build(),
+            )
+            .draw(display)
+            .map_err(|_| AppError::DisplayError)?;
+        Text::with_alignment(
+            "T",
+            center + Point::new(0, 2),
+            MonoTextStyle::new(&FONT_4X6, gui_color(0)),
+            Alignment::Center,
+        )
+        .draw(display)
+        .map_err(|_| AppError::DisplayError)?;
+        Ok(Some(&[StateMarker::TriggerLevel]))
     }
 }

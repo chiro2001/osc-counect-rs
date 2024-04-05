@@ -36,6 +36,7 @@ pub enum StateMarker {
     ChannelSetting,
     Measures,
     Generator,
+    TriggerLevel,
     SettingValueTitle,
     SettingValueContent,
     Endding,
@@ -62,6 +63,8 @@ pub struct State {
     pub measures: u64,
     // TODO: waveform generator setting
     pub generator: u64,
+    pub trigger_channel: ProbeChannel,
+    pub trigger_level_mv: u64,
 
     // used in setting value window
     pub setting_index: u8,
@@ -138,6 +141,8 @@ impl Default for State {
             channel_current: Default::default(),
             measures: Default::default(),
             generator: Default::default(),
+            trigger_channel: Default::default(),
+            trigger_level_mv: Default::default(),
             setting_index: Default::default(),
             setting_inited: Default::default(),
             setting_time_scale: Default::default(),
