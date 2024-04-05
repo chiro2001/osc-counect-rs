@@ -3,18 +3,18 @@
     "rust-analyzer.check.noDefaultFeatures": true,
     "rust-analyzer.showUnlinkedFileNotification": false,
     
-    // "rust-analyzer.cargo.target": "x86_64-unknown-linux-gnu",
-    // "rust-analyzer.cargo.features": [
-    //     "simulator"
-    // ],
-    // "rust-analyzer.check.features": [
-    //     "simulator"
-    // ],
-    "rust-analyzer.cargo.target": "thumbv7m-none-eabi",
+    "rust-analyzer.cargo.target": "x86_64-unknown-linux-gnu",
     "rust-analyzer.cargo.features": [
-        "stm32f103vc"
+        "simulator"
     ],
     "rust-analyzer.check.features": [
-        "stm32f103vc"
+        "simulator"
     ],
+    // "rust-analyzer.cargo.target": "thumbv7m-none-eabi",
+    // "rust-analyzer.cargo.features": [
+    //     "stm32f103vc"
+    // ],
+    // "rust-analyzer.check.features": [
+    //     "stm32f103vc"
+    // ],
 }

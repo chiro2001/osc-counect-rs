@@ -1,13 +1,13 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{mpsc::Receiver, Arc, Mutex};
 
-use app::input::{KeyboardDevice, Keys};
+use app::input::{AdcDevice, AdcReadOptions, KeyboardDevice, Keys};
 use defmt::*;
 
 use embassy_executor::Spawner;
 use embedded_graphics::prelude::*;
 use embedded_graphics_simulator::{OutputSettingsBuilder, SimulatorDisplay, Window};
 
-use crate::app::{input::DummyAdcDevice, GuiColor};
+use crate::app::GuiColor;
 
 mod app;
 
@@ -57,7 +57,8 @@ async fn main(spawner: Spawner) -> () {
     let output_settings = OutputSettingsBuilder::new().scale(3).build();
     let window = Window::new("osc simulator", &output_settings);
     let window = Arc::new(Mutex::new(window));
-    let adc_device = DummyAdcDevice {};
+    // let adc_device = DummyAdcDevice {};
+    let adc_device = AudioAdcDevice::new();
     let kbd_device = SDLKeyboardDeriver {
         window: window.clone(),
     };
@@ -68,4 +69,65 @@ async fn main(spawner: Spawner) -> () {
     .await;
     info!("Simulator stopped");
     std::process::exit(0);
+}
+
+struct AudioAdcDevice {
+    _stream: cpal::Stream,
+    receiver: Receiver<f32>,
+}
+impl AudioAdcDevice {
+    fn new() -> Self {
+        use cpal::traits::DeviceTrait;
+        use cpal::traits::HostTrait;
+        let host = cpal::default_host();
+        use std::sync::mpsc::channel;
+        let (sender, receiver) = channel();
+        let device = host
+            .default_input_device()
+            .expect("no input device available");
+        let stream = device
+            .build_input_stream(
+                &cpal::StreamConfig {
+                    channels: 1,
+                    sample_rate: cpal::SampleRate(44100),
+                    buffer_size: cpal::BufferSize::Fixed(4096),
+                },
+                move |data: &[f32], _: &_| {
+                    // let average: f32 = data.iter().sum::<f32>() / data.len() as f32;
+                    // info!("average: {}", average);
+                    for sample in data.iter() {
+                        // sender.send(*sample * 2.0 / average).unwrap();
+                        sender.send(*sample * 2.0).unwrap();
+                    }
+                },
+                move |err| {
+                    // An error occurred on stream
+                    error!("an error occurred on stream: {}", err);
+                },
+                None,
+            )
+            .unwrap();
+        Self {
+            _stream: stream,
+            receiver,
+        }
+    }
+}
+
+impl AdcDevice for AudioAdcDevice {
+    async fn read(&mut self, _options: AdcReadOptions, buf: &mut [f32]) -> app::Result<usize> {
+        let mut i = 0;
+        while i < buf.len() {
+            match self.receiver.recv() {
+                Ok(sample) => {
+                    buf[i] = sample;
+                    i += 1;
+                }
+                Err(_) => {
+                    return Ok(i);
+                }
+            }
+        }
+        Ok(i)
+    }
 }

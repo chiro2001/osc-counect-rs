@@ -80,6 +80,7 @@ defmt-rtt = { version = "0.4", optional = true }
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 embedded-graphics-simulator = "0.6.0"
 env_logger = "0.11.3"
+cpal = "0.15.3"
 
 [target.'cfg(target_arch = "x86_64")'.dependencies.defmt]
 package = "log"
