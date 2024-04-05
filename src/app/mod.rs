@@ -21,16 +21,10 @@ use unit::*;
 pub use misc::GuiColor;
 
 use embassy_time::Timer;
-use embedded_graphics::image::ImageDrawable;
 use embedded_graphics::{
     draw_target::DrawTarget,
-    framebuffer::buffer_size,
     geometry::{Point, Size},
     mono_font::{ascii::*, MonoTextStyle},
-    pixelcolor::{
-        raw::{LittleEndian, RawU4},
-        Gray4,
-    },
     primitives::{Primitive, PrimitiveStyle, Rectangle},
     text::{Alignment, Text},
     transform::Transform,

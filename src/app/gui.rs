@@ -6,6 +6,8 @@ use super::{
 };
 use crate::app::{AppError, ProbeChannel, Result};
 use embassy_time::Timer;
+use embedded_graphics::pixelcolor::PixelColor;
+use embedded_graphics::pixelcolor::{raw::RawU1, BinaryColor};
 use embedded_graphics::{
     draw_target::DrawTarget,
     framebuffer::Framebuffer,
@@ -21,15 +23,7 @@ use embedded_graphics::{
     transform::Transform,
     Drawable, Pixel,
 };
-use embedded_graphics::{
-    draw_target::DrawTargetExt,
-    pixelcolor::{raw::RawU2, Gray2},
-};
-use embedded_graphics::{
-    image::ImageDrawable,
-    pixelcolor::{raw::RawU1, BinaryColor},
-};
-use embedded_graphics::{pixelcolor::PixelColor, prelude::RgbColor};
+use embedded_graphics::{draw_target::DrawTargetExt, pixelcolor::raw::RawU2};
 
 pub const TEXT_OFFSET: Point = Point::new(0, 2);
 pub const SCREEN_WIDTH: u32 = 320;
@@ -129,8 +123,9 @@ pub struct Waveform {
 }
 // const WF_WIDTH_WIDTH: u32 = (SCREEN_WIDTH - 48 - 4 - 1) / 1;
 // const WF_WIDTH_HEIGHT: u32 = (SCREEN_HEIGHT - 12 - 12) / 1;
-const WF_WIDTH_WIDTH: u32 = (SCREEN_WIDTH - 48 - 8) / 1;
-const WF_WIDTH_HEIGHT: u32 = (SCREEN_HEIGHT - 12 - 12) / 1;
+const WF_SCALING: u32 = 1;
+const WF_WIDTH_WIDTH: u32 = (SCREEN_WIDTH - 48 - 16) / WF_SCALING / 8 * 8;
+const WF_WIDTH_HEIGHT: u32 = (SCREEN_HEIGHT - 12 - 12) / WF_SCALING / 8 * 8;
 impl Default for Waveform {
     fn default() -> Self {
         Self {
@@ -183,27 +178,6 @@ impl From<WaveformColor> for Rgb565 {
     }
 }
 
-// type WaveformCombinedColorRaw<'a> = (&'a WaveformColor, &'a WaveformColorEx);
-// pub struct WaveformCombinedColor<'a>(&'a WaveformColor, &'a WaveformColorEx);
-// impl<'a> WaveformCombinedColor<'a> {
-//     pub fn new(color: &'a WaveformColor, color_ex: &'a WaveformColorEx) -> Self {
-//         Self(color, color_ex)
-//     }
-// }
-// impl<'a> PixelColor for WaveformCombinedColor<'a> {
-//     type Raw = WaveformCombinedColorRaw<'a>;
-// }
-// impl<'a> From<WaveformCombinedColorRaw<'a>> for WaveformCombinedColor<'a> {
-//     fn from(data: WaveformCombinedColorRaw<'a>) -> Self {
-//         Self(data.0, data.1)
-//     }
-// }
-// impl<'a> From<WaveformCombinedColor<'a>> for WaveformCombinedColorRaw<'a> {
-//     fn from(color: WaveformCombinedColor<'a>) -> Self {
-//         (color.0, color.1)
-//     }
-// }
-// type WaveformCombinedColorRaw = (WaveformColorRaw, WaveformColorExRaw);
 type WaveformCombinedColorRaw = RawU16;
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
 pub struct WaveformCombinedColor(WaveformColorRaw, WaveformColorExRaw);
@@ -412,20 +386,74 @@ where
         let mut display_converted = display_translated.color_converted();
         let data = display.data();
         let data_ex = display_ex.data();
+        // let contiguous =
+        //     data.iter()
+        //         .flat_map(|x| core::iter::repeat(x).take((WF_SCALING * WF_SCALING) as usize))
+        //         .zip(data_ex.iter().flat_map(|x| {
+        //             core::iter::repeat(x).take((WF_SCALING * WF_SCALING * 2) as usize)
+        //         }))
+        //         .enumerate()
+        //         .flat_map(|(i, (d, d_ex))| {
+        //             (0..4).map(move |j| {
+        //                 let d = (d >> ((3 - j) * 2)) & 0b11;
+        //                 let d_ex = (d_ex >> ((3 - j) + ((!(i & 0b1)) << 2))) & 0b1;
+        //                 WaveformCombinedColor::new(d, d_ex)
+        //             })
+        //         });
+        // let contiguous = data
+        //     .iter()
+        //     .zip(
+        //         data_ex
+        //             .iter()
+        //             .flat_map(|x| core::iter::repeat(x).take((2) as usize)),
+        //     )
+        //     .enumerate()
+        //     .flat_map(|(i, (d, d_ex))| {
+        //         (0..4).map(move |j| {
+        //             let d = (d >> ((3 - j) * 2)) & 0b11;
+        //             let d_ex = (d_ex >> ((3 - j) + ((!(i & 0b1)) << 2))) & 0b1;
+        //             WaveformCombinedColor::new(d, d_ex)
+        //         })
+        //     });
         let contiguous = data
-            .iter()
-            .zip(data_ex.iter().flat_map(|x| [x, x].into_iter()))
-            .enumerate()
-            .flat_map(|(i, (d, d_ex))| {
-                (0..4).map(move |j| {
-                    let d = (d >> ((3 - j) * 2)) & 0b11;
-                    let d_ex = (d_ex >> ((3 - j) + ((!(i & 0b1)) << 2))) & 0b1;
-                    WaveformCombinedColor::new(d, d_ex)
-                })
+            .chunks(WF_WIDTH_WIDTH as usize / (8 / WaveformColorRaw::BITS_PER_PIXEL))
+            .zip(data_ex.chunks(WF_WIDTH_WIDTH as usize / (8 / WaveformColorExRaw::BITS_PER_PIXEL)))
+            // copy lines
+            .flat_map(|(row, row_ex)| core::iter::repeat((row, row_ex)).take(WF_SCALING as usize))
+            .flat_map(|(row, row_ex)| {
+                row.iter()
+                    .zip(row_ex.iter().flat_map(|x| {
+                        // match bits in u8
+                        core::iter::repeat(x).take(
+                            WaveformColorRaw::BITS_PER_PIXEL / WaveformColorExRaw::BITS_PER_PIXEL,
+                        )
+                    }))
+                    .enumerate()
+                    .flat_map(|(i, (&d, &d_ex))| {
+                        (0..4)
+                            .map(move |j| {
+                                let d = (d >> ((3 - j) * 2)) & 0b11;
+                                let d_ex = (d_ex >> ((3 - j) + ((!(i & 0b1)) << 2))) & 0b1;
+                                WaveformCombinedColor::new(d, d_ex)
+                            })
+                            .flat_map(|color| {
+                                // copy pixels
+                                core::iter::repeat(color).take(WF_SCALING as usize)
+                            })
+                    })
             });
 
         display_converted
-            .fill_contiguous(&Rectangle::new(Point::zero(), self.info.size), contiguous)
+            .fill_contiguous(
+                &Rectangle::new(
+                    Point::zero(),
+                    Size::new(
+                        self.info.size.width * WF_SCALING,
+                        self.info.size.height * WF_SCALING,
+                    ),
+                ),
+                contiguous,
+            )
             .map_err(|_| AppError::DisplayError)?;
 
         if update_data && !update_full {

@@ -1,4 +1,4 @@
-use embedded_graphics::pixelcolor::{raw::RawU16, Gray2, Gray4, Rgb565, RgbColor, WebColors};
+use embedded_graphics::pixelcolor::{raw::RawU16, Rgb565, RgbColor, WebColors};
 use num_enum::{FromPrimitive, IntoPrimitive};
 
 use super::{VoltageUnit, WaveformColor};
