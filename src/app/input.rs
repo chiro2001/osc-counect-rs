@@ -144,13 +144,13 @@ impl AdcReadOptions {
 }
 pub const ADC_BUF_SZ: usize = 32;
 pub trait AdcDevice {
-    async fn read(&self, options: AdcReadOptions) -> Result<[f32; ADC_BUF_SZ]>;
-    async fn read_raw(&self, options: AdcReadOptions) -> Result<[u16; ADC_BUF_SZ]>;
+    async fn read(&mut self, options: AdcReadOptions) -> Result<[f32; ADC_BUF_SZ]>;
+    // async fn read_raw(&self, options: AdcReadOptions) -> Result<[u16; ADC_BUF_SZ]>;
 }
 
 pub struct DummyAdcDevice;
 impl AdcDevice for DummyAdcDevice {
-    async fn read(&self, _options: AdcReadOptions) -> Result<[f32; ADC_BUF_SZ]> {
+    async fn read(&mut self, _options: AdcReadOptions) -> Result<[f32; ADC_BUF_SZ]> {
         // use core::mem::MaybeUninit;
         // static mut DEFAULT_VALUES: MaybeUninit<([f32; 128], bool)> = MaybeUninit::zeroed();
         // if !unsafe { DEFAULT_VALUES.assume_init().1 } {
@@ -197,8 +197,8 @@ impl AdcDevice for DummyAdcDevice {
         ])
     }
 
-    async fn read_raw(&self, _options: AdcReadOptions) -> Result<[u16; ADC_BUF_SZ]> {
-        static DEFAULT_VALUES: [u16; ADC_BUF_SZ] = [0; ADC_BUF_SZ];
-        Ok(DEFAULT_VALUES.clone())
-    }
+    // async fn read_raw(&self, _options: AdcReadOptions) -> Result<[u16; ADC_BUF_SZ]> {
+    //     static DEFAULT_VALUES: [u16; ADC_BUF_SZ] = [0; ADC_BUF_SZ];
+    //     Ok(DEFAULT_VALUES.clone())
+    // }
 }

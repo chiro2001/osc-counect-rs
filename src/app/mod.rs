@@ -19,6 +19,7 @@ use state::*;
 use unit::*;
 
 pub use misc::GuiColor;
+pub use misc::Result;
 
 use embassy_time::Timer;
 use embedded_graphics::{
@@ -587,7 +588,7 @@ static ADC_REQ_CHANNEL: Channel<ThreadModeRawMutex, AdcReadOptions, 8> = Channel
 async fn adc_task(
     receiver: Receiver<'static, ThreadModeRawMutex, AdcReadOptions, 8>,
     sender: Sender<'static, ThreadModeRawMutex, [f32; ADC_BUF_SZ], 2>,
-    adc: impl AdcDevice + 'static,
+    mut adc: impl AdcDevice + 'static,
 ) {
     loop {
         let options = receiver.receive().await;
@@ -603,7 +604,7 @@ async fn adc_task(
             sender.send(data).await;
             length -= length.min(ADC_BUF_SZ);
         }
-        Timer::after_millis(1000).await;
+        // Timer::after_millis(1000).await;
     }
 }
 
@@ -648,7 +649,11 @@ where
     loop {
         if send_req {
             ADC_REQ_CHANNEL
-                .send(AdcReadOptions::new(ProbeChannel::A, ADC_BUF_SZ, 1000))
+                .send(AdcReadOptions::new(
+                    ProbeChannel::A,
+                    WAVEFORM_LEN,
+                    1000,
+                ))
                 .await;
             send_req = false;
         }
@@ -673,7 +678,7 @@ where
             }
             Err(_) => {}
         }
-        Timer::after_millis(15).await;
+        // Timer::after_millis(20).await;
     }
 }
 

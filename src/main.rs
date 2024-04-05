@@ -9,7 +9,6 @@ use core::convert::Infallible;
 
 use defmt::*;
 use embedded_hal::{delay::DelayNs, digital::OutputPin};
-use crate::app::input::DummyAdcDevice;
 
 use {defmt_rtt as _, panic_probe as _};
 
@@ -22,7 +21,7 @@ use embassy_stm32::{
     peripherals::ADC1,
     time::Hertz,
     timer::{CaptureCompare16bitInstance, Channel},
-    PeripheralRef,
+    Peripheral, PeripheralRef,
 };
 use embassy_stm32::{
     gpio::{Level, Output, Speed},
@@ -437,7 +436,8 @@ async fn main(spawner: Spawner) {
 
     // loop {}
 
-    let adc_device = DummyAdcDevice {};
+    // let adc_device = DummyAdcDevice {};
+    let adc_device = SimpleAdcDevice::new(PeripheralRef::new(p.ADC1), p.PA1, p.PA2);
     app::main_loop(spawner, lcd, kbd_drv, adc_device).await;
     defmt::panic!("unreachable");
 
@@ -445,4 +445,51 @@ async fn main(spawner: Spawner) {
     //     Timer::after_millis(10000).await;
     //     // debug!("main loop");
     // }
+}
+
+struct SimpleAdcDevice<ADC, A, B> {
+    adc: ADC,
+    channels: (A, B),
+}
+
+impl<ADC, A, B> SimpleAdcDevice<ADC, A, B> {
+    fn new(adc: ADC, channel_a: A, channel_b: B) -> Self {
+        Self {
+            adc,
+            channels: (channel_a, channel_b),
+        }
+    }
+}
+
+impl<ADC, A, B> app::input::AdcDevice for SimpleAdcDevice<ADC, A, B>
+where
+    ADC: Peripheral<P: embassy_stm32::adc::Instance>,
+    A: embassy_stm32::adc::AdcPin<ADC::P>,
+    B: embassy_stm32::adc::AdcPin<ADC::P>,
+{
+    async fn read(
+        &mut self,
+        options: app::input::AdcReadOptions,
+    ) -> app::Result<[f32; app::input::ADC_BUF_SZ]> {
+        let length = app::input::ADC_BUF_SZ.min(options.length - options.pos);
+        let mut adc = embassy_stm32::adc::Adc::new(&self.adc, &mut Delay);
+        let mut vrefint = adc.enable_vref(&mut Delay);
+        let vrefint_sample = adc.read(&mut vrefint).await;
+        let convert_to_millivolts = |sample| {
+            // From http://www.st.com/resource/en/datasheet/CD00161566.pdf
+            // 5.3.4 Embedded reference voltage
+            const VREFINT_MV: u32 = 1200; // mV
+
+            (u32::from(sample) * VREFINT_MV / u32::from(vrefint_sample)) as u16
+        };
+        let mut data = [0.0; app::input::ADC_BUF_SZ];
+        for i in 0..length {
+            let v = adc.read(&mut self.channels.0).await;
+            let v = convert_to_millivolts(v);
+            data[i] = v as f32 / 1000.0;
+            // defmt::info!("{}: {}", i, v);
+            Timer::after_micros(1).await;
+        }
+        Ok(data)
+    }
 }
