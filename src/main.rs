@@ -464,9 +464,9 @@ async fn main(spawner: Spawner) {
     // loop {}
 
     // let adc_device = DummyAdcDevice {};
-    // let adc_device = SimpleAdcDevice::new(PeripheralRef::new(p.ADC1), p.PA1, p.PA2);
-    let adc_device = app::input::DummyAdcDevice {};
-    app::main_loop(spawner, lcd, kbd_drv, adc_device, || {}).await;
+    let adc_device = SimpleAdcDevice::new(PeripheralRef::new(p.ADC1), p.PA1, p.PA2);
+    // let adc_device = app::input::DummyAdcDevice {};
+    app::main_loop(spawner, lcd, kbd_drv, adc_device, |_| {}).await;
     defmt::panic!("unreachable");
 
     // loop {

@@ -229,8 +229,8 @@ impl ProbeChannel {
     }
 }
 
-pub const WAVEFORM_LEN: usize = 16;
-pub const WAVEFORM_HISTORY_LEN: usize = 10;
+pub const WAVEFORM_LEN: usize = 32;
+pub const WAVEFORM_HISTORY_LEN: usize = 5;
 #[derive(Debug)]
 pub struct WaveformStorage {
     pub linked: heapless::Deque<(bool, usize), WAVEFORM_HISTORY_LEN>,

@@ -66,10 +66,6 @@ async fn main(spawner: Spawner) -> () {
         window.lock().unwrap().update(d);
     })
     .await;
-    // app::main_loop2(spawner, display, kbd_device, adc_device, |d| {
-    //     window.lock().unwrap().update(d);
-    // })
-    // .await;
     info!("Simulator stopped");
     std::process::exit(0);
 }

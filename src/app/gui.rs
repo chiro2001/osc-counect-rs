@@ -501,6 +501,7 @@ impl Waveform {
         data: &[f32],
         offset_idx: i32,
         color: WaveformColor,
+        interpolate: bool,
     ) -> Result<()>
     where
         D: DrawTarget<Color = WaveformColor>,
@@ -510,47 +511,16 @@ impl Waveform {
         let mut pt_last = Point::new(0, 0);
         let fill = (-offset_idx.min(0)) as usize;
         let skip = offset_idx.max(0) as usize;
-        let data_it = data.iter().skip(skip);
-        let data_it_len = data_it.len();
-        // use Lagrange interpolation
-        let l_funcs = data_it.clone().enumerate().map(|(i, d)| {
-            // input: f(0), f(2), f(4), f(6)... target: f(1), f(3), f(5), f(7)...
-            let idx = i * 2;
-            let indexes = (0..data_it_len).filter(move |x| *x != i);
-            let l_base = indexes
-                .clone()
-                .map(|x| (idx as f32 - x as f32 * 2.0))
-                .tree_fold1(|a, b| a * b)
-                .unwrap();
-            move |x| {
-                indexes
-                    .map(|j| (x - (j * 2) as f32) as f32)
-                    .tree_fold1(|a, b| a * b)
-                    .unwrap()
-                    * d
-                    / l_base
-            }
-        });
-        let lagrange = |x: f32| {
-            l_funcs
-                .clone()
-                .zip(data_it.clone())
-                .map(|(l, y)| l(x) * *y)
-                .sum::<f32>()
-        };
-        let interpolated = (0..data_it_len)
-            .map(|x| x * 2 + 1)
-            .map(|x| lagrange(x as f32));
-        let data_it = data_it
-            .clone()
-            .zip(interpolated)
-            .flat_map(|(x1, x2)| [*x1, x2]);
-        for (i, v) in data_it.enumerate() {
+        let mut paint_point = |(i, v)| -> Result<()> {
             // defmt::info!("drawing: {} {}", i, v);
             let idx = i + fill;
+            let clamp = |x: i32| {
+                x.min(self.info.height() / 2 as i32)
+                    .max(-self.info.height() / 2)
+            };
             let pt = Point::new(
                 (idx * (self.info.width() as usize) * 2 / data.len()) as i32,
-                (v * -1.0 * (self.info.height() as f32) / 6.0) as i32,
+                clamp((v * -1.0 * (self.info.height() as f32) / 6.0) as i32),
             );
             if i != 0 {
                 Line::new(pt_last, pt)
@@ -559,7 +529,53 @@ impl Waveform {
                     .map_err(|_| AppError::DisplayError)?;
             }
             pt_last = pt;
-        }
+            Ok(())
+        };
+        if interpolate {
+            let data_it = data.iter().skip(skip);
+            let data_it_len = data_it.len();
+            // use Lagrange interpolation
+            let l_funcs = data_it.clone().enumerate().map(|(i, d)| {
+                // input: f(0), f(2), f(4), f(6)... target: f(1), f(3), f(5), f(7)...
+                let idx = i * 2;
+                let indexes = (0..data_it_len).filter(move |x| *x != i);
+                let l_base = indexes
+                    .clone()
+                    .map(|x| (idx as f32 - x as f32 * 2.0))
+                    .tree_fold1(|a, b| a * b)
+                    .unwrap();
+                move |x| {
+                    indexes
+                        .map(|j| (x - (j * 2) as f32) as f32)
+                        .tree_fold1(|a, b| a * b)
+                        .unwrap()
+                        * d
+                        / l_base
+                }
+            });
+            let lagrange = |x: f32| {
+                l_funcs
+                    .clone()
+                    .zip(data_it.clone())
+                    .map(|(l, y)| l(x) * *y)
+                    .sum::<f32>()
+            };
+            let interpolated = (0..data_it_len)
+                .map(|x| x * 2 + 1)
+                .map(|x| lagrange(x as f32));
+            let it = data_it
+                .clone()
+                .zip(interpolated)
+                .flat_map(|(x1, x2)| [*x1, x2]);
+            for (i, v) in it.clone().enumerate() {
+                paint_point((i, v))?;
+            }
+        } else {
+            let it = data.iter().skip(skip);
+            for (i, v) in it.clone().enumerate() {
+                paint_point((i, *v))?;
+            }
+        };
         Ok(())
     }
 
@@ -578,6 +594,8 @@ impl Waveform {
         use waveform_color as gui_color;
         // let color_secondary = color;
         let color_secondary = gui_color(1);
+        let interpolate = false;
+        // let interpolate = true;
         if !update_only {
             for (idx, it) in storage.linked.iter().enumerate() {
                 if !it.0 {
@@ -585,14 +603,26 @@ impl Waveform {
                 }
                 let data = &storage.data[it.1][..storage.len];
                 let color = if idx == 0 { color } else { color_secondary };
-                self.draw_list_values_color(display, data, storage.offset[it.1], color)?;
+                self.draw_list_values_color(
+                    display,
+                    data,
+                    storage.offset[it.1],
+                    color,
+                    interpolate,
+                )?;
             }
         } else {
             // clear tail and draw head
             let tail = storage.linked.pop_back().ok_or(AppError::Unexpected)?;
             if tail.0 {
                 let data = &storage.data[tail.1][..storage.len];
-                self.draw_list_values_color(display, data, storage.offset[tail.1], gui_color(0))?;
+                self.draw_list_values_color(
+                    display,
+                    data,
+                    storage.offset[tail.1],
+                    gui_color(0),
+                    interpolate,
+                )?;
             }
             storage
                 .linked
@@ -607,11 +637,18 @@ impl Waveform {
                     data,
                     storage.offset[head2.1],
                     color_secondary,
+                    interpolate,
                 )?;
             }
             if head.0 {
                 let data = &storage.data[head.1][..storage.len];
-                self.draw_list_values_color(display, data, storage.offset[head.1], color)?;
+                self.draw_list_values_color(
+                    display,
+                    data,
+                    storage.offset[head.1],
+                    color,
+                    interpolate,
+                )?;
             }
             storage
                 .linked
