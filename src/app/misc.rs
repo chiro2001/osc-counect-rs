@@ -229,7 +229,7 @@ impl ProbeChannel {
     }
 }
 
-pub const WAVEFORM_LEN: usize = 16;
+pub const WAVEFORM_LEN: usize = 128;
 pub const WAVEFORM_HISTORY_LEN: usize = 5;
 #[derive(Debug)]
 pub struct WaveformStorage {

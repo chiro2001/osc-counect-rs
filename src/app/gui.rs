@@ -505,16 +505,20 @@ impl Waveform {
         D: DrawTarget<Color = WaveformColor>,
     {
         let screen_offset = Point::new(2, self.info.height() / 2);
+        let style = PrimitiveStyle::with_stroke(color, 1);
         let mut pt_last = Point::new(0, 0);
-        for (i, pt) in data.iter().skip(offset_idx as usize).enumerate() {
+        let fill = (-offset_idx.min(0)) as usize;
+        let skip = offset_idx.max(0) as usize;
+        for (i, pt) in data.iter().skip(skip).enumerate() {
+            let idx = i + fill;
             let pt = Point::new(
-                (i * (self.info.width() as usize) / data.len()) as i32,
+                (idx * (self.info.width() as usize) / data.len()) as i32,
                 ((*pt) * -1.0 * (self.info.height() as f32) / 6.0) as i32,
             );
             if i != 0 {
                 Line::new(pt_last, pt)
                     .translate(screen_offset)
-                    .draw_styled(&PrimitiveStyle::with_stroke(color, 1), display)
+                    .draw_styled(&style, display)
                     .map_err(|_| AppError::DisplayError)?;
             }
             pt_last = pt;

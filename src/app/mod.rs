@@ -566,24 +566,43 @@ impl<D> App<D> {
     }
 
     async fn find_triggered_offset(&self, data: &[f32]) -> Option<i32> {
-        let mut offset = 0;
+        let length = data.len() as i32;
+        let mut offset_result = length / 2;
+        let mut offset_min_abs_mid = length / 2;
         let mut triggered = false;
-        let mut max = 0.0f32;
+        let mut triggered_once = false;
         let level_v = self.state.trigger_level_mv as f32 / 1000.0;
         for (i, &x) in data.iter().enumerate() {
-            if x > max {
-                max = x;
-            }
             if x > level_v {
                 triggered = true;
-                offset = i as i32;
-                break;
+                if !triggered_once {
+                    // defmt::info!("triggered at: {}", i);
+                    let offset = i as i32;
+                    let offset_mid = offset - length / 2;
+                    if offset_mid.abs() <= offset_min_abs_mid {
+                        // defmt::info!(
+                        //     "selecting triggered offset: {}, last offset_result: {}",
+                        //     offset_mid,
+                        //     offset_result
+                        // );
+                        offset_min_abs_mid = offset_mid.abs();
+                        offset_result = offset_mid;
+                    }
+                    triggered_once = true;
+                }
+            } else {
+                triggered_once = false;
             }
         }
         if !triggered {
             None
         } else {
-            Some(offset)
+            // defmt::info!(
+            //     "find triggered offset: {}, data len: {}",
+            //     offset_result,
+            //     length
+            // );
+            Some(offset_result)
         }
     }
 
