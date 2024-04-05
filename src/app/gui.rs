@@ -1,21 +1,20 @@
 use super::{
     gui_color,
     unit::{TimeScale, VoltageScale},
-    GuiColor, GuiColorRaw, Panel, PanelStyle, RunningState, State, StateMarker, StateVec,
+    GuiColor, Panel, PanelStyle, RunningState, State, StateMarker, StateVec,
     WaveformStorage, GUI_COLOR_LUT_4,
 };
 use crate::app::{AppError, ProbeChannel, Result};
 use embassy_time::Timer;
-use embedded_graphics::pixelcolor::PixelColor;
 use embedded_graphics::pixelcolor::{raw::RawU1, BinaryColor};
+use embedded_graphics::pixelcolor::{IntoStorage, PixelColor};
 use embedded_graphics::{
     draw_target::DrawTarget,
     framebuffer::Framebuffer,
     geometry::{Point, Size},
-    iterator::raw::RawDataSlice,
     mono_font::{ascii::*, MonoTextStyle},
     pixelcolor::{
-        raw::{ByteOrder, LittleEndian, RawData, RawU16, RawU4},
+        raw::{LittleEndian, RawData, RawU16},
         GrayColor, Rgb565,
     },
     primitives::*,
@@ -121,10 +120,8 @@ impl GUIInfo {
 pub struct Waveform {
     pub(crate) info: GUIInfo,
 }
-// const WF_WIDTH_WIDTH: u32 = (SCREEN_WIDTH - 48 - 4 - 1) / 1;
-// const WF_WIDTH_HEIGHT: u32 = (SCREEN_HEIGHT - 12 - 12) / 1;
 const WF_SCALING: u32 = 1;
-const WF_WIDTH_WIDTH: u32 = (SCREEN_WIDTH - 48 - 16) / WF_SCALING / 8 * 8;
+const WF_WIDTH_WIDTH: u32 = (SCREEN_WIDTH - 48 - 8) / WF_SCALING / 8 * 8;
 const WF_WIDTH_HEIGHT: u32 = (SCREEN_HEIGHT - 12 - 12) / WF_SCALING / 8 * 8;
 impl Default for Waveform {
     fn default() -> Self {
@@ -144,7 +141,43 @@ type WaveformColorRaw = RawU2;
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
 pub struct WaveformColor(WaveformColorRaw);
 type WaveformColorExRaw = RawU1;
-type WaveformColorEx = BinaryColor;
+#[cfg(not(feature = "waveform_3bit"))]
+type WaveformColorEx = WaveformColor;
+#[cfg(feature = "waveform_3bit")]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+pub struct WaveformColorEx(BinaryColor);
+#[cfg(feature = "waveform_3bit")]
+impl WaveformColorEx {
+    pub const fn new(luma: u8) -> Self {
+        Self(if luma != 0 {
+            BinaryColor::On
+        } else {
+            BinaryColor::Off
+        })
+    }
+}
+#[cfg(feature = "waveform_3bit")]
+impl PixelColor for WaveformColorEx {
+    type Raw = WaveformColorExRaw;
+}
+#[cfg(feature = "waveform_3bit")]
+impl From<u8> for WaveformColorEx {
+    fn from(data: u8) -> Self {
+        Self::new(data)
+    }
+}
+#[cfg(feature = "waveform_3bit")]
+impl From<RawU1> for WaveformColorEx {
+    fn from(data: RawU1) -> Self {
+        Self::new(data.into_inner())
+    }
+}
+#[cfg(feature = "waveform_3bit")]
+impl From<WaveformColorEx> for RawU1 {
+    fn from(color: WaveformColorEx) -> Self {
+        RawU1::new(color.0.into_storage())
+    }
+}
 
 impl WaveformColor {
     pub const fn new(luma: u8) -> Self {
@@ -169,6 +202,11 @@ impl From<WaveformColorRaw> for WaveformColor {
 impl From<WaveformColor> for WaveformColorRaw {
     fn from(color: WaveformColor) -> Self {
         color.0
+    }
+}
+impl From<u8> for WaveformColor {
+    fn from(data: u8) -> Self {
+        Self::new(data)
     }
 }
 impl From<WaveformColor> for Rgb565 {
@@ -238,6 +276,7 @@ static mut WF_FRAME_BUFFER: Framebuffer<
         )
     },
 >::new();
+#[cfg(feature = "waveform_3bit")]
 static mut WF_FRAME_BUFFER_EX: Framebuffer<
     WaveformColorEx,
     WaveformColorExRaw,
@@ -277,24 +316,20 @@ where
     }
     fn draw_state_vec(&self, display: &mut D, state: &mut State, vec: &StateVec) -> StateResult {
         let fb = unsafe { &mut WF_FRAME_BUFFER };
-        let fb_ex = unsafe { &mut WF_FRAME_BUFFER_EX };
         let display_target = display;
         let display = fb;
+        #[cfg(feature = "waveform_3bit")]
+        let fb_ex = unsafe { &mut WF_FRAME_BUFFER_EX };
+        #[cfg(feature = "waveform_3bit")]
         let display_ex = fb_ex;
+        #[cfg(not(feature = "waveform_3bit"))]
+        let display_ex = display;
         let update_full = !vec.at(StateMarker::Waveform);
         let update_data = update_full || !vec.at(StateMarker::WaveformData);
-        use waveform_color as gui_color;
-        // let style = PrimitiveStyleBuilder::new()
-        //     // .stroke_color(self.info.color_secondary)
-        //     .stroke_color(gui_color(1))
-        //     .stroke_width(1)
-        //     .fill_color(gui_color(0))
-        //     .build();
         let style = PrimitiveStyleBuilder::new()
-            // .stroke_color(self.info.color_secondary)
-            .stroke_color(WaveformColorEx::On)
+            .stroke_color(WaveformColorEx::from(1))
             .stroke_width(1)
-            .fill_color(WaveformColorEx::Off)
+            .fill_color(WaveformColorEx::from(0))
             .build();
         // let trans = self.info.position;
         let trans = Point::zero();
@@ -321,7 +356,7 @@ where
             Text::with_alignment(
                 "Test",
                 trans + center + Point::new(20, 20),
-                MonoTextStyle::new(&FONT_6X9, BinaryColor::On),
+                MonoTextStyle::new(&FONT_6X9, WaveformColorEx::from(1)),
                 Alignment::Center,
             )
             .draw(display_ex)
@@ -343,10 +378,7 @@ where
                             .map_err(|_| AppError::DisplayError)?;
                     } else {
                         let p = Point::new(x, y) + trans;
-                        // Pixel(p, gui_color(1))
-                        //     .draw(display)
-                        //     .map_err(|_| AppError::DisplayError)?;
-                        Pixel(p, WaveformColorEx::On)
+                        Pixel(p, WaveformColorEx::from(1))
                             .draw(display_ex)
                             .map_err(|_| AppError::DisplayError)?;
                     }
@@ -366,16 +398,15 @@ where
                             .map_err(|_| AppError::DisplayError)?;
                     } else {
                         let p = Point::new(x, y) + trans;
-                        // Pixel(p, gui_color(1))
-                        //     .draw(display_ex)
-                        //     .map_err(|_| AppError::DisplayError)?;
-                        Pixel(p, WaveformColorEx::On)
+                        Pixel(p, WaveformColorEx::from(1))
                             .draw(display_ex)
                             .map_err(|_| AppError::DisplayError)?;
                     }
                 }
             }
         }
+        #[cfg(not(feature = "waveform_3bit"))]
+        let display = display_ex;
 
         if update_data {
             let update_only = state.waveform.linked.len() > 3;
@@ -385,36 +416,9 @@ where
         let mut display_translated = display_target.translated(self.info.position);
         let mut display_converted = display_translated.color_converted();
         let data = display.data();
+        #[cfg(feature = "waveform_3bit")]
         let data_ex = display_ex.data();
-        // let contiguous =
-        //     data.iter()
-        //         .flat_map(|x| core::iter::repeat(x).take((WF_SCALING * WF_SCALING) as usize))
-        //         .zip(data_ex.iter().flat_map(|x| {
-        //             core::iter::repeat(x).take((WF_SCALING * WF_SCALING * 2) as usize)
-        //         }))
-        //         .enumerate()
-        //         .flat_map(|(i, (d, d_ex))| {
-        //             (0..4).map(move |j| {
-        //                 let d = (d >> ((3 - j) * 2)) & 0b11;
-        //                 let d_ex = (d_ex >> ((3 - j) + ((!(i & 0b1)) << 2))) & 0b1;
-        //                 WaveformCombinedColor::new(d, d_ex)
-        //             })
-        //         });
-        // let contiguous = data
-        //     .iter()
-        //     .zip(
-        //         data_ex
-        //             .iter()
-        //             .flat_map(|x| core::iter::repeat(x).take((2) as usize)),
-        //     )
-        //     .enumerate()
-        //     .flat_map(|(i, (d, d_ex))| {
-        //         (0..4).map(move |j| {
-        //             let d = (d >> ((3 - j) * 2)) & 0b11;
-        //             let d_ex = (d_ex >> ((3 - j) + ((!(i & 0b1)) << 2))) & 0b1;
-        //             WaveformCombinedColor::new(d, d_ex)
-        //         })
-        //     });
+        #[cfg(feature = "waveform_3bit")]
         let contiguous = data
             .chunks(WF_WIDTH_WIDTH as usize / (8 / WaveformColorRaw::BITS_PER_PIXEL))
             .zip(data_ex.chunks(WF_WIDTH_WIDTH as usize / (8 / WaveformColorExRaw::BITS_PER_PIXEL)))
@@ -441,6 +445,24 @@ where
                                 core::iter::repeat(color).take(WF_SCALING as usize)
                             })
                     })
+            });
+        #[cfg(not(feature = "waveform_3bit"))]
+        let contiguous = data
+            .chunks(WF_WIDTH_WIDTH as usize / (8 / WaveformColorRaw::BITS_PER_PIXEL))
+            // copy lines
+            .flat_map(|row| core::iter::repeat(row).take(WF_SCALING as usize))
+            .flat_map(|row| {
+                row.iter().flat_map(|&d| {
+                    (0..4)
+                        .map(move |j| {
+                            let d = (d >> ((3 - j) * 2)) & 0b11;
+                            WaveformColor::new(d)
+                        })
+                        .flat_map(|color| {
+                            // copy pixels
+                            core::iter::repeat(color).take(WF_SCALING as usize)
+                        })
+                })
             });
 
         display_converted

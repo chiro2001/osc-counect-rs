@@ -124,6 +124,7 @@ defmt = [
     "embassy-time/defmt-timestamp-uptime",
     "embassy-stm32/defmt",
 ]
+waveform_3bit = []
 
 [[bin]]
 name = "osc-counect"
