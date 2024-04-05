@@ -497,7 +497,7 @@ impl Waveform {
         for (i, pt) in data.iter().enumerate() {
             let pt = Point::new(
                 (i * (self.info.width() as usize) / data.len()) as i32,
-                ((*pt) * (self.info.height() as f32) / 6.0) as i32,
+                ((*pt) * -1.0 * (self.info.height() as f32) / 6.0) as i32,
             );
             if i != 0 {
                 Line::new(pt_last, pt)

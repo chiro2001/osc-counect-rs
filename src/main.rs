@@ -469,9 +469,10 @@ where
 {
     async fn read(
         &mut self,
-        options: app::input::AdcReadOptions,
-    ) -> app::Result<[f32; app::input::ADC_BUF_SZ]> {
-        let length = app::input::ADC_BUF_SZ.min(options.length - options.pos);
+        _options: app::input::AdcReadOptions,
+        buf: &mut [f32],
+    ) -> app::Result<usize> {
+        // let length = app::input::ADC_BUF_SZ.min(options.length - options.pos);
         let mut adc = embassy_stm32::adc::Adc::new(&self.adc, &mut Delay);
         let mut vrefint = adc.enable_vref(&mut Delay);
         let vrefint_sample = adc.read(&mut vrefint).await;
@@ -482,14 +483,23 @@ where
 
             (u32::from(sample) * VREFINT_MV / u32::from(vrefint_sample)) as u16
         };
-        let mut data = [0.0; app::input::ADC_BUF_SZ];
-        for i in 0..length {
+        let mut it = buf.iter_mut();
+        // for i in 0..length {
+        //     let v = adc.read(&mut self.channels.0).await;
+        //     let v = convert_to_millivolts(v);
+        //     data[i] = v as f32 / 1000.0;
+        //     // defmt::info!("{}: {}", i, v);
+        //     Timer::after_micros(1).await;
+        // }
+        // Ok(data)
+        let mut count = 0usize;
+        while let Some(data) = it.next() {
             let v = adc.read(&mut self.channels.0).await;
             let v = convert_to_millivolts(v);
-            data[i] = v as f32 / 1000.0;
-            // defmt::info!("{}: {}", i, v);
+            *data = v as f32 / 1000.0;
             Timer::after_micros(1).await;
+            count += 1;
         }
-        Ok(data)
+        Ok(count)
     }
 }

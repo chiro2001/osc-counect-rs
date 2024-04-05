@@ -200,25 +200,25 @@ where
             .draw(display, &mut self.state, &mut self.updated)
             .await?;
 
-        // generate random data for testing
-        static mut OFFSET: f64 = 0.0;
-        use libm::*;
-        for channel in (ProbeChannel::B as usize)..(ProbeChannel::Endding as usize) {
-            let data_new = (0..self.state.waveform[channel].len).map(|i| {
-                (sin(i as f64 * 0.3 + unsafe { OFFSET })
-                    * 2.0
-                    * (if channel != 0 { 1.0 } else { -1.0 })) as f32
-            });
-            self.state.waveform[channel].append_iter(data_new)?;
-        }
-        unsafe {
-            OFFSET += 0.1;
-            if OFFSET >= 2.0 * 3.14159265 {
-                OFFSET = 0.0;
-                self.updated.request(StateMarker::Waveform);
-            }
-        }
-        self.updated.request(StateMarker::WaveformData);
+        // // generate random data for testing
+        // static mut OFFSET: f64 = 0.0;
+        // use libm::*;
+        // for channel in (ProbeChannel::B as usize)..(ProbeChannel::Endding as usize) {
+        //     let data_new = (0..self.state.waveform[channel].len).map(|i| {
+        //         (sin(i as f64 * 0.3 + unsafe { OFFSET })
+        //             * 2.0
+        //             * (if channel != 0 { 1.0 } else { -1.0 })) as f32
+        //     });
+        //     self.state.waveform[channel].append_iter(data_new)?;
+        // }
+        // unsafe {
+        //     OFFSET += 0.1;
+        //     if OFFSET >= 2.0 * 3.14159265 {
+        //         OFFSET = 0.0;
+        //         self.updated.request(StateMarker::Waveform);
+        //     }
+        // }
+        // self.updated.request(StateMarker::WaveformData);
         Ok(())
     }
 
@@ -565,11 +565,7 @@ impl<D> App<D> {
         }
     }
 
-    pub async fn data_input(
-        &mut self,
-        data: [f32; ADC_BUF_SZ],
-        channel: ProbeChannel,
-    ) -> Result<()> {
+    pub async fn data_input(&mut self, data: &[f32], channel: ProbeChannel) -> Result<()> {
         // let s: &str = channel.into();
         // crate::info!("data input: {}, len {}", s, data.len());
         let idx: usize = channel.into();
@@ -581,28 +577,29 @@ impl<D> App<D> {
 }
 
 static KBD_CHANNEL: Channel<ThreadModeRawMutex, Keys, 16> = Channel::new();
-static ADC_CHANNEL: Channel<ThreadModeRawMutex, [f32; ADC_BUF_SZ], 2> = Channel::new();
+static ADC_CHANNEL: Channel<ThreadModeRawMutex, usize, 1> = Channel::new();
 static ADC_REQ_CHANNEL: Channel<ThreadModeRawMutex, AdcReadOptions, 8> = Channel::new();
+static mut ADC_DATA: [f32; ADC_BUF_SZ] = [0.0; ADC_BUF_SZ];
 
 #[embassy_executor::task]
 async fn adc_task(
     receiver: Receiver<'static, ThreadModeRawMutex, AdcReadOptions, 8>,
-    sender: Sender<'static, ThreadModeRawMutex, [f32; ADC_BUF_SZ], 2>,
+    sender: Sender<'static, ThreadModeRawMutex, usize, 1>,
     mut adc: impl AdcDevice + 'static,
 ) {
     loop {
         let options = receiver.receive().await;
         let mut length = options.length;
         while length > 0 {
-            let data = adc
-                .read(AdcReadOptions {
-                    pos: options.length - length,
-                    ..options
+            let pos = options.length - length;
+            let count = adc
+                .read(AdcReadOptions { pos, ..options }, unsafe {
+                    &mut ADC_DATA[pos..]
                 })
                 .await
                 .unwrap();
-            sender.send(data).await;
-            length -= length.min(ADC_BUF_SZ);
+            sender.send(count).await;
+            length -= length.min(count);
         }
         // Timer::after_millis(1000).await;
     }
@@ -649,11 +646,7 @@ where
     loop {
         if send_req {
             ADC_REQ_CHANNEL
-                .send(AdcReadOptions::new(
-                    ProbeChannel::A,
-                    WAVEFORM_LEN,
-                    1000,
-                ))
+                .send(AdcReadOptions::new(ProbeChannel::A, WAVEFORM_LEN, 1000))
                 .await;
             send_req = false;
         }
@@ -672,13 +665,15 @@ where
             Err(_) => {}
         }
         match ADC_CHANNEL.try_receive() {
-            Ok(data) => {
+            Ok(sz) => {
+                // defmt::info!("recv ADC data: {}", sz);
+                let data = unsafe { core::slice::from_raw_parts(ADC_DATA.as_ptr(), sz) };
                 app.data_input(data, ProbeChannel::A).await.unwrap();
                 send_req = true;
             }
             Err(_) => {}
         }
-        // Timer::after_millis(20).await;
+        Timer::after_millis(20).await;
     }
 }
 
