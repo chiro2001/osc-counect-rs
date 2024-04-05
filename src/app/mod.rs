@@ -18,7 +18,7 @@ use misc::*;
 use state::*;
 use unit::*;
 
-pub use misc::GuiColor;
+pub use gui::GuiColor;
 pub use misc::Result;
 
 use embassy_time::Timer;
@@ -610,8 +610,11 @@ impl<D> App<D> {
         // let s: &str = channel.into();
         // crate::info!("data input: {}, len {}", s, data.len());
         let idx: usize = channel.into();
-        // let offset = self.find_triggered_offset(data).await.unwrap_or(0);
-        let offset = 0;
+        let offset = if self.state.timebase_mode == TimebaseMode::Normal {
+            self.find_triggered_offset(data).await.unwrap_or(0)
+        } else {
+            0
+        };
         let waveform = &mut self.state.waveform[idx];
         waveform.append_iter(data.iter().copied(), offset)?;
         self.updated.request(StateMarker::WaveformData);

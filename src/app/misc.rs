@@ -1,7 +1,6 @@
-use embedded_graphics::pixelcolor::{raw::RawU16, Rgb565, RgbColor, WebColors};
 use num_enum::{FromPrimitive, IntoPrimitive};
 
-use super::{VoltageUnit, WaveformColor};
+use super::{gui_color, GuiColor, VoltageUnit, WaveformColor};
 
 pub type Result<T, E = AppError> = core::result::Result<T, E>;
 #[derive(Debug)]
@@ -12,43 +11,6 @@ pub enum AppError {
     Unexpected,
     LimitExceeded,
 }
-
-const COLOR_HALF_YELLOW: Rgb565 = Rgb565::new(Rgb565::MAX_R / 2, Rgb565::MAX_G / 2, 0);
-const COLOR_HALF_GREEN: Rgb565 = Rgb565::new(0, Rgb565::MAX_G / 2, 0);
-pub const GUI_COLOR_LUT_16: [Rgb565; 16] = [
-    Rgb565::BLACK,               // 0
-    Rgb565::CSS_DARK_SLATE_GRAY, // 1
-    Rgb565::YELLOW,              // 2
-    Rgb565::GREEN,               // 3
-    Rgb565::RED,                 // 4
-    Rgb565::MAGENTA,             // 5
-    Rgb565::CYAN,                // 6
-    Rgb565::CSS_LIGHT_GRAY,      // 7
-    Rgb565::CSS_PURPLE,          // 8
-    Rgb565::CSS_ORANGE_RED,      // 9
-    Rgb565::CSS_DARK_RED,        // 10
-    COLOR_HALF_YELLOW,           // 11
-    COLOR_HALF_GREEN,            // 12
-    Rgb565::WHITE,               // 13
-    Rgb565::WHITE,               // 14
-    Rgb565::WHITE,               // 15
-];
-pub const GUI_COLOR_LUT_4: [Rgb565; 4] = [
-    Rgb565::BLACK,          // 0
-    Rgb565::CSS_LIGHT_GRAY, // 1
-    Rgb565::YELLOW,         // 2
-    Rgb565::GREEN,          // 3
-];
-// pub type GuiColor = Gray4;
-// pub const fn gui_color(r: u8) -> GuiColor {
-//     Gray4::new(r)
-// }
-pub type GuiColor = Rgb565;
-pub type GuiColorRaw = RawU16;
-pub const fn gui_color(r: u16) -> GuiColor {
-    GUI_COLOR_LUT_16[r as usize]
-}
-pub const GUI_BG_COLOR: GuiColor = gui_color(1);
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
 pub enum Window {
@@ -299,28 +261,21 @@ impl WaveformStorage {
             None
         }
     }
-    // pub fn iter<'a, T>(&'a self) -> IterWaveform<'a, T> {
-    //     let it = self.linked.iter();
-    //     IterWaveform { it, parent: self }
-    // }
 }
 
-// pub struct IterWaveform<'a, T> {
-//     it: T,
-//     parent: &'a WaveformStorage,
-// }
-
-// impl<'a, T> Iterator for IterWaveform<'a, T>
-// where
-//     T: Iterator<Item = &'a (bool, usize)>,
-// {
-//     type Item = &'a [f32];
-//     fn next(&mut self) -> Option<Self::Item> {
-//         let next = self.it.next();
-//         self.it = next;
-//         match next {
-//             Some((_, x)) => Some(&self.parent.data[*x]),
-//             None => None,
-//         }
-//     }
-// }
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TimebaseMode {
+    #[default]
+    Normal,
+    Rolling,
+    XY,
+}
+impl TimebaseMode {
+    pub fn str(&self) -> &'static str {
+        match self {
+            TimebaseMode::Normal => "Normal",
+            TimebaseMode::Rolling => "Rolling",
+            TimebaseMode::XY => "XY",
+        }
+    }
+}

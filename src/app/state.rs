@@ -3,8 +3,7 @@ use core::mem::MaybeUninit;
 use num_enum::IntoPrimitive;
 
 use super::{
-    unit::{TimeScale, VoltageScale},
-    ChannelInfo, Panel, ProbeChannel, WaveformStorage, Window,
+    unit::{TimeScale, VoltageScale}, ChannelInfo, Panel, ProbeChannel, TimebaseMode, WaveformStorage, Window
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
@@ -53,8 +52,9 @@ pub struct State {
     pub clock: [char; 5],
     pub window: Window,
     pub window_next: Option<Window>,
-    // TODO: waveform data
+    // waveform data
     pub waveform: &'static mut [WaveformStorage; ProbeChannel::Endding as usize],
+    pub timebase_mode: TimebaseMode,
     pub time_scale_ns: u64,
     // channel settings
     pub channel_info: [ChannelInfo; ProbeChannel::Endding as usize],
@@ -136,6 +136,7 @@ impl Default for State {
             window: Default::default(),
             window_next: Default::default(),
             waveform: unsafe { WAVEFORM_DATA.assume_init_mut() },
+            timebase_mode: Default::default(),
             time_scale_ns: 100_000,
             channel_info: core::array::from_fn(|_| Default::default()),
             channel_current: Default::default(),
