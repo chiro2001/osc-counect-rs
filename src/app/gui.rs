@@ -1,13 +1,13 @@
 use super::{
     gui_color,
     unit::{TimeScale, VoltageScale},
-    GuiColor, Panel, PanelStyle, RunningState, State, StateMarker, StateVec,
-    WaveformStorage, GUI_COLOR_LUT_4,
+    GuiColor, Panel, PanelStyle, RunningState, State, StateMarker, StateVec, WaveformStorage,
+    GUI_COLOR_LUT_4,
 };
 use crate::app::{AppError, ProbeChannel, Result};
 use embassy_time::Timer;
-use embedded_graphics::pixelcolor::{raw::RawU1, BinaryColor};
-use embedded_graphics::pixelcolor::{IntoStorage, PixelColor};
+use embedded_graphics::pixelcolor::raw::RawU1;
+use embedded_graphics::pixelcolor::PixelColor;
 use embedded_graphics::{
     draw_target::DrawTarget,
     framebuffer::Framebuffer,
@@ -145,14 +145,14 @@ type WaveformColorExRaw = RawU1;
 type WaveformColorEx = WaveformColor;
 #[cfg(feature = "waveform_3bit")]
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
-pub struct WaveformColorEx(BinaryColor);
+pub struct WaveformColorEx(embedded_graphics::pixelcolor::BinaryColor);
 #[cfg(feature = "waveform_3bit")]
 impl WaveformColorEx {
     pub const fn new(luma: u8) -> Self {
         Self(if luma != 0 {
-            BinaryColor::On
+            embedded_graphics::pixelcolor::BinaryColor::On
         } else {
-            BinaryColor::Off
+            embedded_graphics::pixelcolor::BinaryColor::Off
         })
     }
 }
@@ -175,6 +175,7 @@ impl From<RawU1> for WaveformColorEx {
 #[cfg(feature = "waveform_3bit")]
 impl From<WaveformColorEx> for RawU1 {
     fn from(color: WaveformColorEx) -> Self {
+        use embedded_graphics::pixelcolor::IntoStorage;
         RawU1::new(color.0.into_storage())
     }
 }
