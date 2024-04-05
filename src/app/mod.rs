@@ -10,7 +10,7 @@ use core::ops::Range;
 
 use embassy_sync::{
     blocking_mutex::raw::ThreadModeRawMutex,
-    channel::{Channel, Sender},
+    channel::{Channel, Receiver, Sender},
 };
 use gui::*;
 use input::*;
@@ -564,7 +564,11 @@ impl<D> App<D> {
         }
     }
 
-    pub async fn data_input(&mut self, data: &[f32], channel: ProbeChannel) -> Result<()> {
+    pub async fn data_input(
+        &mut self,
+        data: [f32; ADC_BUF_SZ],
+        channel: ProbeChannel,
+    ) -> Result<()> {
         // let s: &str = channel.into();
         // crate::info!("data input: {}, len {}", s, data.len());
         let idx: usize = channel.into();
@@ -576,23 +580,29 @@ impl<D> App<D> {
 }
 
 static KBD_CHANNEL: Channel<ThreadModeRawMutex, Keys, 16> = Channel::new();
-static ADC_CHANNEL: Channel<ThreadModeRawMutex, &[f32], 4> = Channel::new();
+static ADC_CHANNEL: Channel<ThreadModeRawMutex, [f32; ADC_BUF_SZ], 2> = Channel::new();
+static ADC_REQ_CHANNEL: Channel<ThreadModeRawMutex, AdcReadOptions, 8> = Channel::new();
 
 #[embassy_executor::task]
 async fn adc_task(
-    sender: Sender<'static, ThreadModeRawMutex, &[f32], 4>,
+    receiver: Receiver<'static, ThreadModeRawMutex, AdcReadOptions, 8>,
+    sender: Sender<'static, ThreadModeRawMutex, [f32; ADC_BUF_SZ], 2>,
     adc: impl AdcDevice + 'static,
 ) {
     loop {
-        let data: &[f32] = adc
-            .read(AdcReadOptions {
-                channel: ProbeChannel::A,
-                length: 128,
-                frequency: 1000,
-            })
-            .await
-            .unwrap();
-        sender.send(data).await;
+        let options = receiver.receive().await;
+        let mut length = options.length;
+        while length > 0 {
+            let data = adc
+                .read(AdcReadOptions {
+                    pos: options.length - length,
+                    ..options
+                })
+                .await
+                .unwrap();
+            sender.send(data).await;
+            length -= length.min(ADC_BUF_SZ);
+        }
         Timer::after_millis(1000).await;
     }
 }
@@ -627,8 +637,21 @@ where
     spawner
         .spawn(keyboad_task(KBD_CHANNEL.sender(), keyboard))
         .unwrap();
-    spawner.spawn(adc_task(ADC_CHANNEL.sender(), adc)).unwrap();
+    spawner
+        .spawn(adc_task(
+            ADC_REQ_CHANNEL.receiver(),
+            ADC_CHANNEL.sender(),
+            adc,
+        ))
+        .unwrap();
+    let mut send_req = true;
     loop {
+        if send_req {
+            ADC_REQ_CHANNEL
+                .send(AdcReadOptions::new(ProbeChannel::A, ADC_BUF_SZ, 1000))
+                .await;
+            send_req = false;
+        }
         app.draw().await.unwrap();
         app.value_init().await.unwrap();
         if let Some(window_next) = app.state.window_next {
@@ -646,6 +669,7 @@ where
         match ADC_CHANNEL.try_receive() {
             Ok(data) => {
                 app.data_input(data, ProbeChannel::A).await.unwrap();
+                send_req = true;
             }
             Err(_) => {}
         }
