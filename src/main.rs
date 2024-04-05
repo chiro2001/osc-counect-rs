@@ -20,7 +20,7 @@ use embassy_stm32::{
     gpio::{Flex, OutputType, Pull},
     peripherals::ADC1,
     time::Hertz,
-    timer::{CaptureCompare16bitInstance, Channel},
+    timer::{Channel, GeneralInstance4Channel},
     Peripheral, PeripheralRef,
 };
 use embassy_stm32::{
@@ -73,7 +73,7 @@ impl<'d> InoutPin for DioPin<'d> {
     }
 }
 
-struct Buzzer<'d, T> {
+struct Buzzer<'d, T: GeneralInstance4Channel> {
     pwm: SimplePwm<'d, T>,
     channel: Channel,
     delay_ms: u64,
@@ -81,7 +81,7 @@ struct Buzzer<'d, T> {
 }
 impl<'d, T> Buzzer<'d, T>
 where
-    T: CaptureCompare16bitInstance,
+    T: GeneralInstance4Channel,
 {
     pub fn new(pwm: SimplePwm<'d, T>, channel: Channel, delay_ms: u64) -> Self {
         Self {
@@ -173,18 +173,45 @@ async fn main(spawner: Spawner) {
                 freq: Hertz(8_000_000),
                 mode: HseMode::Oscillator,
             });
-            config.rcc.pll = Some(Pll {
-                src: PllSource::HSE,
-                prediv: PllPreDiv::DIV1,
-                mul: PllMul::MUL9,
-            });
+            #[cfg(not(feature = "overclocking"))]
+            {
+                config.rcc.pll = Some(Pll {
+                    src: PllSource::HSE,
+                    prediv: PllPreDiv::DIV1,
+                    mul: PllMul::MUL9,
+                });
+            }
+            #[cfg(feature = "overclocking")]
+            {
+                config.rcc.pll = Some(Pll {
+                    src: PllSource::HSE,
+                    prediv: PllPreDiv::DIV1,
+                    // overclocking to 8 * 16 = 128 MHz
+                    mul: PllMul::MUL16,
+                });
+            }
         }
         config.rcc.sys = Sysclk::PLL1_P;
         #[cfg(feature = "stm32f103vc")]
         {
-            config.rcc.ahb_pre = AHBPrescaler::DIV1;
-            config.rcc.apb1_pre = APBPrescaler::DIV2;
+            #[cfg(feature = "overclocking")]
+            {
+                config.rcc.ahb_pre = AHBPrescaler::DIV2;
+            }
+            #[cfg(not(feature = "overclocking"))]
+            {
+                config.rcc.apb1_pre = APBPrescaler::DIV2;
+            }
             config.rcc.apb2_pre = APBPrescaler::DIV1;
+            // overclocking ADC 16MHz, note that the max ADC clock is 14MHz
+            #[cfg(feature = "overclocking")]
+            {
+                config.rcc.adc_pre = ADCPrescaler::DIV4;
+            }
+            #[cfg(not(feature = "overclocking"))]
+            {
+                config.rcc.adc_pre = ADCPrescaler::DIV6;
+            }
         }
         #[cfg(feature = "stm32h743vi")]
         {

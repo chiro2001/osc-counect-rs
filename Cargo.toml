@@ -125,6 +125,7 @@ defmt = [
     "embassy-stm32/defmt",
 ]
 waveform_3bit = []
+overclocking = ["embassy-stm32/overclocking"]
 
 [[bin]]
 name = "osc-counect"
