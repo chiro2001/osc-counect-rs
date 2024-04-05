@@ -34,10 +34,10 @@ pub const GUI_COLOR_LUT_16: [Rgb565; 16] = [
     Rgb565::WHITE,               // 15
 ];
 pub const GUI_COLOR_LUT_4: [Rgb565; 4] = [
-    Rgb565::BLACK,  // 0
-    Rgb565::WHITE,  // 1
-    Rgb565::YELLOW, // 2
-    Rgb565::GREEN,  // 3
+    Rgb565::BLACK,          // 0
+    Rgb565::CSS_LIGHT_GRAY, // 1
+    Rgb565::YELLOW,         // 2
+    Rgb565::GREEN,          // 3
 ];
 // pub type GuiColor = Gray4;
 // pub const fn gui_color(r: u8) -> GuiColor {

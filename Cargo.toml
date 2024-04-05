@@ -52,6 +52,7 @@ fugit = "0.3.7"
 nb = "1"
 num_enum = { version = "0.7.2", default-features = false }
 libm = { version = "0.2.8", features = ["rand"] }
+itertools = { version = "0.12.1", default-features = false }
 
 [target.'cfg(all(target_arch = "arm", target_os = "none"))'.dependencies]
 embassy-stm32 = { version = "0.1.0", path = "./embassy/embassy-stm32", features = [

@@ -25,6 +25,7 @@ use embedded_graphics::{
     Drawable, Pixel,
 };
 use embedded_graphics::{draw_target::DrawTargetExt, pixelcolor::raw::RawU2};
+use itertools::Itertools;
 
 pub const TEXT_OFFSET: Point = Point::new(0, 2);
 pub const SCREEN_WIDTH: u32 = 320;
@@ -509,11 +510,47 @@ impl Waveform {
         let mut pt_last = Point::new(0, 0);
         let fill = (-offset_idx.min(0)) as usize;
         let skip = offset_idx.max(0) as usize;
-        for (i, pt) in data.iter().skip(skip).enumerate() {
+        let data_it = data.iter().skip(skip);
+        let data_it_len = data_it.len();
+        // use Lagrange interpolation
+        let l_funcs = data_it.clone().enumerate().map(|(i, d)| {
+            // input: f(0), f(2), f(4), f(6)... target: f(1), f(3), f(5), f(7)...
+            let idx = i * 2;
+            let indexes = (0..data_it_len).filter(move |x| *x != i);
+            let l_base = indexes
+                .clone()
+                .map(|x| (idx as f32 - x as f32 * 2.0))
+                .tree_fold1(|a, b| a * b)
+                .unwrap();
+            move |x| {
+                indexes
+                    .map(|j| (x - (j * 2) as f32) as f32)
+                    .tree_fold1(|a, b| a * b)
+                    .unwrap()
+                    * d
+                    / l_base
+            }
+        });
+        let lagrange = |x: f32| {
+            l_funcs
+                .clone()
+                .zip(data_it.clone())
+                .map(|(l, y)| l(x) * *y)
+                .sum::<f32>()
+        };
+        let interpolated = (0..data_it_len)
+            .map(|x| x * 2 + 1)
+            .map(|x| lagrange(x as f32));
+        let data_it = data_it
+            .clone()
+            .zip(interpolated)
+            .flat_map(|(x1, x2)| [*x1, x2]);
+        for (i, v) in data_it.enumerate() {
+            // defmt::info!("drawing: {} {}", i, v);
             let idx = i + fill;
             let pt = Point::new(
-                (idx * (self.info.width() as usize) / data.len()) as i32,
-                ((*pt) * -1.0 * (self.info.height() as f32) / 6.0) as i32,
+                (idx * (self.info.width() as usize) * 2 / data.len()) as i32,
+                (v * -1.0 * (self.info.height() as f32) / 6.0) as i32,
             );
             if i != 0 {
                 Line::new(pt_last, pt)
@@ -539,7 +576,8 @@ impl Waveform {
         // let color_secondary = GuiColor::new(color.r() / 2, color.g() / 2, color.b() / 2);
         // let color_secondary = gui_color(GuiColorRaw::from(color).into_inner() + 9);
         use waveform_color as gui_color;
-        let color_secondary = color;
+        // let color_secondary = color;
+        let color_secondary = gui_color(1);
         if !update_only {
             for (idx, it) in storage.linked.iter().enumerate() {
                 if !it.0 {

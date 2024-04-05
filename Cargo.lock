@@ -1281,6 +1281,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "jpeg-decoder"
 version = "0.1.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1589,6 +1598,7 @@ dependencies = [
  "futures",
  "heapless 0.8.0",
  "ili9341",
+ "itertools",
  "libm",
  "log",
  "nb 1.1.0",

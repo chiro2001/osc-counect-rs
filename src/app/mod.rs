@@ -647,13 +647,23 @@ async fn adc_task(
     }
 }
 
+// struct KeepMutex;
+// impl Drop for KeepMutex {
+//     fn drop(&mut self) {
+//         defmt::info!("KeepMutex drop");
+//     }
+// }
+// static DEV_MUTEX: Mutex<ThreadModeRawMutex, KeepMutex> = Mutex::new(KeepMutex {});
 #[embassy_executor::task]
 async fn keyboad_task(
     sender: Sender<'static, ThreadModeRawMutex, Keys, 16>,
     mut keyboard: impl KeyboardDevice + 'static,
 ) {
     loop {
-        let key = keyboard.read_key();
+        let key = {
+            // DEV_MUTEX.lock().await;
+            keyboard.read_key()
+        };
         if key != Keys::None {
             // let s: &str = key.into();
             // crate::debug!("send Key: {:?}", s);
@@ -665,13 +675,19 @@ async fn keyboad_task(
     }
 }
 
-#[cfg(feature = "embedded")]
+// #[cfg(feature = "embedded")]
 // #[embassy_executor::task]
-pub async fn main_loop<D, K, A>(spawner: embassy_executor::Spawner, display: D, keyboard: K, adc: A)
-where
+pub async fn main_loop<D, K, A, F>(
+    spawner: embassy_executor::Spawner,
+    display: D,
+    keyboard: K,
+    adc: A,
+    loop_start: F,
+) where
     D: DrawTarget<Color = GuiColor> + 'static,
     K: KeyboardDevice + 'static,
     A: AdcDevice + 'static,
+    F: Fn(&D) -> (),
 {
     let mut app = App::new(display);
     spawner
@@ -686,6 +702,7 @@ where
         .unwrap();
     let mut send_req = true;
     loop {
+        loop_start(&app.display);
         if send_req {
             ADC_REQ_CHANNEL
                 .send(AdcReadOptions::new(ProbeChannel::A, WAVEFORM_LEN, 1000))
@@ -719,42 +736,66 @@ where
     }
 }
 
-#[cfg(feature = "simulator")]
-// #[embassy_executor::task]
-pub async fn main_loop(
-    display: embedded_graphics_simulator::SimulatorDisplay<GuiColor>,
-    mut window: embedded_graphics_simulator::Window,
-) {
-    use defmt::*;
-    let mut app = App::new(display);
-    'running: loop {
-        app.draw().await.unwrap();
-        app.value_init().await.unwrap();
+// #[cfg(feature = "simulator")]
+// // #[embassy_executor::task]
+// pub async fn main_loop2<K, A, F>(
+//     spawner: embassy_executor::Spawner,
+//     display: embedded_graphics_simulator::SimulatorDisplay<GuiColor>,
+//     keyboard: K,
+//     adc: A,
+//     loop_start: F,
+// ) where
+//     K: KeyboardDevice + 'static,
+//     A: AdcDevice + 'static,
+//     F: Fn(&embedded_graphics_simulator::SimulatorDisplay<GuiColor>) -> (),
+// {
+//     // use defmt::*;
+//     let mut app = App::new(display);
+//     spawner
+//         .spawn(keyboad_task(KBD_CHANNEL.sender(), keyboard))
+//         .unwrap();
+//     spawner
+//         .spawn(adc_task(
+//             ADC_REQ_CHANNEL.receiver(),
+//             ADC_CHANNEL.sender(),
+//             adc,
+//         ))
+//         .unwrap();
+//     let mut send_req = true;
+//     loop {
+//         loop_start(&app.display);
 
-        if let Some(window_next) = app.state.window_next {
-            app.state.window = window_next;
-        }
-        app.state.window_next = None;
+//         if send_req {
+//             ADC_REQ_CHANNEL
+//                 .send(AdcReadOptions::new(ProbeChannel::A, WAVEFORM_LEN, 1000))
+//                 .await;
+//             send_req = false;
+//         }
 
-        window.update(&app.display);
-        use embedded_graphics_simulator::SimulatorEvent;
-        for event in window.events() {
-            match event {
-                SimulatorEvent::Quit => break 'running,
-                SimulatorEvent::KeyUp {
-                    keycode,
-                    keymod: _,
-                    repeat,
-                } => {
-                    if !repeat {
-                        let key = Keys::from(keycode);
-                        info!("KeyUp: {:?} sdl code {:?}", key, keycode);
-                        app.input_key_event(key).unwrap();
-                    }
-                }
-                _ => {}
-            }
-        }
-        Timer::after_millis(20).await;
-    }
-}
+//         app.draw().await.unwrap();
+//         app.value_init().await.unwrap();
+
+//         if let Some(window_next) = app.state.window_next {
+//             app.state.window = window_next;
+//         }
+//         app.state.window_next = None;
+//         match KBD_CHANNEL.try_receive() {
+//             Ok(key) => {
+//                 let s: &str = key.into();
+//                 crate::info!("recv Key: {:?}", s);
+//                 app.input_key_event(key).unwrap();
+//             }
+//             Err(_) => {}
+//         }
+//         match ADC_CHANNEL.try_receive() {
+//             Ok(sz) => {
+//                 // defmt::info!("recv ADC data: {}", sz);
+//                 let data = unsafe { core::slice::from_raw_parts(ADC_DATA.as_ptr(), sz) };
+//                 app.data_input(data, ProbeChannel::A).await.unwrap();
+//                 send_req = true;
+//             }
+//             Err(_) => {}
+//         }
+//         Timer::after_millis(20).await;
+//     }
+// }
