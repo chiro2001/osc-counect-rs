@@ -410,9 +410,11 @@ where
         let display = display_ex;
 
         if update_data {
-            let update_only = state.waveform.linked.len() > 3;
-            let color = ProbeChannel::from(state.channel_current).color_waveform();
-            self.draw_values(display, &mut state.waveform, color, update_only)?;
+            for channel in 0..(ProbeChannel::Endding as usize) {
+                let update_only = state.waveform[channel].linked.len() > 3;
+                let color = ProbeChannel::from(channel).color_waveform();
+                self.draw_values(display, &mut state.waveform[channel], color, update_only)?;
+            }
         }
         let mut display_translated = display_target.translated(self.info.position);
         let mut display_converted = display_translated.color_converted();

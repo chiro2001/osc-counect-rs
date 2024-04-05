@@ -208,9 +208,14 @@ where
         //         *y = (sin(i as f64 * 0.1 + unsafe { OFFSET }) * 2.0) as f32;
         //     });
         // let _ = self.state.waveform.pop();
-        let data_new = (0..self.state.waveform.len)
-            .map(|i| (sin(i as f64 * 0.1 + unsafe { OFFSET }) * 2.0) as f32);
-        self.state.waveform.append_iter(data_new)?;
+        for channel in 0..(ProbeChannel::Endding as usize) {
+            let data_new = (0..self.state.waveform[channel].len).map(|i| {
+                (sin(i as f64 * 0.3 + unsafe { OFFSET })
+                    * 2.0
+                    * (if channel != 0 { 1.0 } else { -1.0 })) as f32
+            });
+            self.state.waveform[channel].append_iter(data_new)?;
+        }
         unsafe {
             OFFSET += 0.1;
             if OFFSET >= 2.0 * 3.14159265 {

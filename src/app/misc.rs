@@ -195,7 +195,7 @@ impl Default for ChannelInfo {
     }
 }
 
-#[derive(IntoPrimitive, Debug, Default, PartialEq, PartialOrd, Clone, Copy)]
+#[derive(IntoPrimitive, FromPrimitive, Debug, Default, PartialEq, PartialOrd, Clone, Copy)]
 #[repr(usize)]
 pub enum ProbeChannel {
     #[default]

@@ -1,3 +1,5 @@
+use core::mem::MaybeUninit;
+
 use num_enum::IntoPrimitive;
 
 use super::{
@@ -51,7 +53,7 @@ pub struct State {
     pub window: Window,
     pub window_next: Option<Window>,
     // TODO: waveform data
-    pub waveform: WaveformStorage,
+    pub waveform: &'static mut [WaveformStorage; ProbeChannel::Endding as usize],
     pub time_scale_ns: u64,
     // channel settings
     pub channel_info: [ChannelInfo; ProbeChannel::Endding as usize],
@@ -107,8 +109,21 @@ impl StateVec {
     }
 }
 
+// maybe not initialized
+static mut WAVEFORM_DATA: MaybeUninit<[WaveformStorage; ProbeChannel::Endding as usize]> =
+    MaybeUninit::uninit();
+
 impl Default for State {
     fn default() -> Self {
+        // initialize waveform data
+        unsafe {
+            for i in 0..ProbeChannel::Endding as usize {
+                core::ptr::write(
+                    &mut WAVEFORM_DATA.assume_init_mut()[i],
+                    WaveformStorage::default(),
+                );
+            }
+        }
         Self {
             panel_page: 0,
             panel_focused: Default::default(),
@@ -117,7 +132,7 @@ impl Default for State {
             clock: ['1', '2', ':', '4', '5'],
             window: Default::default(),
             window_next: Default::default(),
-            waveform: Default::default(),
+            waveform: unsafe { WAVEFORM_DATA.assume_init_mut() },
             time_scale_ns: 100_000,
             channel_info: core::array::from_fn(|_| Default::default()),
             channel_current: Default::default(),
