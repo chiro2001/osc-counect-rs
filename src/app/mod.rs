@@ -616,7 +616,11 @@ impl<D> App<D> {
             0
         };
         let waveform = &mut self.state.waveform[idx];
-        waveform.append_iter(data.iter().copied(), offset)?;
+        if self.state.timebase_mode == TimebaseMode::Normal {
+            waveform.append_frame_iter(data.iter().copied(), offset)?;
+        } else {
+            waveform.append_rolling_data(data)?;
+        }
         self.updated.request(StateMarker::WaveformData);
         Ok(())
     }
@@ -640,11 +644,12 @@ async fn adc_task(
             let pos = options.length - length;
             let count = adc
                 .read(AdcReadOptions { pos, ..options }, unsafe {
-                    &mut ADC_DATA[pos..]
+                    &mut ADC_DATA[pos..options.length]
                 })
                 .await
                 .unwrap();
             sender.send(count).await;
+            assert!(count <= length, "count: {}, length: {}", count, length);
             length -= length.min(count);
         }
         // Timer::after_millis(1000).await;
@@ -708,8 +713,13 @@ pub async fn main_loop<D, K, A, F>(
     loop {
         loop_start(&app.display);
         if send_req {
+            let request_length = match app.state.timebase_mode {
+                TimebaseMode::Normal => WAVEFORM_LEN,
+                TimebaseMode::Rolling => WAVEFORM_LEN / 32,
+                TimebaseMode::XY => WAVEFORM_LEN,
+            };
             ADC_REQ_CHANNEL
-                .send(AdcReadOptions::new(ProbeChannel::A, WAVEFORM_LEN, 1000))
+                .send(AdcReadOptions::new(ProbeChannel::A, request_length, 1000))
                 .await;
             send_req = false;
         }

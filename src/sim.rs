@@ -85,11 +85,17 @@ impl AudioAdcDevice {
         let device = host
             .default_input_device()
             .expect("no input device available");
+        device
+            .supported_input_configs()
+            .unwrap()
+            .for_each(|config| {
+                info!("supported input config: {:?}", config);
+            });
         let stream = device
             .build_input_stream(
                 &cpal::StreamConfig {
                     channels: 1,
-                    sample_rate: cpal::SampleRate(44100),
+                    sample_rate: cpal::SampleRate(8192),
                     buffer_size: cpal::BufferSize::Fixed(4096),
                 },
                 move |data: &[f32], _: &_| {

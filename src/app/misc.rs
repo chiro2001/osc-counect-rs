@@ -191,13 +191,18 @@ impl ProbeChannel {
     }
 }
 
-pub const WAVEFORM_LEN: usize = 10240;
+#[cfg(feature = "embedded")]
+pub const WAVEFORM_LEN: usize = 32;
+#[cfg(not(feature = "embedded"))]
+pub const WAVEFORM_LEN: usize = 16 * 1024;
 pub const WAVEFORM_HISTORY_LEN: usize = 5;
 #[derive(Debug)]
 pub struct WaveformStorage {
     pub linked: heapless::Deque<(bool, usize), WAVEFORM_HISTORY_LEN>,
+    // when in rolling mode, only draw data[0]
     pub data: [[f32; WAVEFORM_LEN]; WAVEFORM_HISTORY_LEN],
     pub offset: [i32; WAVEFORM_HISTORY_LEN],
+    pub rolling_offset: usize,
     pub len: usize,
     pub unit: VoltageUnit,
 }
@@ -212,6 +217,7 @@ impl Default for WaveformStorage {
             linked,
             data: core::array::from_fn(|_| [0.0; WAVEFORM_LEN]),
             offset: Default::default(),
+            rolling_offset: 0,
             len: WAVEFORM_LEN,
             unit: VoltageUnit::MilliVolt,
         }
@@ -222,10 +228,10 @@ impl WaveformStorage {
     pub fn clear(&mut self) {
         self.linked.clear();
     }
-    pub fn append(&mut self, data: &[f32], offset: i32) -> Result<()> {
-        self.append_iter(data.iter().cloned(), offset)
+    pub fn append_frame(&mut self, data: &[f32], offset: i32) -> Result<()> {
+        self.append_frame_iter(data.iter().cloned(), offset)
     }
-    pub fn append_iter<I>(&mut self, data: I, offset: i32) -> Result<()>
+    pub fn append_frame_iter<I>(&mut self, data: I, offset: i32) -> Result<()>
     where
         I: IntoIterator<Item = f32>,
     {
@@ -260,6 +266,27 @@ impl WaveformStorage {
         } else {
             None
         }
+    }
+    pub fn append_rolling_data(&mut self, data: &[f32]) -> Result<()> {
+        if data.len() > WAVEFORM_LEN {
+            // copy to data[0] start
+            self.data[0].copy_from_slice(&data[..WAVEFORM_LEN]);
+            self.rolling_offset = 0;
+        } else {
+            // append to ring buf self.data
+            let offset = self.rolling_offset as usize;
+            if offset + data.len() <= WAVEFORM_LEN {
+                self.data[0][offset..offset + data.len()].copy_from_slice(data);
+                self.rolling_offset += data.len();
+            } else {
+                let len = WAVEFORM_LEN - offset;
+                self.data[0][offset..].copy_from_slice(&data[..len]);
+                self.data[0][..data.len() - len].copy_from_slice(&data[len..]);
+                self.rolling_offset = data.len() - len;
+            }
+            // self.rolling_offset = (offset + data.len()) % WAVEFORM_LEN;
+        }
+        Ok(())
     }
 }
 

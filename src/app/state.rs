@@ -136,7 +136,7 @@ impl Default for State {
             window: Default::default(),
             window_next: Default::default(),
             waveform: unsafe { WAVEFORM_DATA.assume_init_mut() },
-            timebase_mode: Default::default(),
+            timebase_mode: TimebaseMode::Rolling,
             time_scale_ns: 100_000,
             channel_info: core::array::from_fn(|_| Default::default()),
             channel_current: Default::default(),

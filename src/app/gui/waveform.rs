@@ -11,7 +11,8 @@ use embedded_graphics::{
 use itertools::Itertools;
 
 use crate::app::{
-    waveform_color, AppError, ProbeChannel, Result, State, StateMarker, StateVec, WaveformStorage,
+    waveform_color, AppError, ProbeChannel, Result, State, StateMarker, StateVec, TimebaseMode,
+    WaveformStorage,
 };
 
 use super::{
@@ -117,7 +118,7 @@ where
             .build();
         // let trans = self.info.position;
         let trans = Point::zero();
-        if update_full {
+        if update_full || state.timebase_mode != TimebaseMode::Normal {
             Rectangle::new(trans, self.info.size)
                 .draw_styled(&style, display_ex)
                 .map_err(|_| AppError::DisplayError)?;
@@ -195,10 +196,21 @@ where
         .map_err(|_| AppError::DisplayError)?;
 
         if update_data {
-            for channel in 0..(ProbeChannel::Endding as usize) {
-                let update_only = state.waveform[channel].linked.len() > 3;
-                let color = ProbeChannel::from(channel).color_waveform();
-                self.draw_values(display, &mut state.waveform[channel], color, update_only)?;
+            match state.timebase_mode {
+                TimebaseMode::Normal | TimebaseMode::Rolling => {
+                    for channel in 0..(ProbeChannel::Endding as usize) {
+                        let update_only = state.waveform[channel].linked.len() > 3;
+                        let color = ProbeChannel::from(channel).color_waveform();
+                        self.draw_channel(
+                            display,
+                            &mut state.waveform[channel],
+                            color,
+                            update_only,
+                            state.timebase_mode == TimebaseMode::Rolling,
+                        )?;
+                    }
+                }
+                TimebaseMode::XY => {}
             }
         }
         let mut display_translated = display_target.translated(self.info.position);
@@ -282,6 +294,7 @@ impl Waveform {
         offset_idx: i32,
         color: WaveformColor,
         interpolate: bool,
+        rolling_mode: bool,
     ) -> Result<()>
     where
         D: DrawTarget<Color = WaveformColor>,
@@ -311,7 +324,7 @@ impl Waveform {
             pt_last = pt;
             Ok(())
         };
-        if interpolate {
+        if interpolate && !rolling_mode {
             let data_it = data.iter().skip(skip);
             let data_it_len = data_it.len();
             // use Lagrange interpolation
@@ -347,24 +360,36 @@ impl Waveform {
                 .clone()
                 .zip(interpolated)
                 .flat_map(|(x1, x2)| [*x1, x2]);
-            for (i, v) in it.clone().enumerate() {
+            for (i, v) in it.enumerate() {
                 paint_point((i, v))?;
             }
         } else {
-            let it = data.iter().skip(skip);
-            for (i, v) in it.clone().enumerate() {
-                paint_point((i, *v))?;
+            if !rolling_mode {
+                let it = data.iter().skip(skip);
+                for (i, v) in it.enumerate() {
+                    paint_point((i, *v))?;
+                }
+            } else {
+                let it = data
+                    .iter()
+                    .skip(skip)
+                    .chain(data.iter().take(data.len() - skip));
+                // let it = data.iter();
+                for (i, v) in it.enumerate() {
+                    paint_point((i, *v))?;
+                }
             }
         };
         Ok(())
     }
 
-    fn draw_values<D>(
+    fn draw_channel<D>(
         &self,
         display: &mut D,
         storage: &mut WaveformStorage,
         color: WaveformColor,
         update_only: bool,
+        rolling_mode: bool,
     ) -> Result<()>
     where
         D: DrawTarget<Color = WaveformColor>,
@@ -376,68 +401,85 @@ impl Waveform {
         let color_secondary = gui_color(1);
         let interpolate = false;
         // let interpolate = true;
-        if !update_only {
-            for (idx, it) in storage.linked.iter().enumerate() {
-                if !it.0 {
-                    continue;
-                }
-                let data = &storage.data[it.1][..storage.len];
-                let color = if idx == 0 { color } else { color_secondary };
-                self.draw_list_values_color(
-                    display,
-                    data,
-                    storage.offset[it.1],
-                    color,
-                    interpolate,
-                )?;
-            }
+        if rolling_mode {
+            let data = &storage.data[0][..storage.len];
+            let color = color;
+            self.draw_list_values_color(
+                display,
+                data,
+                storage.rolling_offset as i32,
+                color,
+                interpolate,
+                true,
+            )?;
         } else {
-            // clear tail and draw head
-            let tail = storage.linked.pop_back().ok_or(AppError::Unexpected)?;
-            if tail.0 {
-                let data = &storage.data[tail.1][..storage.len];
-                self.draw_list_values_color(
-                    display,
-                    data,
-                    storage.offset[tail.1],
-                    gui_color(0),
-                    interpolate,
-                )?;
+            if !update_only {
+                for (idx, it) in storage.linked.iter().enumerate() {
+                    if !it.0 {
+                        continue;
+                    }
+                    let data = &storage.data[it.1][..storage.len];
+                    let color = if idx == 0 { color } else { color_secondary };
+                    self.draw_list_values_color(
+                        display,
+                        data,
+                        storage.offset[it.1],
+                        color,
+                        interpolate,
+                        false,
+                    )?;
+                }
+            } else {
+                // clear tail and draw head
+                let tail = storage.linked.pop_back().ok_or(AppError::Unexpected)?;
+                if tail.0 {
+                    let data = &storage.data[tail.1][..storage.len];
+                    self.draw_list_values_color(
+                        display,
+                        data,
+                        storage.offset[tail.1],
+                        gui_color(0),
+                        interpolate,
+                        false,
+                    )?;
+                }
+                storage
+                    .linked
+                    .push_back(tail)
+                    .map_err(|_| AppError::Unexpected)?;
+                let head = storage.linked.pop_front().ok_or(AppError::Unexpected)?;
+                let head2 = storage.linked.pop_front().ok_or(AppError::Unexpected)?;
+                if head2.0 {
+                    let data = &storage.data[head2.1][..storage.len];
+                    self.draw_list_values_color(
+                        display,
+                        data,
+                        storage.offset[head2.1],
+                        color_secondary,
+                        interpolate,
+                        false,
+                    )?;
+                }
+                if head.0 {
+                    let data = &storage.data[head.1][..storage.len];
+                    self.draw_list_values_color(
+                        display,
+                        data,
+                        storage.offset[head.1],
+                        color,
+                        interpolate,
+                        false,
+                    )?;
+                }
+                storage
+                    .linked
+                    .push_front(head2)
+                    .map_err(|_| AppError::Unexpected)?;
+                storage
+                    .linked
+                    .push_front(head)
+                    .map_err(|_| AppError::Unexpected)?;
             }
-            storage
-                .linked
-                .push_back(tail)
-                .map_err(|_| AppError::Unexpected)?;
-            let head = storage.linked.pop_front().ok_or(AppError::Unexpected)?;
-            let head2 = storage.linked.pop_front().ok_or(AppError::Unexpected)?;
-            if head2.0 {
-                let data = &storage.data[head2.1][..storage.len];
-                self.draw_list_values_color(
-                    display,
-                    data,
-                    storage.offset[head2.1],
-                    color_secondary,
-                    interpolate,
-                )?;
-            }
-            if head.0 {
-                let data = &storage.data[head.1][..storage.len];
-                self.draw_list_values_color(
-                    display,
-                    data,
-                    storage.offset[head.1],
-                    color,
-                    interpolate,
-                )?;
-            }
-            storage
-                .linked
-                .push_front(head2)
-                .map_err(|_| AppError::Unexpected)?;
-            storage
-                .linked
-                .push_front(head)
-                .map_err(|_| AppError::Unexpected)?;
         }
         Ok(())
     }
