@@ -565,12 +565,35 @@ impl<D> App<D> {
         }
     }
 
+    async fn find_triggered_offset(&self, data: &[f32]) -> Option<i32> {
+        let mut offset = 0;
+        let mut triggered = false;
+        let mut max = 0.0f32;
+        let level_v = self.state.trigger_level_mv as f32 / 1000.0;
+        for (i, &x) in data.iter().enumerate() {
+            if x > max {
+                max = x;
+            }
+            if x > level_v {
+                triggered = true;
+                offset = i as i32;
+                break;
+            }
+        }
+        if !triggered {
+            None
+        } else {
+            Some(offset)
+        }
+    }
+
     pub async fn data_input(&mut self, data: &[f32], channel: ProbeChannel) -> Result<()> {
         // let s: &str = channel.into();
         // crate::info!("data input: {}, len {}", s, data.len());
         let idx: usize = channel.into();
+        let offset = self.find_triggered_offset(data).await.unwrap_or(0);
         let waveform = &mut self.state.waveform[idx];
-        waveform.append_iter(data.iter().copied())?;
+        waveform.append_iter(data.iter().copied(), offset)?;
         self.updated.request(StateMarker::WaveformData);
         Ok(())
     }

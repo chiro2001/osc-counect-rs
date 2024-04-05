@@ -498,6 +498,7 @@ impl Waveform {
         &self,
         display: &mut D,
         data: &[f32],
+        offset_idx: i32,
         color: WaveformColor,
     ) -> Result<()>
     where
@@ -505,7 +506,7 @@ impl Waveform {
     {
         let screen_offset = Point::new(2, self.info.height() / 2);
         let mut pt_last = Point::new(0, 0);
-        for (i, pt) in data.iter().enumerate() {
+        for (i, pt) in data.iter().skip(offset_idx as usize).enumerate() {
             let pt = Point::new(
                 (i * (self.info.width() as usize) / data.len()) as i32,
                 ((*pt) * -1.0 * (self.info.height() as f32) / 6.0) as i32,
@@ -542,14 +543,14 @@ impl Waveform {
                 }
                 let data = &storage.data[it.1][..storage.len];
                 let color = if idx == 0 { color } else { color_secondary };
-                self.draw_list_values_color(display, data, color)?;
+                self.draw_list_values_color(display, data, storage.offset[it.1], color)?;
             }
         } else {
             // clear tail and draw head
             let tail = storage.linked.pop_back().ok_or(AppError::Unexpected)?;
             if tail.0 {
                 let data = &storage.data[tail.1][..storage.len];
-                self.draw_list_values_color(display, data, gui_color(0))?;
+                self.draw_list_values_color(display, data, storage.offset[tail.1], gui_color(0))?;
             }
             storage
                 .linked
@@ -559,11 +560,16 @@ impl Waveform {
             let head2 = storage.linked.pop_front().ok_or(AppError::Unexpected)?;
             if head2.0 {
                 let data = &storage.data[head2.1][..storage.len];
-                self.draw_list_values_color(display, data, color_secondary)?;
+                self.draw_list_values_color(
+                    display,
+                    data,
+                    storage.offset[head2.1],
+                    color_secondary,
+                )?;
             }
             if head.0 {
                 let data = &storage.data[head.1][..storage.len];
-                self.draw_list_values_color(display, data, color)?;
+                self.draw_list_values_color(display, data, storage.offset[head.1], color)?;
             }
             storage
                 .linked

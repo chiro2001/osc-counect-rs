@@ -142,7 +142,7 @@ impl Default for State {
             measures: Default::default(),
             generator: Default::default(),
             trigger_channel: Default::default(),
-            trigger_level_mv: 30,
+            trigger_level_mv: 1000,
             setting_index: Default::default(),
             setting_inited: Default::default(),
             setting_time_scale: Default::default(),

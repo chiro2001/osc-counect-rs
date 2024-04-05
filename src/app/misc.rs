@@ -229,12 +229,13 @@ impl ProbeChannel {
     }
 }
 
-pub const WAVEFORM_LEN: usize = 64;
+pub const WAVEFORM_LEN: usize = 16;
 pub const WAVEFORM_HISTORY_LEN: usize = 5;
 #[derive(Debug)]
 pub struct WaveformStorage {
     pub linked: heapless::Deque<(bool, usize), WAVEFORM_HISTORY_LEN>,
     pub data: [[f32; WAVEFORM_LEN]; WAVEFORM_HISTORY_LEN],
+    pub offset: [i32; WAVEFORM_HISTORY_LEN],
     pub len: usize,
     pub unit: VoltageUnit,
 }
@@ -248,6 +249,7 @@ impl Default for WaveformStorage {
         Self {
             linked,
             data: core::array::from_fn(|_| [0.0; WAVEFORM_LEN]),
+            offset: Default::default(),
             len: WAVEFORM_LEN,
             unit: VoltageUnit::MilliVolt,
         }
@@ -258,10 +260,10 @@ impl WaveformStorage {
     pub fn clear(&mut self) {
         self.linked.clear();
     }
-    pub fn append(&mut self, data: &[f32]) -> Result<()> {
-        self.append_iter(data.iter().cloned())
+    pub fn append(&mut self, data: &[f32], offset: i32) -> Result<()> {
+        self.append_iter(data.iter().cloned(), offset)
     }
-    pub fn append_iter<I>(&mut self, data: I) -> Result<()>
+    pub fn append_iter<I>(&mut self, data: I, offset: i32) -> Result<()>
     where
         I: IntoIterator<Item = f32>,
     {
@@ -273,6 +275,7 @@ impl WaveformStorage {
             .iter_mut()
             .zip(data.into_iter())
             .for_each(|(x, y)| *x = y);
+        self.offset[slot] = offset;
         // link data
         self.linked
             .push_front((true, slot))

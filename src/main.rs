@@ -497,7 +497,7 @@ where
             let v = adc.read(&mut self.channels.0).await;
             let v = convert_to_millivolts(v);
             *data = v as f32 / 1000.0;
-            Timer::after_micros(1).await;
+            // Timer::after_micros(1).await;
             count += 1;
         }
         Ok(count)
