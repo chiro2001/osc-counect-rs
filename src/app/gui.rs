@@ -1,3 +1,5 @@
+#![allow(static_mut_refs)]
+
 use super::{
     gui_color,
     unit::{TimeScale, VoltageScale},
@@ -128,7 +130,7 @@ impl Default for Waveform {
         Self {
             info: GUIInfo {
                 size: Size::new(WF_WIDTH_WIDTH, WF_WIDTH_HEIGHT),
-                position: Point::new(4, 12),
+                position: Point::new(7, 12),
                 color_primary: gui_color(1),
                 color_secondary: gui_color(7),
                 ..Default::default()
@@ -338,71 +340,62 @@ where
             Rectangle::new(trans, self.info.size)
                 .draw_styled(&style, display_ex)
                 .map_err(|_| AppError::DisplayError)?;
-            let center = self.info.size_center();
-            Line::new(
-                Point::new(center.x, 0),
-                Point::new(center.x, self.info.height() - 1),
-            )
-            .translate(trans)
-            .draw_styled(&style, display_ex)
-            .map_err(|_| AppError::DisplayError)?;
-            Line::new(
-                Point::new(0, center.y),
-                Point::new(self.info.width() - 1, center.y),
-            )
-            .translate(trans)
-            .draw_styled(&style, display_ex)
-            .map_err(|_| AppError::DisplayError)?;
+        }
+        let center = self.info.size_center();
+        Line::new(
+            Point::new(center.x, 0),
+            Point::new(center.x, self.info.height() - 1),
+        )
+        .translate(trans)
+        .draw_styled(&style, display_ex)
+        .map_err(|_| AppError::DisplayError)?;
+        Line::new(
+            Point::new(0, center.y),
+            Point::new(self.info.width() - 1, center.y),
+        )
+        .translate(trans)
+        .draw_styled(&style, display_ex)
+        .map_err(|_| AppError::DisplayError)?;
 
-            Text::with_alignment(
-                "Test",
-                trans + center + Point::new(20, 20),
-                MonoTextStyle::new(&FONT_6X9, WaveformColorEx::from(1)),
-                Alignment::Center,
-            )
-            .draw(display_ex)
-            .map_err(|_| AppError::DisplayError)?;
-
-            let dl = 1;
-            // Draw point grid
-            for i in 0..(self.info.size.height as i32 / 40 + 1) {
-                for j in 0..(self.info.size.width as i32 / 8) {
-                    let x = j * 8 + 6 - 1;
-                    let y = i * 40 + 28 - 1;
-                    if x == center.x as i32 {
-                        continue;
-                    }
-                    if y == center.y as i32 {
-                        Line::new(Point::new(x, y - dl), Point::new(x, y + dl))
-                            .translate(trans)
-                            .draw_styled(&style, display_ex)
-                            .map_err(|_| AppError::DisplayError)?;
-                    } else {
-                        let p = Point::new(x, y) + trans;
-                        Pixel(p, WaveformColorEx::from(1))
-                            .draw(display_ex)
-                            .map_err(|_| AppError::DisplayError)?;
-                    }
+        let dl = 1;
+        // Draw point grid
+        for i in 0..(self.info.size.height as i32 / 40 + 1) {
+            for j in 0..(self.info.size.width as i32 / 8) {
+                let x = j * 8 + 4;
+                let y = i * 40 + 28;
+                if x == center.x as i32 {
+                    continue;
+                }
+                if y == center.y as i32 {
+                    Line::new(Point::new(x, y - dl), Point::new(x, y + dl))
+                        .translate(trans)
+                        .draw_styled(&style, display_ex)
+                        .map_err(|_| AppError::DisplayError)?;
+                } else {
+                    let p = Point::new(x, y) + trans;
+                    Pixel(p, WaveformColorEx::from(1))
+                        .draw(display_ex)
+                        .map_err(|_| AppError::DisplayError)?;
                 }
             }
-            for i in 0..(self.info.size.width as i32 / 40 + 1) {
-                for j in 0..(self.info.size.height as i32 / 8 + 1) {
-                    let x = i * 40 + 14 - 1;
-                    let y = j * 8 + 4 - 1;
-                    if y == center.y as i32 {
-                        continue;
-                    }
-                    if x == center.x as i32 {
-                        Line::new(Point::new(x - dl, y), Point::new(x + dl, y))
-                            .translate(trans)
-                            .draw_styled(&style, display_ex)
-                            .map_err(|_| AppError::DisplayError)?;
-                    } else {
-                        let p = Point::new(x, y) + trans;
-                        Pixel(p, WaveformColorEx::from(1))
-                            .draw(display_ex)
-                            .map_err(|_| AppError::DisplayError)?;
-                    }
+        }
+        for i in 0..(self.info.size.width as i32 / 40 + 1) {
+            for j in 0..(self.info.size.height as i32 / 8 + 1) {
+                let x = i * 40 + 12;
+                let y = j * 8 + 4;
+                if y == center.y as i32 {
+                    continue;
+                }
+                if x == center.x as i32 {
+                    Line::new(Point::new(x - dl, y), Point::new(x + dl, y))
+                        .translate(trans)
+                        .draw_styled(&style, display_ex)
+                        .map_err(|_| AppError::DisplayError)?;
+                } else {
+                    let p = Point::new(x, y) + trans;
+                    Pixel(p, WaveformColorEx::from(1))
+                        .draw(display_ex)
+                        .map_err(|_| AppError::DisplayError)?;
                 }
             }
         }
@@ -499,7 +492,7 @@ impl Waveform {
     where
         D: DrawTarget<Color = WaveformColor>,
     {
-        let screen_offset = self.info.position + Point::new(0, self.info.height() / 2);
+        let screen_offset = Point::new(2, self.info.height() / 2);
         let mut pt_last = Point::new(0, 0);
         for (i, pt) in data.iter().enumerate() {
             let pt = Point::new(
