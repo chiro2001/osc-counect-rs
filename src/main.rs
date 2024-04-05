@@ -9,6 +9,8 @@ use core::convert::Infallible;
 
 use defmt::*;
 use embedded_hal::{delay::DelayNs, digital::OutputPin};
+use crate::app::input::DummyAdcDevice;
+
 use {defmt_rtt as _, panic_probe as _};
 
 use ili9341::{DisplaySize240x320, Ili9341 as Ili9327, Orientation};
@@ -435,7 +437,8 @@ async fn main(spawner: Spawner) {
 
     // loop {}
 
-    app::main_loop(spawner, lcd, kbd_drv).await;
+    let adc_device = DummyAdcDevice {};
+    app::main_loop(spawner, lcd, kbd_drv, adc_device).await;
     defmt::panic!("unreachable");
 
     // loop {

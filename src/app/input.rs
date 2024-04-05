@@ -1,5 +1,8 @@
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
+use super::ProbeChannel;
+use super::Result;
+
 /// TM1668
 /// Key Map 4x5
 /// F1 [13]   F2 [12]   F3 [1]     F4    [0]
@@ -119,5 +122,70 @@ impl From<embedded_graphics_simulator::sdl2::Keycode> for Keys {
             Keycode::F4 => Keys::Right,
             _ => Keys::None,
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AdcReadOptions {
+    pub channel: ProbeChannel,
+    pub length: usize,
+    pub frequency: u64,
+}
+pub trait AdcDevice {
+    async fn read(&self, options: AdcReadOptions) -> Result<&'static [f32]>;
+    async fn read_raw(&self, options: AdcReadOptions) -> Result<&'static [u16]>;
+}
+
+pub struct DummyAdcDevice;
+impl AdcDevice for DummyAdcDevice {
+    async fn read(&self, _options: AdcReadOptions) -> Result<&'static [f32]> {
+        // use core::mem::MaybeUninit;
+        // static mut DEFAULT_VALUES: MaybeUninit<([f32; 128], bool)> = MaybeUninit::zeroed();
+        // if !unsafe { DEFAULT_VALUES.assume_init().1 } {
+        //     defmt::info!("Initialize DummyAdcDevice");
+        //     use libm::*;
+        //     (unsafe { *DEFAULT_VALUES.assume_init_mut() })
+        //         .0
+        //         .iter_mut()
+        //         .enumerate()
+        //         .for_each(|(i, x)| {
+        //             *x = (sin(i as f64 * 0.3) * 2.0) as f32;
+        //         });
+        //     unsafe { DEFAULT_VALUES.assume_init_mut().1 = true };
+        //     unsafe { *DEFAULT_VALUES.assume_init_mut() }.0[4] = 2.4;
+        //     defmt::info!(
+        //         "DummyAdcDevice initialized, value[4]: {}",
+        //         unsafe { *DEFAULT_VALUES.assume_init_mut() }.0[4]
+        //     );
+        // }
+        // let p = &unsafe { DEFAULT_VALUES.assume_init().0 }.as_ptr();
+        // static mut DEFAULT_VALUES: ([f32; 128], bool) = ([0.0; 128], false);
+        // if !unsafe { DEFAULT_VALUES.1 } {
+        //     defmt::info!("Initialize DummyAdcDevice");
+        //     use libm::*;
+        //     unsafe { DEFAULT_VALUES.0 }
+        //         .iter_mut()
+        //         .enumerate()
+        //         .for_each(|(i, x)| {
+        //             *x = (sin(i as f64 * 0.3) * 2.0) as f32;
+        //             defmt::info!("{}: {}", i, *x);
+        //         });
+        //     unsafe { DEFAULT_VALUES.1 = true };
+        //     defmt::info!(
+        //         "DummyAdcDevice initialized, value[4]: {}",
+        //         unsafe { DEFAULT_VALUES.0 }[4]
+        //     );
+        // }
+        // let p = *ADC_DEFAULT_VALUES;
+        // let slice = unsafe { core::slice::from_raw_parts(p.as_ptr(), 128) };
+        // Ok(slice)
+        Ok(&[
+            -0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2,
+        ])
+    }
+
+    async fn read_raw(&self, _options: AdcReadOptions) -> Result<&'static [u16]> {
+        static DEFAULT_VALUES: [u16; 128] = [0; 128];
+        Ok(&DEFAULT_VALUES)
     }
 }

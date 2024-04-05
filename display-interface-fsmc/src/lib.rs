@@ -350,7 +350,7 @@ pub struct FsmcInterface<'d, Dma> {
     hsram: SramHandleTypeDef,
     pub reg: *mut u16,
     pub ram: *mut u16,
-    channel: PeripheralRef<'d, Dma>,
+    _channel: PeripheralRef<'d, Dma>,
 }
 
 impl<'d, Dma> FsmcInterface<'d, Dma> {
@@ -363,7 +363,7 @@ impl<'d, Dma> FsmcInterface<'d, Dma> {
             hsram,
             reg: lcd_base as *mut u16,
             ram: (lcd_base + 2) as *mut u16,
-            channel,
+            _channel: channel,
         };
         hal_fsmc_msp_init();
         hal_sram_init(&mut s.hsram);

@@ -202,7 +202,7 @@ where
         // generate random data for testing
         static mut OFFSET: f64 = 0.0;
         use libm::*;
-        for channel in 0..(ProbeChannel::Endding as usize) {
+        for channel in (ProbeChannel::B as usize)..(ProbeChannel::Endding as usize) {
             let data_new = (0..self.state.waveform[channel].len).map(|i| {
                 (sin(i as f64 * 0.3 + unsafe { OFFSET })
                     * 2.0
@@ -304,20 +304,6 @@ where
             Window::Settings => self.draw_settings_window().await,
         }
     }
-
-    // pub async fn draw_buffered(&mut self) -> Result<()> {
-    //     let fb = unsafe { &mut FRAME_BUFFER };
-    //     match self.state.window {
-    //         Window::Main => self.draw_main_window(Some(fb)).await,
-    //         // Window::SetValue => self.draw_set_value_window(Some(fb)).await,
-    //         // Window::Settings => self.draw_settings_window(Some(fb)).await,
-    //         _ => Ok(()),
-    //     }?;
-    //     let im = fb.as_image();
-    //     im.draw(&mut self.display)
-    //         .map_err(|_| AppError::DisplayError)?;
-    //     Ok(())
-    // }
 
     pub async fn value_init(&mut self) -> Result<()> {
         match self.state.window {
@@ -577,9 +563,39 @@ impl<D> App<D> {
             Window::Settings => Ok(()),
         }
     }
+
+    pub async fn data_input(&mut self, data: &[f32], channel: ProbeChannel) -> Result<()> {
+        // let s: &str = channel.into();
+        // crate::info!("data input: {}, len {}", s, data.len());
+        let idx: usize = channel.into();
+        let waveform = &mut self.state.waveform[idx];
+        waveform.append_iter(data.iter().copied())?;
+        self.updated.request(StateMarker::WaveformData);
+        Ok(())
+    }
 }
 
 static KBD_CHANNEL: Channel<ThreadModeRawMutex, Keys, 16> = Channel::new();
+static ADC_CHANNEL: Channel<ThreadModeRawMutex, &[f32], 4> = Channel::new();
+
+#[embassy_executor::task]
+async fn adc_task(
+    sender: Sender<'static, ThreadModeRawMutex, &[f32], 4>,
+    adc: impl AdcDevice + 'static,
+) {
+    loop {
+        let data: &[f32] = adc
+            .read(AdcReadOptions {
+                channel: ProbeChannel::A,
+                length: 128,
+                frequency: 1000,
+            })
+            .await
+            .unwrap();
+        sender.send(data).await;
+        Timer::after_millis(1000).await;
+    }
+}
 
 #[embassy_executor::task]
 async fn keyboad_task(
@@ -601,18 +617,19 @@ async fn keyboad_task(
 
 #[cfg(feature = "embedded")]
 // #[embassy_executor::task]
-pub async fn main_loop<D, K>(spawner: embassy_executor::Spawner, display: D, keyboard: K)
+pub async fn main_loop<D, K, A>(spawner: embassy_executor::Spawner, display: D, keyboard: K, adc: A)
 where
     D: DrawTarget<Color = GuiColor> + 'static,
     K: KeyboardDevice + 'static,
+    A: AdcDevice + 'static,
 {
     let mut app = App::new(display);
     spawner
         .spawn(keyboad_task(KBD_CHANNEL.sender(), keyboard))
         .unwrap();
+    spawner.spawn(adc_task(ADC_CHANNEL.sender(), adc)).unwrap();
     loop {
         app.draw().await.unwrap();
-        // app.draw_buffered().await.unwrap();
         app.value_init().await.unwrap();
         if let Some(window_next) = app.state.window_next {
             app.state.window = window_next;
@@ -623,6 +640,12 @@ where
                 let s: &str = key.into();
                 crate::info!("recv Key: {:?}", s);
                 app.input_key_event(key).unwrap();
+            }
+            Err(_) => {}
+        }
+        match ADC_CHANNEL.try_receive() {
+            Ok(data) => {
+                app.data_input(data, ProbeChannel::A).await.unwrap();
             }
             Err(_) => {}
         }
