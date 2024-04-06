@@ -405,17 +405,17 @@ impl<D> App<D> {
                         self.updated.request(StateMarker::RunningState);
                     }
                     Keys::X => {
-                        // generate random data for testing
-                        // use libm::*;
-                        // self.state
-                        //     .waveform
-                        //     .linked
-                        //     .iter_mut()
-                        //     .enumerate()
-                        //     .for_each(|(i, x)| {
-                        //         *x = (sin(i as f64 * 0.01) * 1.0) as f32;
-                        //     });
-                        // self.updated.request(StateMarker::Waveform);
+                        // change timebase mode
+                        self.state.timebase_mode = match self.state.timebase_mode {
+                            TimebaseMode::Normal => TimebaseMode::Rolling,
+                            // TimebaseMode::Rolling => TimebaseMode::XY,
+                            // TimebaseMode::XY => TimebaseMode::Normal,
+                            _ => TimebaseMode::Normal,
+                        };
+                        self.updated.request(StateMarker::Waveform);
+                        for w in self.state.waveform.iter_mut() {
+                            w.clear();
+                        }
                     }
                     _ => {}
                 }
@@ -649,7 +649,12 @@ async fn adc_task(
                 .await
                 .unwrap();
             sender.send(count).await;
-            assert!(count <= length, "invalid count: {}, length: {}", count, length);
+            assert!(
+                count <= length,
+                "invalid count: {}, length: {}",
+                count,
+                length
+            );
             length -= count;
         }
         // Timer::after_millis(1000).await;

@@ -227,6 +227,12 @@ impl Default for WaveformStorage {
 impl WaveformStorage {
     pub fn clear(&mut self) {
         self.linked.clear();
+        for i in 0..WAVEFORM_HISTORY_LEN {
+            self.linked.push_back((false, i)).unwrap();
+        }
+        self.data.iter_mut().for_each(|x| x.fill(0.0));
+        self.offset.fill(0);
+        self.rolling_offset = 0;
     }
     pub fn append_frame(&mut self, data: &[f32], offset: i32) -> Result<()> {
         self.append_frame_iter(data.iter().cloned(), offset)

@@ -25,7 +25,7 @@ impl Overview {
                 color_primary: gui_color(15),
                 color_secondary: gui_color(0),
             },
-            text: "Roll Mode",
+            text: "Overview",
         }
     }
 }
@@ -36,7 +36,7 @@ where
     fn state_emit_mask(&self) -> &[StateMarker] {
         &[StateMarker::Waveform]
     }
-    fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult {
+    fn draw_state(&self, display: &mut D, state: &mut State) -> StateResult {
         Rectangle::new(self.info.position, self.info.size)
             .into_styled(
                 PrimitiveStyleBuilder::new()
@@ -48,7 +48,7 @@ where
             .draw(display)
             .map_err(|_| AppError::DisplayError)?;
         Text::with_alignment(
-            self.text,
+            state.timebase_mode.str(),
             self.info.size_center() + TEXT_OFFSET,
             MonoTextStyle::new(&FONT_6X9, self.info.color_primary),
             Alignment::Center,

@@ -20,8 +20,8 @@ mod color;
 mod overview;
 mod waveform;
 pub use color::*;
-pub use waveform::*;
 pub use overview::*;
+pub use waveform::*;
 
 pub const TEXT_OFFSET: Point = Point::new(0, 2);
 pub const SCREEN_WIDTH: u32 = 320;
@@ -736,7 +736,8 @@ where
             )
             .draw(display)
             .map_err(|_| AppError::DisplayError)?;
-        let trigger_level_pixel_offset = -(state.trigger_level_mv as i32 * 2 / 10);
+        let trigger_level_pixel_offset =
+            -((state.trigger_level_mv as i32) * (WF_WIDTH_HEIGHT as i32) / 2 / 3000);
         let center = center + Point::new(0, trigger_level_pixel_offset);
         Rectangle::with_center(center, Size::new(6, 8))
             .into_styled(

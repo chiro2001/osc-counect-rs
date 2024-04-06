@@ -187,7 +187,8 @@ where
         // draw trigger level
         let trigger_color = state.trigger_channel.color_waveform();
         // FIXME: normalize
-        let trigger_level_pixel = center.y - (state.trigger_level_mv as i32 * 2 / 10);
+        let trigger_level_pixel =
+            center.y - ((state.trigger_level_mv as i32) * (WF_WIDTH_HEIGHT as i32) / 2 / 3000);
         Line::new(
             Point::new(0, trigger_level_pixel),
             Point::new(self.info.width() as i32, trigger_level_pixel),
@@ -370,10 +371,7 @@ impl Waveform {
                     paint_point((i, *v))?;
                 }
             } else {
-                let it = data
-                    .iter()
-                    .skip(skip)
-                    .chain(data.iter().take(skip));
+                let it = data.iter().skip(skip).chain(data.iter().take(skip));
                 // let it = data.iter();
                 for (i, v) in it.enumerate() {
                     paint_point((i, *v))?;
