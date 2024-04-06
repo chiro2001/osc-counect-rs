@@ -167,3 +167,18 @@ impl AdcDevice for DummyAdcDevice {
         Ok(count)
     }
 }
+
+pub trait BoardDevice {
+    /// Set the brightness of the backlight.
+    /// The brightness is a value between 0 and 100.
+    fn set_brightness(&mut self, brightness: u8);
+
+    /// Beep
+    async fn beep(&mut self, frequency: u32, duration_ms: u32);
+}
+
+pub struct DummyBoardDevice;
+impl BoardDevice for DummyBoardDevice {
+    fn set_brightness(&mut self, _brightness: u8) {}
+    async fn beep(&mut self, _frequency: u32, _duration_ms: u32) {}
+}

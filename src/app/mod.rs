@@ -1,25 +1,25 @@
 #![allow(dead_code)]
 
+pub mod devices;
 mod gui;
-pub mod input;
 mod misc;
 mod state;
 mod unit;
 
 use core::ops::Range;
 
+use devices::*;
 use embassy_sync::{
     blocking_mutex::raw::ThreadModeRawMutex,
     channel::{Channel, Receiver, Sender},
 };
 use gui::*;
-use input::*;
 use misc::*;
 use state::*;
 use unit::*;
 
 pub use gui::GuiColor;
-pub use misc::Result;
+pub use misc::{ProbeChannel, Result};
 
 use embassy_time::Timer;
 use embedded_graphics::{
@@ -31,10 +31,11 @@ use embedded_graphics::{
     transform::Transform,
     Drawable,
 };
-pub struct App<D> {
+pub struct App<D, B> {
     pub state: State,
     pub updated: StateVec,
     pub display: D,
+    pub board: B,
 
     // widgets of main window
     waveform: Waveform,
@@ -57,11 +58,12 @@ pub struct App<D> {
     menu: Menu<MenuId>,
 }
 
-impl<D> App<D>
+impl<D, B> App<D, B>
 where
     D: DrawTarget<Color = GuiColor> + 'static,
+    B: BoardDevice,
 {
-    pub fn new(display: D) -> Self {
+    pub fn new(display: D, board: B) -> Self {
         let panel_items = core::array::from_fn(|i| {
             let p = Panel::from(i);
             PanelItem::new(p, p.into(), "--", p.style())
@@ -70,6 +72,7 @@ where
             state: Default::default(),
             updated: Default::default(),
             display,
+            board,
             waveform: Default::default(),
             running_state: Default::default(),
             time_scale: Default::default(),
@@ -351,7 +354,10 @@ where
     }
 }
 
-impl<D> App<D> {
+impl<D, B> App<D, B>
+where
+    B: BoardDevice,
+{
     fn clear_update_state(&mut self) {
         for x in self.updated.iter_mut() {
             *x = false;
@@ -412,6 +418,10 @@ impl<D> App<D> {
                     Keys::Ok => {
                         // go to settings
                         self.state.setting_inited = false;
+                        self.state.menu_idx_l1 = 0;
+                        self.state.menu_idx_l1_last = None;
+                        self.state.menu_idx_l2 = None;
+                        self.state.menu_idx_l2_last = None;
                         self.state.window_next = Some(Window::Settings);
                         self.updated.request(StateMarker::SettingsMenu);
                     }
@@ -602,25 +612,24 @@ impl<D> App<D> {
                             // select level 2 item
                             let menu_id = self.menu.items[self.state.menu_idx_l1].2[idx_level2].0;
                             if let Some(menu_id) = menu_id {
-                                self.handle_menu(menu_id).await?;
+                                self.handle_menu_exit(Some(menu_id)).await?;
                             } else {
                                 let menu_id = self.menu.items[self.state.menu_idx_l1].0;
-                                if let Some(menu_id) = menu_id {
-                                    self.handle_menu(menu_id).await?;
-                                }
+                                self.handle_menu_exit(menu_id).await?;
                             }
                         } else {
                             // into level 2 menu
                             let len = self.menu.items[self.state.menu_idx_l1].2.len();
                             if len > 0 {
-                                self.state.menu_idx_l2 = Some(0);
+                                match self.before_handle_menu() {
+                                    Err(_) => self.state.menu_idx_l2 = Some(0),
+                                    _ => {}
+                                }
                                 self.updated.request(StateMarker::SettingsMenu);
                             } else {
                                 // select level 1 item
-                                self.handle_menu(
-                                    self.menu.items[self.state.menu_idx_l1].0.unwrap(),
-                                )
-                                .await?;
+                                self.handle_menu_exit(self.menu.items[self.state.menu_idx_l1].0)
+                                    .await?;
                             }
                         }
                     }
@@ -642,12 +651,66 @@ impl<D> App<D> {
         }
     }
 
+    fn before_handle_menu(&mut self) -> Result<()> {
+        // to select initial value of menu_idx_l2
+        let menu_id = self.menu.items[self.state.menu_idx_l1].0;
+        if let Some(menu_id) = menu_id {
+            match menu_id {
+                MenuId::Backlight => {
+                    let bl = self.state.backlight;
+                    let idx = match bl {
+                        0..=10 => 0,
+                        11..=20 => 1,
+                        21..=40 => 2,
+                        41..=60 => 3,
+                        61..=80 => 4,
+                        _ => 5,
+                    };
+                    self.state.menu_idx_l2 = Some(idx);
+                    Ok(())
+                }
+                _ => Err(AppError::NotImplemented),
+            }
+        } else {
+            Err(AppError::NotImplemented)
+        }
+    }
+
     async fn handle_menu(&mut self, menu_id: MenuId) -> Result<()> {
         match menu_id {
-            MenuId::Backlight => {}
-            _ => {}
+            MenuId::Backlight => {
+                let bl = match self.state.menu_idx_l2 {
+                    Some(0) => 10,
+                    Some(1) => 20,
+                    Some(2) => 40,
+                    Some(3) => 60,
+                    Some(4) => 80,
+                    Some(5) => 100,
+                    _ => 100,
+                };
+                self.board.set_brightness(bl);
+                Ok(())
+            }
+            _ => Err(AppError::NotImplemented),
         }
-        Ok(())
+    }
+
+    async fn handle_menu_exit(&mut self, menu_id: Option<MenuId>) -> Result<()> {
+        if let Some(menu_id) = menu_id {
+            match self.handle_menu(menu_id).await {
+                Ok(_) => {
+                    self.state.window = Window::Main;
+                    self.updated.clear();
+                    Ok(())
+                }
+                Err(e) => {
+                    crate::warn!("handle menu error: {}", e.str());
+                    Ok(())
+                }
+            }
+        } else {
+            Ok(())
+        }
     }
 
     async fn find_triggered_offset(&self, data: &[f32]) -> Option<i32> {
@@ -792,19 +855,21 @@ async fn keyboad_task(
     }
 }
 
-pub async fn main_loop<D, K, A, F>(
+pub async fn main_loop<D, B, K, A, F>(
     spawner: embassy_executor::Spawner,
     display: D,
+    board: B,
     keyboard: K,
     adc: A,
     loop_start: F,
 ) where
     D: DrawTarget<Color = GuiColor> + 'static,
+    B: BoardDevice + 'static,
     K: KeyboardDevice + 'static,
     A: AdcDevice + 'static,
     F: Fn(&D) -> (),
 {
-    let mut app = App::new(display);
+    let mut app = App::new(display, board);
     spawner
         .spawn(keyboad_task(KBD_CHANNEL.sender(), keyboard))
         .unwrap();

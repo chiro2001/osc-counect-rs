@@ -11,6 +11,17 @@ pub enum AppError {
     Unexpected,
     LimitExceeded,
 }
+impl AppError {
+    pub fn str(&self) -> &'static str {
+        match self {
+            AppError::DisplayError => "Display Error",
+            AppError::DataFormatError => "Data Format Error",
+            AppError::NotImplemented => "Not Implemented",
+            AppError::Unexpected => "Unexpected",
+            AppError::LimitExceeded => "Limit Exceeded",
+        }
+    }
+}
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
 pub enum Window {

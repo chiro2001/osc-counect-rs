@@ -68,6 +68,9 @@ pub struct State {
     pub menu_idx_l1_last: Option<usize>,
     pub menu_idx_l2: Option<usize>,
     pub menu_idx_l2_last: Option<usize>,
+
+    // settings
+    pub backlight: u8,
 }
 
 #[derive(Debug, Default)]
@@ -149,6 +152,7 @@ impl Default for State {
             menu_idx_l1_last: Default::default(),
             menu_idx_l2: Default::default(),
             menu_idx_l2_last: Default::default(),
+            backlight: 50,
         }
     }
 }

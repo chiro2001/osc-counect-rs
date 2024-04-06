@@ -7,6 +7,7 @@ extern crate alloc;
 
 use core::convert::Infallible;
 
+use app::devices::BoardDevice;
 use defmt::*;
 use embedded_hal::{delay::DelayNs, digital::OutputPin};
 
@@ -73,36 +74,36 @@ impl<'d> InoutPin for DioPin<'d> {
     }
 }
 
-struct Buzzer<'d, T: GeneralInstance4Channel> {
-    pwm: SimplePwm<'d, T>,
-    channel: Channel,
-    delay_ms: u64,
-    freqs: [Hertz; 3],
-}
-impl<'d, T> Buzzer<'d, T>
-where
-    T: GeneralInstance4Channel,
-{
-    pub fn new(pwm: SimplePwm<'d, T>, channel: Channel, delay_ms: u64) -> Self {
-        Self {
-            pwm,
-            channel,
-            delay_ms,
-            freqs: [Hertz::hz(523), Hertz::hz(659), Hertz::hz(784)],
-        }
-    }
+// struct Buzzer<'d, T: GeneralInstance4Channel> {
+//     pwm: SimplePwm<'d, T>,
+//     channel: Channel,
+//     delay_ms: u64,
+//     freqs: [Hertz; 3],
+// }
+// impl<'d, T> Buzzer<'d, T>
+// where
+//     T: GeneralInstance4Channel,
+// {
+//     pub fn new(pwm: SimplePwm<'d, T>, channel: Channel, delay_ms: u64) -> Self {
+//         Self {
+//             pwm,
+//             channel,
+//             delay_ms,
+//             freqs: [Hertz::hz(523), Hertz::hz(659), Hertz::hz(784)],
+//         }
+//     }
 
-    pub async fn beep(&mut self) {
-        // self.pwm.set_duty(self.channel, self.pwm.get_max_duty() / 2);
-        self.pwm.set_duty(self.channel, 0);
-        self.pwm.enable(self.channel);
-        for f in self.freqs.iter() {
-            self.pwm.set_frequency(*f);
-            Timer::after_millis(self.delay_ms).await;
-        }
-        self.pwm.disable(self.channel);
-    }
-}
+//     pub async fn beep(&mut self) {
+//         // self.pwm.set_duty(self.channel, self.pwm.get_max_duty() / 2);
+//         self.pwm.set_duty(self.channel, 0);
+//         self.pwm.enable(self.channel);
+//         for f in self.freqs.iter() {
+//             self.pwm.set_frequency(*f);
+//             Timer::after_millis(self.delay_ms).await;
+//         }
+//         self.pwm.disable(self.channel);
+//     }
+// }
 
 pub struct KeyboardDriver<'d, S, C, D, DELAY> {
     driver: tm1668::TM1668<'d, S, C, D, DELAY>,
@@ -122,21 +123,21 @@ where
         }
     }
 }
-impl<'d, S, C, D, DELAY> app::input::KeyboardDevice for KeyboardDriver<'d, S, C, D, DELAY>
+impl<'d, S, C, D, DELAY> app::devices::KeyboardDevice for KeyboardDriver<'d, S, C, D, DELAY>
 where
     S: OutputPin<Error = Infallible>,
     C: OutputPin<Error = Infallible>,
     D: InoutPin,
     DELAY: DelayNs,
 {
-    fn read_key(&mut self) -> app::input::Keys {
+    fn read_key(&mut self) -> app::devices::Keys {
         let mut keys = [false; 20];
         self.driver.read_decode_keys(&mut keys);
-        let mut r = app::input::Keys::None;
+        let mut r = app::devices::Keys::None;
         for (i, k) in keys.iter().enumerate() {
             // read key up
             if !*k && self.keys[i] {
-                r = app::input::Keys::try_from(i).unwrap();
+                r = app::devices::Keys::try_from(i).unwrap();
                 break;
             }
         }
@@ -319,8 +320,8 @@ async fn main(spawner: Spawner) {
         Hertz::hz(523),
         Default::default(),
     );
-    let mut buzzer = Buzzer::new(beep, Channel::Ch4, 50);
-    buzzer.beep().await;
+    // let mut buzzer = Buzzer::new(beep, Channel::Ch4, 50);
+    // buzzer.beep().await;
 
     // init keyboard
     let stb = Output::new(p.PE2, Level::Low, Speed::Low);
@@ -463,7 +464,8 @@ async fn main(spawner: Spawner) {
     // let adc_device = DummyAdcDevice {};
     let adc_device = SimpleAdcDevice::new(PeripheralRef::new(p.ADC1), p.PA1, p.PA2);
     // let adc_device = app::input::DummyAdcDevice {};
-    app::main_loop(spawner, lcd, kbd_drv, adc_device, |_| {}).await;
+    let board_device = BoardDriver::new(bl, beep);
+    app::main_loop(spawner, lcd, board_device, kbd_drv, adc_device, |_| {}).await;
     defmt::panic!("unreachable");
 
     // loop {
@@ -486,7 +488,7 @@ impl<ADC, A, B> SimpleAdcDevice<ADC, A, B> {
     }
 }
 
-impl<ADC, A, B> app::input::AdcDevice for SimpleAdcDevice<ADC, A, B>
+impl<ADC, A, B> app::devices::AdcDevice for SimpleAdcDevice<ADC, A, B>
 where
     ADC: Peripheral<P: embassy_stm32::adc::Instance>,
     A: embassy_stm32::adc::AdcPin<ADC::P>,
@@ -494,7 +496,7 @@ where
 {
     async fn read(
         &mut self,
-        _options: app::input::AdcReadOptions,
+        options: app::devices::AdcReadOptions,
         buf: &mut [f32],
     ) -> app::Result<usize> {
         // let length = app::input::ADC_BUF_SZ.min(options.length - options.pos);
@@ -519,12 +521,51 @@ where
         // Ok(data)
         let mut count = 0usize;
         while let Some(data) = it.next() {
-            let v = adc.read(&mut self.channels.0).await;
+            let v = if options.channel == app::ProbeChannel::A {
+                adc.read(&mut self.channels.0).await
+            } else {
+                adc.read(&mut self.channels.1).await
+            };
             let v = convert_to_millivolts(v);
             *data = v as f32 / 1000.0;
             // Timer::after_micros(1).await;
             count += 1;
         }
         Ok(count)
+    }
+}
+
+struct BoardDriver<'d, T1: GeneralInstance4Channel, T2: GeneralInstance4Channel> {
+    backlight: SimplePwm<'d, T1>,
+    buzzer: SimplePwm<'d, T2>,
+}
+
+impl<'d, T1, T2> BoardDriver<'d, T1, T2>
+where
+    T1: GeneralInstance4Channel,
+    T2: GeneralInstance4Channel,
+{
+    fn new(backlight: SimplePwm<'d, T1>, buzzer: SimplePwm<'d, T2>) -> Self {
+        Self { backlight, buzzer }
+    }
+}
+
+impl<'d, T1, T2> BoardDevice for BoardDriver<'d, T1, T2>
+where
+    T1: GeneralInstance4Channel,
+    T2: GeneralInstance4Channel,
+{
+    fn set_brightness(&mut self, brightness: u8) {
+        self.backlight.set_duty(
+            Channel::Ch3,
+            brightness.min(100) as u32 * self.backlight.get_max_duty() / 100,
+        );
+    }
+
+    async fn beep(&mut self, frequency: u32, duration_ms: u32) {
+        self.buzzer.set_frequency(Hertz::hz(frequency));
+        self.buzzer.enable(Channel::Ch4);
+        Timer::after(embassy_time::Duration::from_millis(duration_ms as u64)).await;
+        self.buzzer.disable(Channel::Ch4);
     }
 }

@@ -63,7 +63,8 @@ async fn main(spawner: Spawner) -> () {
         window: window.clone(),
     };
 
-    app::main_loop(spawner, display.clone(), kbd_device, adc_device, |d| {
+    let board = DummyBoardDevice {};
+    app::main_loop(spawner, display.clone(), board, kbd_device, adc_device, |d| {
         window.lock().unwrap().update(d);
     })
     .await;
