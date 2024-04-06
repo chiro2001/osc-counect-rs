@@ -587,6 +587,8 @@ impl<D> App<D> {
                         // );
                         offset_min_abs_mid = offset_mid.abs();
                         offset_result = offset_mid;
+                    } else {
+                        break;
                     }
                     triggered_once = true;
                 }

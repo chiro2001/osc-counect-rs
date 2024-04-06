@@ -305,7 +305,7 @@ impl Waveform {
         let mut pt_last = Point::new(0, 0);
         let fill = (-offset_idx.min(0)) as usize;
         let skip = offset_idx.max(0) as usize;
-        let mut paint_point = |(i, v)| -> Result<()> {
+        let mut paint_point = |(i, v, width_caling)| -> Result<()> {
             // defmt::info!("drawing: {} {}", i, v);
             let idx = i + fill;
             let clamp = |x: i32| {
@@ -313,7 +313,7 @@ impl Waveform {
                     .max(-self.info.height() / 2)
             };
             let pt = Point::new(
-                (idx * (self.info.width() as usize) * 2 / data.len()) as i32,
+                (idx * (self.info.width() as usize) * width_caling / data.len()) as i32,
                 clamp((v * -1.0 * (self.info.height() as f32) / 6.0) as i32),
             );
             if i != 0 {
@@ -362,19 +362,20 @@ impl Waveform {
                 .zip(interpolated)
                 .flat_map(|(x1, x2)| [*x1, x2]);
             for (i, v) in it.enumerate() {
-                paint_point((i, v))?;
+                paint_point((i, v, 2))?;
             }
         } else {
             if !rolling_mode {
+                // defmt::info!("len/2: {}, skip: {}", data.len() / 2, skip);
                 let it = data.iter().skip(skip);
                 for (i, v) in it.enumerate() {
-                    paint_point((i, *v))?;
+                    paint_point((i, *v, 1))?;
                 }
             } else {
                 let it = data.iter().skip(skip).chain(data.iter().take(skip));
                 // let it = data.iter();
                 for (i, v) in it.enumerate() {
-                    paint_point((i, *v))?;
+                    paint_point((i, *v, 1))?;
                 }
             }
         };
