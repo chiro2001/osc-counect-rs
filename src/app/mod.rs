@@ -357,7 +357,7 @@ impl<D> App<D> {
             *x = false;
         }
     }
-    pub fn input_key_event(&mut self, key: Keys) -> Result<()> {
+    pub async fn input_key_event(&mut self, key: Keys) -> Result<()> {
         match self.state.window {
             Window::Main => {
                 match key {
@@ -597,13 +597,30 @@ impl<D> App<D> {
                             self.updated.request(StateMarker::SettingsMenuMoveL1);
                         }
                     }
-                    Keys::Right => {
-                        // into level 2 menu
-                        if self.state.menu_idx_l2.is_none() {
+                    Keys::Right | Keys::Ok => {
+                        if let Some(idx_level2) = self.state.menu_idx_l2 {
+                            // select level 2 item
+                            let menu_id = self.menu.items[self.state.menu_idx_l1].2[idx_level2].0;
+                            if let Some(menu_id) = menu_id {
+                                self.handle_menu(menu_id).await?;
+                            } else {
+                                let menu_id = self.menu.items[self.state.menu_idx_l1].0;
+                                if let Some(menu_id) = menu_id {
+                                    self.handle_menu(menu_id).await?;
+                                }
+                            }
+                        } else {
+                            // into level 2 menu
                             let len = self.menu.items[self.state.menu_idx_l1].2.len();
                             if len > 0 {
                                 self.state.menu_idx_l2 = Some(0);
                                 self.updated.request(StateMarker::SettingsMenu);
+                            } else {
+                                // select level 1 item
+                                self.handle_menu(
+                                    self.menu.items[self.state.menu_idx_l1].0.unwrap(),
+                                )
+                                .await?;
                             }
                         }
                     }
@@ -612,6 +629,10 @@ impl<D> App<D> {
                         if self.state.menu_idx_l2.is_some() {
                             self.state.menu_idx_l2 = None;
                             self.updated.request(StateMarker::SettingsMenu);
+                        } else {
+                            // back to main window
+                            self.state.window = Window::Main;
+                            self.updated.clear();
                         }
                     }
                     _ => {}
@@ -619,6 +640,14 @@ impl<D> App<D> {
                 Ok(())
             }
         }
+    }
+
+    async fn handle_menu(&mut self, menu_id: MenuId) -> Result<()> {
+        match menu_id {
+            MenuId::Backlight => {}
+            _ => {}
+        }
+        Ok(())
     }
 
     async fn find_triggered_offset(&self, data: &[f32]) -> Option<i32> {
@@ -687,7 +716,7 @@ impl<D> App<D> {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone)]
 #[repr(usize)]
 pub enum MenuId {
     #[default]
@@ -810,7 +839,7 @@ pub async fn main_loop<D, K, A, F>(
             Ok(key) => {
                 let s: &str = key.into();
                 crate::info!("recv Key: {:?}", s);
-                app.input_key_event(key).unwrap();
+                app.input_key_event(key).await.unwrap();
             }
             Err(_) => {}
         }
