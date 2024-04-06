@@ -25,6 +25,8 @@ pub enum StateMarker {
     SettingValueTitle,
     SettingValueContent,
     SettingsMenu,
+    SettingsMenuMoveL1,
+    SettingsMenuMoveL2,
     Endding,
     All,
     AllFlush,
@@ -63,7 +65,9 @@ pub struct State {
 
     // used in menu
     pub menu_idx_l1: usize,
+    pub menu_idx_l1_last: Option<usize>,
     pub menu_idx_l2: Option<usize>,
+    pub menu_idx_l2_last: Option<usize>,
 }
 
 #[derive(Debug, Default)]
@@ -142,7 +146,9 @@ impl Default for State {
             setting_select_idx: Default::default(),
             setting_select_col: Default::default(),
             menu_idx_l1: Default::default(),
+            menu_idx_l1_last: Default::default(),
             menu_idx_l2: Default::default(),
+            menu_idx_l2_last: Default::default(),
         }
     }
 }

@@ -566,30 +566,36 @@ impl<D> App<D> {
                         self.state.window = Window::Main;
                         self.updated.clear();
                     }
-                    Keys::Up => {
-                        if let Some(idx) = self.state.menu_idx_l2 {
-                            // in level 2 menu
-                            let len = self.menu.items[self.state.menu_idx_l1].2.len();
-                            self.state.menu_idx_l2 = Some((idx + 1) % len);
-                        } else {
-                            // in level 1 menu
-                            self.state.menu_idx_l1 =
-                                (self.state.menu_idx_l1 + 1) % self.menu.items.len();
-                        }
-                        self.updated.request(StateMarker::SettingsMenu);
-                    }
                     Keys::Down => {
                         if let Some(idx) = self.state.menu_idx_l2 {
                             // in level 2 menu
                             let len = self.menu.items[self.state.menu_idx_l1].2.len();
-                            self.state.menu_idx_l2 = Some((idx + len - 1) % len);
+                            self.state.menu_idx_l2_last = Some(idx);
+                            self.state.menu_idx_l2 = Some((idx + 1) % len);
+                            self.updated.request(StateMarker::SettingsMenuMoveL2);
                         } else {
                             // in level 1 menu
+                            self.state.menu_idx_l1_last = Some(self.state.menu_idx_l1);
+                            self.state.menu_idx_l1 =
+                                (self.state.menu_idx_l1 + 1) % self.menu.items.len();
+                            self.updated.request(StateMarker::SettingsMenuMoveL1);
+                        }
+                    }
+                    Keys::Up => {
+                        if let Some(idx) = self.state.menu_idx_l2 {
+                            // in level 2 menu
+                            let len = self.menu.items[self.state.menu_idx_l1].2.len();
+                            self.state.menu_idx_l2_last = Some(idx);
+                            self.state.menu_idx_l2 = Some((idx + len - 1) % len);
+                            self.updated.request(StateMarker::SettingsMenuMoveL2);
+                        } else {
+                            // in level 1 menu
+                            self.state.menu_idx_l1_last = Some(self.state.menu_idx_l1);
                             self.state.menu_idx_l1 =
                                 (self.state.menu_idx_l1 + self.menu.items.len() - 1)
                                     % self.menu.items.len();
+                            self.updated.request(StateMarker::SettingsMenuMoveL1);
                         }
-                        self.updated.request(StateMarker::SettingsMenu);
                     }
                     Keys::Right => {
                         // into level 2 menu
