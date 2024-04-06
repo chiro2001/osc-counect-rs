@@ -50,13 +50,13 @@ impl<D, I> Draw<D> for Menu<I> {
             state.menu_idx_l1,
         )?;
         if let Some(idx) = state.menu_idx_l2 {
-            let offset_l2 = Point::new(48 + 74, 14 + 12 * idx as i32);
+            let offset_l2 = Point::new(48 + 74, 14 + 12 * state.menu_idx_l1 as i32);
             self.draw_level(
                 display,
                 state,
                 offset_l2,
-                self.items[idx].2.iter().map(|x| x.1),
-                self.items[idx].2.len(),
+                self.items[state.menu_idx_l1].2.iter().map(|x| x.1),
+                self.items[state.menu_idx_l1].2.len(),
                 idx,
             )?;
         }

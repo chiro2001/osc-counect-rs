@@ -591,6 +591,23 @@ impl<D> App<D> {
                         }
                         self.updated.request(StateMarker::SettingsMenu);
                     }
+                    Keys::Right => {
+                        // into level 2 menu
+                        if self.state.menu_idx_l2.is_none() {
+                            let len = self.menu.items[self.state.menu_idx_l1].2.len();
+                            if len > 0 {
+                                self.state.menu_idx_l2 = Some(0);
+                                self.updated.request(StateMarker::SettingsMenu);
+                            }
+                        }
+                    }
+                    Keys::Left => {
+                        // back to level 1 menu
+                        if self.state.menu_idx_l2.is_some() {
+                            self.state.menu_idx_l2 = None;
+                            self.updated.request(StateMarker::SettingsMenu);
+                        }
+                    }
                     _ => {}
                 }
                 Ok(())
@@ -673,7 +690,18 @@ pub enum MenuId {
 }
 static MENU: MenuItems<2, MenuId> = [
     (Some(MenuId::About), "About", &[]),
-    (Some(MenuId::Backlight), "Backlight", &[]),
+    (
+        Some(MenuId::Backlight),
+        "Backlight",
+        &[
+            (None, "10%"),
+            (None, "20%"),
+            (None, "40%"),
+            (None, "60%"),
+            (None, "80%"),
+            (None, "100%"),
+        ],
+    ),
 ];
 
 static KBD_CHANNEL: Channel<ThreadModeRawMutex, Keys, 16> = Channel::new();
