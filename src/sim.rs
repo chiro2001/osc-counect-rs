@@ -95,8 +95,8 @@ impl AudioAdcDevice {
             .build_input_stream(
                 &cpal::StreamConfig {
                     channels: 1,
-                    sample_rate: cpal::SampleRate(8192),
-                    buffer_size: cpal::BufferSize::Fixed(4096),
+                    sample_rate: cpal::SampleRate(44100),
+                    buffer_size: cpal::BufferSize::Fixed(1024 * 64),
                 },
                 move |data: &[f32], _: &_| {
                     // let average: f32 = data.iter().sum::<f32>() / data.len() as f32;
@@ -130,6 +130,7 @@ impl AdcDevice for AudioAdcDevice {
                     i += 1;
                 }
                 Err(_) => {
+                    warn!("no data! return what we have now: {}", i);
                     return Ok(i);
                 }
             }

@@ -373,7 +373,7 @@ impl Waveform {
                 let it = data
                     .iter()
                     .skip(skip)
-                    .chain(data.iter().take(data.len() - skip));
+                    .chain(data.iter().take(skip));
                 // let it = data.iter();
                 for (i, v) in it.enumerate() {
                     paint_point((i, *v))?;

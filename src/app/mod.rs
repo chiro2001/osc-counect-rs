@@ -649,8 +649,8 @@ async fn adc_task(
                 .await
                 .unwrap();
             sender.send(count).await;
-            assert!(count <= length, "count: {}, length: {}", count, length);
-            length -= length.min(count);
+            assert!(count <= length, "invalid count: {}, length: {}", count, length);
+            length -= count;
         }
         // Timer::after_millis(1000).await;
     }
@@ -715,7 +715,7 @@ pub async fn main_loop<D, K, A, F>(
         if send_req {
             let request_length = match app.state.timebase_mode {
                 TimebaseMode::Normal => WAVEFORM_LEN,
-                TimebaseMode::Rolling => WAVEFORM_LEN / 32,
+                TimebaseMode::Rolling => (WAVEFORM_LEN / 128).max(1),
                 TimebaseMode::XY => WAVEFORM_LEN,
             };
             ADC_REQ_CHANNEL
@@ -746,6 +746,6 @@ pub async fn main_loop<D, K, A, F>(
             }
             Err(_) => {}
         }
-        Timer::after_millis(20).await;
+        Timer::after_millis(5).await;
     }
 }
