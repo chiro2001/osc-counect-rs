@@ -7,7 +7,7 @@ extern crate alloc;
 
 use core::convert::Infallible;
 
-use app::devices::BoardDevice;
+use app::devices::{BoardDevice, BuzzerDevice};
 use defmt::*;
 use embedded_hal::{delay::DelayNs, digital::OutputPin};
 
@@ -73,37 +73,6 @@ impl<'d> InoutPin for DioPin<'d> {
         self.pin.is_low()
     }
 }
-
-// struct Buzzer<'d, T: GeneralInstance4Channel> {
-//     pwm: SimplePwm<'d, T>,
-//     channel: Channel,
-//     delay_ms: u64,
-//     freqs: [Hertz; 3],
-// }
-// impl<'d, T> Buzzer<'d, T>
-// where
-//     T: GeneralInstance4Channel,
-// {
-//     pub fn new(pwm: SimplePwm<'d, T>, channel: Channel, delay_ms: u64) -> Self {
-//         Self {
-//             pwm,
-//             channel,
-//             delay_ms,
-//             freqs: [Hertz::hz(523), Hertz::hz(659), Hertz::hz(784)],
-//         }
-//     }
-
-//     pub async fn beep(&mut self) {
-//         // self.pwm.set_duty(self.channel, self.pwm.get_max_duty() / 2);
-//         self.pwm.set_duty(self.channel, 0);
-//         self.pwm.enable(self.channel);
-//         for f in self.freqs.iter() {
-//             self.pwm.set_frequency(*f);
-//             Timer::after_millis(self.delay_ms).await;
-//         }
-//         self.pwm.disable(self.channel);
-//     }
-// }
 
 pub struct KeyboardDriver<'d, S, C, D, DELAY> {
     driver: tm1668::TM1668<'d, S, C, D, DELAY>,
@@ -464,14 +433,19 @@ async fn main(spawner: Spawner) {
     // let adc_device = DummyAdcDevice {};
     let adc_device = SimpleAdcDevice::new(PeripheralRef::new(p.ADC1), p.PA1, p.PA2);
     // let adc_device = app::input::DummyAdcDevice {};
-    let board_device = BoardDriver::new(bl, beep);
-    app::main_loop(spawner, lcd, board_device, kbd_drv, adc_device, |_| {}).await;
+    let board_device = BoardDriver::new(bl);
+    let buzzer_device = BuzzerDriver::new(beep, Channel::Ch4);
+    app::main_loop(
+        spawner,
+        lcd,
+        board_device,
+        buzzer_device,
+        kbd_drv,
+        adc_device,
+        |_| {},
+    )
+    .await;
     defmt::panic!("unreachable");
-
-    // loop {
-    //     Timer::after_millis(10000).await;
-    //     // debug!("main loop");
-    // }
 }
 
 struct SimpleAdcDevice<ADC, A, B> {
@@ -535,37 +509,55 @@ where
     }
 }
 
-struct BoardDriver<'d, T1: GeneralInstance4Channel, T2: GeneralInstance4Channel> {
-    backlight: SimplePwm<'d, T1>,
-    buzzer: SimplePwm<'d, T2>,
+struct BuzzerDriver<'d, T: GeneralInstance4Channel> {
+    pwm: SimplePwm<'d, T>,
+    channel: Channel,
 }
-
-impl<'d, T1, T2> BoardDriver<'d, T1, T2>
+impl<'d, T> BuzzerDriver<'d, T>
 where
-    T1: GeneralInstance4Channel,
-    T2: GeneralInstance4Channel,
+    T: GeneralInstance4Channel,
 {
-    fn new(backlight: SimplePwm<'d, T1>, buzzer: SimplePwm<'d, T2>) -> Self {
-        Self { backlight, buzzer }
+    fn init(mut self) -> Self {
+        self.pwm.set_duty(self.channel, self.pwm.get_max_duty() / 2);
+        self
+    }
+    pub fn new(pwm: SimplePwm<'d, T>, channel: Channel) -> Self {
+        Self { pwm, channel }.init()
+    }
+}
+impl<'d, T> BuzzerDevice for BuzzerDriver<'d, T>
+where
+    T: GeneralInstance4Channel,
+{
+    async fn beep(&mut self, frequency: u32, duration_ms: u32) {
+        self.pwm.set_frequency(Hertz::hz(frequency));
+        self.pwm.enable(self.channel);
+        Timer::after(embassy_time::Duration::from_millis(duration_ms as u64)).await;
+        self.pwm.disable(self.channel);
     }
 }
 
-impl<'d, T1, T2> BoardDevice for BoardDriver<'d, T1, T2>
+struct BoardDriver<'d, T: GeneralInstance4Channel> {
+    backlight: SimplePwm<'d, T>,
+}
+
+impl<'d, T> BoardDriver<'d, T>
 where
-    T1: GeneralInstance4Channel,
-    T2: GeneralInstance4Channel,
+    T: GeneralInstance4Channel,
+{
+    fn new(backlight: SimplePwm<'d, T>) -> Self {
+        Self { backlight }
+    }
+}
+
+impl<'d, T> BoardDevice for BoardDriver<'d, T>
+where
+    T: GeneralInstance4Channel,
 {
     fn set_brightness(&mut self, brightness: u8) {
         self.backlight.set_duty(
             Channel::Ch3,
             brightness.min(100) as u32 * self.backlight.get_max_duty() / 100,
         );
-    }
-
-    async fn beep(&mut self, frequency: u32, duration_ms: u32) {
-        self.buzzer.set_frequency(Hertz::hz(frequency));
-        self.buzzer.enable(Channel::Ch4);
-        Timer::after(embassy_time::Duration::from_millis(duration_ms as u64)).await;
-        self.buzzer.disable(Channel::Ch4);
     }
 }

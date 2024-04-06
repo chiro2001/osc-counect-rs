@@ -64,9 +64,18 @@ async fn main(spawner: Spawner) -> () {
     };
 
     let board = DummyBoardDevice {};
-    app::main_loop(spawner, display.clone(), board, kbd_device, adc_device, |d| {
-        window.lock().unwrap().update(d);
-    })
+    let buzzer = DummyBuzzerDevice {};
+    app::main_loop(
+        spawner,
+        display.clone(),
+        board,
+        buzzer,
+        kbd_device,
+        adc_device,
+        |d| {
+            window.lock().unwrap().update(d);
+        },
+    )
     .await;
     info!("Simulator stopped");
     std::process::exit(0);

@@ -71,6 +71,7 @@ pub struct State {
 
     // settings
     pub backlight: u8,
+    pub volume: u8,
 }
 
 #[derive(Debug, Default)]
@@ -153,6 +154,7 @@ impl Default for State {
             menu_idx_l2: Default::default(),
             menu_idx_l2_last: Default::default(),
             backlight: 50,
+            volume: 0,
         }
     }
 }

@@ -31,11 +31,12 @@ use embedded_graphics::{
     transform::Transform,
     Drawable,
 };
-pub struct App<D, B> {
+pub struct App<D, B, Z> {
     pub state: State,
     pub updated: StateVec,
     pub display: D,
     pub board: B,
+    pub buzzer: Z,
 
     // widgets of main window
     waveform: Waveform,
@@ -58,12 +59,13 @@ pub struct App<D, B> {
     menu: Menu<MenuId>,
 }
 
-impl<D, B> App<D, B>
+impl<D, B, Z> App<D, B, Z>
 where
     D: DrawTarget<Color = GuiColor> + 'static,
     B: BoardDevice,
+    Z: BuzzerDevice,
 {
-    pub fn new(display: D, board: B) -> Self {
+    pub fn new(display: D, board: B, buzzer: Z) -> Self {
         let panel_items = core::array::from_fn(|i| {
             let p = Panel::from(i);
             PanelItem::new(p, p.into(), "--", p.style())
@@ -73,6 +75,7 @@ where
             updated: Default::default(),
             display,
             board,
+            buzzer,
             waveform: Default::default(),
             running_state: Default::default(),
             time_scale: Default::default(),
@@ -354,9 +357,10 @@ where
     }
 }
 
-impl<D, B> App<D, B>
+impl<D, B, Z> App<D, B, Z>
 where
     B: BoardDevice,
+    Z: BuzzerDevice,
 {
     fn clear_update_state(&mut self) {
         for x in self.updated.iter_mut() {
@@ -364,6 +368,10 @@ where
         }
     }
     pub async fn input_key_event(&mut self, key: Keys) -> Result<()> {
+        // beep if volume is not 0
+        if self.state.volume != 0 {
+            self.buzzer.beep(523, 10).await;
+        }
         match self.state.window {
             Window::Main => {
                 match key {
@@ -669,6 +677,11 @@ where
                     self.state.menu_idx_l2 = Some(idx);
                     Ok(())
                 }
+                MenuId::Volume => {
+                    let idx = if self.state.volume == 0 { 0 } else { 1 };
+                    self.state.menu_idx_l2 = Some(idx);
+                    Ok(())
+                }
                 _ => Err(AppError::NotImplemented),
             }
         } else {
@@ -691,6 +704,15 @@ where
                 self.board.set_brightness(bl);
                 Ok(())
             }
+            MenuId::Volume => {
+                let volume = match self.state.menu_idx_l2 {
+                    Some(0) => 0,
+                    Some(1) => 100,
+                    _ => 100,
+                };
+                self.state.volume = volume;
+                Ok(())
+            }
             _ => Err(AppError::NotImplemented),
         }
     }
@@ -699,8 +721,10 @@ where
         if let Some(menu_id) = menu_id {
             match self.handle_menu(menu_id).await {
                 Ok(_) => {
-                    self.state.window = Window::Main;
-                    self.updated.clear();
+                    if self.state.window == Window::Settings && self.state.window_next.is_none() {
+                        self.state.window = Window::Main;
+                        self.updated.clear();
+                    }
                     Ok(())
                 }
                 Err(e) => {
@@ -785,8 +809,9 @@ pub enum MenuId {
     #[default]
     About,
     Backlight,
+    Volume,
 }
-static MENU: MenuItems<2, MenuId> = [
+static MENU: MenuItems<3, MenuId> = [
     (Some(MenuId::About), "About", &[]),
     (
         Some(MenuId::Backlight),
@@ -800,9 +825,15 @@ static MENU: MenuItems<2, MenuId> = [
             (None, "100%"),
         ],
     ),
+    (
+        Some(MenuId::Volume),
+        "Volume",
+        &[(None, "OFF"), (None, "ON")],
+    ),
 ];
 
 static KBD_CHANNEL: Channel<ThreadModeRawMutex, Keys, 16> = Channel::new();
+static BUZZER_CHANNEL: Channel<ThreadModeRawMutex, (u32, u32), 8> = Channel::new();
 static ADC_CHANNEL: Channel<ThreadModeRawMutex, usize, 1> = Channel::new();
 static ADC_REQ_CHANNEL: Channel<ThreadModeRawMutex, AdcReadOptions, 8> = Channel::new();
 static mut ADC_DATA: [f32; ADC_BUF_SZ] = [0.0; ADC_BUF_SZ];
@@ -855,23 +886,47 @@ async fn keyboad_task(
     }
 }
 
-pub async fn main_loop<D, B, K, A, F>(
+#[embassy_executor::task]
+async fn buzzer_task(
+    receiver: Receiver<'static, ThreadModeRawMutex, (u32, u32), 8>,
+    mut buzzer: impl BuzzerDevice + 'static,
+) {
+    loop {
+        let (freq, duration) = receiver.receive().await;
+        buzzer.beep(freq, duration).await;
+    }
+}
+
+struct ChanneledBuzzer {
+    sender: Sender<'static, ThreadModeRawMutex, (u32, u32), 8>,
+}
+impl BuzzerDevice for ChanneledBuzzer {
+    async fn beep(&mut self, freq: u32, duration: u32) {
+        self.sender.send((freq, duration)).await;
+    }
+}
+
+pub async fn main_loop<D, B, Z, K, A, F>(
     spawner: embassy_executor::Spawner,
     display: D,
     board: B,
+    buzzer: Z,
     keyboard: K,
     adc: A,
     loop_start: F,
 ) where
     D: DrawTarget<Color = GuiColor> + 'static,
     B: BoardDevice + 'static,
+    Z: BuzzerDevice + 'static,
     K: KeyboardDevice + 'static,
     A: AdcDevice + 'static,
     F: Fn(&D) -> (),
 {
-    let mut app = App::new(display, board);
     spawner
         .spawn(keyboad_task(KBD_CHANNEL.sender(), keyboard))
+        .unwrap();
+    spawner
+        .spawn(buzzer_task(BUZZER_CHANNEL.receiver(), buzzer))
         .unwrap();
     spawner
         .spawn(adc_task(
@@ -880,6 +935,10 @@ pub async fn main_loop<D, B, K, A, F>(
             adc,
         ))
         .unwrap();
+    let buzzer_device = ChanneledBuzzer {
+        sender: BUZZER_CHANNEL.sender(),
+    };
+    let mut app = App::new(display, board, buzzer_device);
     let mut send_req = true;
     loop {
         loop_start(&app.display);
