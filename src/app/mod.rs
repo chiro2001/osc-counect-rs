@@ -52,6 +52,9 @@ pub struct App<D> {
 
     // widgets of setting value window
     select_items: Option<SelectItem>,
+
+    // setting menu
+    menu: Menu<MenuId>,
 }
 
 impl<D> App<D>
@@ -101,6 +104,7 @@ where
             generator: Generator::new("Sin 10k"),
             trigger_level: Default::default(),
             select_items: Default::default(),
+            menu: Menu::new(&MENU),
         }
     }
 
@@ -272,10 +276,17 @@ where
     }
 
     async fn draw_settings_window(&mut self) -> Result<()> {
-        let display = &mut self.display;
-        display
-            .clear(gui_color(3))
-            .map_err(|_| AppError::DisplayError)?;
+        if !self.updated.at(StateMarker::SettingsMenu) {
+            // redraw background
+            let _ = self.waveform.draw_state_vec(
+                &mut self.display,
+                &mut self.state,
+                &mut self.updated,
+            )?;
+        }
+        self.menu
+            .draw(&mut self.display, &mut self.state, &mut self.updated)
+            .await?;
         Ok(())
     }
 
@@ -397,6 +408,12 @@ impl<D> App<D> {
                         for w in self.state.waveform.iter_mut() {
                             w.clear();
                         }
+                    }
+                    Keys::Ok => {
+                        // go to settings
+                        self.state.setting_inited = false;
+                        self.state.window_next = Some(Window::Settings);
+                        self.updated.request(StateMarker::SettingsMenu);
                     }
                     _ => {}
                 }
@@ -542,7 +559,42 @@ impl<D> App<D> {
                 }
                 Ok(())
             }
-            Window::Settings => Ok(()),
+            Window::Settings => {
+                match key {
+                    Keys::X => {
+                        // cancel
+                        self.state.window = Window::Main;
+                        self.updated.clear();
+                    }
+                    Keys::Up => {
+                        if let Some(idx) = self.state.menu_idx_l2 {
+                            // in level 2 menu
+                            let len = self.menu.items[self.state.menu_idx_l1].2.len();
+                            self.state.menu_idx_l2 = Some((idx + 1) % len);
+                        } else {
+                            // in level 1 menu
+                            self.state.menu_idx_l1 =
+                                (self.state.menu_idx_l1 + 1) % self.menu.items.len();
+                        }
+                        self.updated.request(StateMarker::SettingsMenu);
+                    }
+                    Keys::Down => {
+                        if let Some(idx) = self.state.menu_idx_l2 {
+                            // in level 2 menu
+                            let len = self.menu.items[self.state.menu_idx_l1].2.len();
+                            self.state.menu_idx_l2 = Some((idx + len - 1) % len);
+                        } else {
+                            // in level 1 menu
+                            self.state.menu_idx_l1 =
+                                (self.state.menu_idx_l1 + self.menu.items.len() - 1)
+                                    % self.menu.items.len();
+                        }
+                        self.updated.request(StateMarker::SettingsMenu);
+                    }
+                    _ => {}
+                }
+                Ok(())
+            }
         }
     }
 
@@ -612,6 +664,18 @@ impl<D> App<D> {
     }
 }
 
+#[derive(Default, Debug)]
+#[repr(usize)]
+pub enum MenuId {
+    #[default]
+    About,
+    Backlight,
+}
+static MENU: MenuItems<2, MenuId> = [
+    (Some(MenuId::About), "About", &[]),
+    (Some(MenuId::Backlight), "Backlight", &[]),
+];
+
 static KBD_CHANNEL: Channel<ThreadModeRawMutex, Keys, 16> = Channel::new();
 static ADC_CHANNEL: Channel<ThreadModeRawMutex, usize, 1> = Channel::new();
 static ADC_REQ_CHANNEL: Channel<ThreadModeRawMutex, AdcReadOptions, 8> = Channel::new();
@@ -647,23 +711,13 @@ async fn adc_task(
     }
 }
 
-// struct KeepMutex;
-// impl Drop for KeepMutex {
-//     fn drop(&mut self) {
-//         defmt::info!("KeepMutex drop");
-//     }
-// }
-// static DEV_MUTEX: Mutex<ThreadModeRawMutex, KeepMutex> = Mutex::new(KeepMutex {});
 #[embassy_executor::task]
 async fn keyboad_task(
     sender: Sender<'static, ThreadModeRawMutex, Keys, 16>,
     mut keyboard: impl KeyboardDevice + 'static,
 ) {
     loop {
-        let key = {
-            // DEV_MUTEX.lock().await;
-            keyboard.read_key()
-        };
+        let key = keyboard.read_key();
         if key != Keys::None {
             // let s: &str = key.into();
             // crate::debug!("send Key: {:?}", s);
@@ -675,8 +729,6 @@ async fn keyboad_task(
     }
 }
 
-// #[cfg(feature = "embedded")]
-// #[embassy_executor::task]
 pub async fn main_loop<D, K, A, F>(
     spawner: embassy_executor::Spawner,
     display: D,

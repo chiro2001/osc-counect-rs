@@ -17,9 +17,11 @@ use embedded_graphics::{
 };
 
 mod color;
+mod menu;
 mod overview;
 mod waveform;
 pub use color::*;
+pub use menu::*;
 pub use overview::*;
 pub use waveform::*;
 

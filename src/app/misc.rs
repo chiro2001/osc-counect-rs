@@ -20,6 +20,21 @@ pub enum Window {
     Settings,
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
+pub enum RunningState {
+    #[default]
+    Stopped,
+    Running,
+}
+impl Into<&'static str> for RunningState {
+    fn into(self) -> &'static str {
+        match self {
+            RunningState::Running => "RUN",
+            RunningState::Stopped => "STOP",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum SettingValueMode {
     ItemSelect,

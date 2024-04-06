@@ -4,23 +4,8 @@ use num_enum::IntoPrimitive;
 
 use super::{
     unit::{TimeScale, VoltageScale},
-    ChannelInfo, Panel, ProbeChannel, TimebaseMode, WaveformStorage, Window,
+    ChannelInfo, Panel, ProbeChannel, RunningState, TimebaseMode, WaveformStorage, Window,
 };
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
-pub enum RunningState {
-    #[default]
-    Stopped,
-    Running,
-}
-impl Into<&'static str> for RunningState {
-    fn into(self) -> &'static str {
-        match self {
-            RunningState::Running => "RUN",
-            RunningState::Stopped => "STOP",
-        }
-    }
-}
 
 #[derive(IntoPrimitive, Debug, Clone, Copy, PartialEq, PartialOrd)]
 #[repr(usize)]
@@ -39,6 +24,7 @@ pub enum StateMarker {
     TriggerLevel,
     SettingValueTitle,
     SettingValueContent,
+    SettingsMenu,
     Endding,
     All,
     AllFlush,
@@ -74,6 +60,10 @@ pub struct State {
     pub setting_voltage_scale: VoltageScale,
     pub setting_select_idx: [u8; 3],
     pub setting_select_col: u8,
+
+    // used in menu
+    pub menu_idx_l1: usize,
+    pub menu_idx_l2: Option<usize>,
 }
 
 #[derive(Debug, Default)]
@@ -151,6 +141,8 @@ impl Default for State {
             setting_voltage_scale: Default::default(),
             setting_select_idx: Default::default(),
             setting_select_col: Default::default(),
+            menu_idx_l1: Default::default(),
+            menu_idx_l2: Default::default(),
         }
     }
 }
