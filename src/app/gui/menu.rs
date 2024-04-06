@@ -55,7 +55,7 @@ impl<D, I> Draw<D> for Menu<I> {
                 display,
                 state,
                 offset_l1,
-                self.items.iter().map(|x| x.1),
+                self.items.iter().map(|x| (x.1, x.2.len() > 0)),
                 self.items.len(),
                 state.menu_idx_l1,
                 state.menu_idx_l1_last,
@@ -69,7 +69,7 @@ impl<D, I> Draw<D> for Menu<I> {
                     display,
                     state,
                     offset_l2,
-                    self.items[state.menu_idx_l1].2.iter().map(|x| x.1),
+                    self.items[state.menu_idx_l1].2.iter().map(|x| (x.1, false)),
                     self.items[state.menu_idx_l1].2.len(),
                     idx,
                     state.menu_idx_l2_last,
@@ -100,7 +100,7 @@ impl<I> Menu<I> {
     ) -> super::Result<()>
     where
         D: DrawTarget<Color = GuiColor>,
-        L: IntoIterator<Item = &'static str>,
+        L: IntoIterator<Item = (&'static str, bool)>,
     {
         let item_height = 12u32;
         let item_width = 72u32;
@@ -109,7 +109,7 @@ impl<I> Menu<I> {
                 .draw_styled(&PrimitiveStyle::with_fill(gui_color(5)), display)
                 .map_err(|_| AppError::DisplayError)?;
         }
-        let mut fill_item = |i, color, text, fill_rect| {
+        let mut fill_item = |i, color, text, fill_rect, mark| {
             if fill_rect {
                 Rectangle::new(
                     offset + Point::new(1, item_height as i32 * i as i32 + 1),
@@ -118,34 +118,53 @@ impl<I> Menu<I> {
                 .draw_styled(&PrimitiveStyle::with_fill(color), display)
                 .map_err(|_| AppError::DisplayError)
             } else {
-                Text::with_alignment(
+                let pos = offset
+                    + Point::new(2, i as i32 * item_height as i32 + item_height as i32 / 2)
+                    + TEXT_OFFSET;
+                let r = Text::with_alignment(
                     text,
-                    offset
-                        + Point::new(2, i as i32 * item_height as i32 + item_height as i32 / 2)
-                        + TEXT_OFFSET,
+                    pos,
                     MonoTextStyle::new(&FONT_6X9, color),
                     Alignment::Left,
                 )
                 .draw(display)
                 .map_err(|_| AppError::DisplayError)
-                .map(|_| ())
+                .map(|_| ());
+                match r {
+                    Ok(_) => {
+                        if mark {
+                            Text::with_alignment(
+                                ">",
+                                pos + Point::new(item_width as i32 - 9, 0),
+                                MonoTextStyle::new(&FONT_6X9, color),
+                                Alignment::Left,
+                            )
+                            .draw(display)
+                            .map_err(|_| AppError::DisplayError)
+                            .map(|_| ())
+                        } else {
+                            Ok(())
+                        }
+                    }
+                    Err(e) => Err(e),
+                }
             }
         };
         if let Some(idx) = focursed_last {
-            fill_item(idx, gui_color(5), "", true)?;
+            fill_item(idx, gui_color(5), "", true, false)?;
         }
-        fill_item(focursed, gui_color(0), "", true)?;
+        fill_item(focursed, gui_color(0), "", true, false)?;
         if !partial_update {
-            for (i, s) in list.into_iter().enumerate() {
+            for (i, (s, mark)) in list.into_iter().enumerate() {
                 let text_color = if i == focursed {
                     gui_color(15)
                 } else {
                     gui_color(0)
                 };
-                fill_item(i, text_color, s, false)?;
+                fill_item(i, text_color, s, false, mark)?;
             }
         } else {
-            for (i, s) in list
+            for (i, (s, mark)) in list
                 .into_iter()
                 .enumerate()
                 .filter(|(i, _)| *i == focursed || *i == focursed_last.unwrap_or(0))
@@ -156,7 +175,7 @@ impl<I> Menu<I> {
                 } else {
                     gui_color(0)
                 };
-                fill_item(i, text_color, s, false)?;
+                fill_item(i, text_color, s, false, mark)?;
             }
         }
         Ok(())
