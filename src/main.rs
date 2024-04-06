@@ -7,9 +7,10 @@ extern crate alloc;
 
 use core::convert::Infallible;
 
-use app::devices::{BoardDevice, BuzzerDevice};
+use app::devices::{BoardDevice, BuzzerDevice, NvmDevice};
 use defmt::*;
 use embedded_hal::{delay::DelayNs, digital::OutputPin};
+use embedded_storage::nor_flash::{NorFlash, ReadNorFlash};
 
 use {defmt_rtt as _, panic_probe as _};
 
@@ -428,12 +429,23 @@ async fn main(spawner: Spawner) {
     //     info!("value: {:x}", v);
     // }
 
-    // loop {}
+    // Timer::after_millis(500).await;
+
+    for region in embassy_stm32::flash::get_flash_regions() {
+        defmt::info!("region: {:?}", region);
+    }
+    // let region = embassy_stm32::flash::get_flash_regions()[0];
+    // defmt::assert!(core::mem::size_of::<app::State>() <= 1024);
+    // let offset = region.size - 1024;
+    let offset = 0x26000;
+    let flash = embassy_stm32::flash::Flash::new_blocking(p.FLASH)
+        .into_blocking_regions()
+        .bank1_region;
 
     // let adc_device = DummyAdcDevice {};
     let adc_device = SimpleAdcDevice::new(PeripheralRef::new(p.ADC1), p.PA1, p.PA2);
     // let adc_device = app::input::DummyAdcDevice {};
-    let board_device = BoardDriver::new(bl);
+    let board_device = BoardDriver::new(bl, flash, offset);
     let buzzer_device = BuzzerDriver::new(beep, Channel::Ch4);
     app::main_loop(
         spawner,
@@ -537,20 +549,26 @@ where
     }
 }
 
-struct BoardDriver<'d, T: GeneralInstance4Channel> {
+struct BoardDriver<'d, T: GeneralInstance4Channel, F> {
     backlight: SimplePwm<'d, T>,
+    flash: F,
+    flash_offset: u32,
 }
 
-impl<'d, T> BoardDriver<'d, T>
+impl<'d, T, F> BoardDriver<'d, T, F>
 where
     T: GeneralInstance4Channel,
 {
-    fn new(backlight: SimplePwm<'d, T>) -> Self {
-        Self { backlight }
+    fn new(backlight: SimplePwm<'d, T>, flash: F, flash_offset: u32) -> Self {
+        Self {
+            backlight,
+            flash,
+            flash_offset,
+        }
     }
 }
 
-impl<'d, T> BoardDevice for BoardDriver<'d, T>
+impl<'d, T, F> BoardDevice for BoardDriver<'d, T, F>
 where
     T: GeneralInstance4Channel,
 {
@@ -559,5 +577,29 @@ where
             Channel::Ch3,
             brightness.min(100) as u32 * self.backlight.get_max_duty() / 100,
         );
+    }
+}
+
+impl<'d, T, F> NvmDevice for BoardDriver<'d, T, F>
+where
+    T: GeneralInstance4Channel,
+    F: NorFlash + ReadNorFlash,
+{
+    fn read(&mut self, address: u32, buf: &mut [u8]) -> app::Result<()> {
+        self.flash
+            .read(address + self.flash_offset, buf)
+            .map_err(|_| app::AppError::StorageIOError)
+    }
+
+    fn write(&mut self, address: u32, buf: &[u8]) -> app::Result<()> {
+        self.flash
+            .write(address + self.flash_offset, buf)
+            .map_err(|_| app::AppError::StorageIOError)
+    }
+
+    fn erase(&mut self, address: u32, len: usize) -> app::Result<()> {
+        self.flash
+            .erase(address + self.flash_offset, len as u32)
+            .map_err(|_| app::AppError::StorageIOError)
     }
 }

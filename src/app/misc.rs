@@ -10,6 +10,8 @@ pub enum AppError {
     NotImplemented,
     Unexpected,
     LimitExceeded,
+    StorageIOError,
+    StateFormatError,
 }
 impl AppError {
     pub fn str(&self) -> &'static str {
@@ -19,6 +21,8 @@ impl AppError {
             AppError::NotImplemented => "Not Implemented",
             AppError::Unexpected => "Unexpected",
             AppError::LimitExceeded => "Limit Exceeded",
+            AppError::StorageIOError => "Storage IO Error",
+            AppError::StateFormatError => "State Format Error",
         }
     }
 }

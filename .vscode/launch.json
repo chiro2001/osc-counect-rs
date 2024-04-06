@@ -12,7 +12,7 @@
             "chip": "STM32F103VC",
             "coreConfigs": [
                 {
-                    "programBinary": "${workspaceFolder}/target/thumbv7m-none-eabi/release/osc-counect",
+                    "programBinary": "${workspaceFolder}/target/thumbv7m-none-eabi/debug/osc-counect",
                 }
             ]
         }

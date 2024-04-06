@@ -183,7 +183,25 @@ pub trait BoardDevice {
     fn set_brightness(&mut self, brightness: u8);
 }
 
+pub trait NvmDevice {
+    fn read(&mut self, address: u32, buf: &mut [u8]) -> Result<()>;
+    fn write(&mut self, address: u32, buf: &[u8]) -> Result<()>;
+    fn erase(&mut self, address: u32, len: usize) -> Result<()>;
+}
+
 pub struct DummyBoardDevice;
 impl BoardDevice for DummyBoardDevice {
     fn set_brightness(&mut self, _brightness: u8) {}
+}
+
+impl NvmDevice for DummyBoardDevice {
+    fn read(&mut self, _address: u32, _buf: &mut [u8]) -> Result<()> {
+        Err(super::AppError::NotImplemented)
+    }
+    fn write(&mut self, _address: u32, _buf: &[u8]) -> Result<()> {
+        Err(super::AppError::NotImplemented)
+    }
+    fn erase(&mut self, _address: u32, _len: usize) -> Result<()> {
+        Err(super::AppError::NotImplemented)
+    }
 }

@@ -19,7 +19,8 @@ use state::*;
 use unit::*;
 
 pub use gui::GuiColor;
-pub use misc::{ProbeChannel, Result};
+pub use misc::{AppError, ProbeChannel, Result};
+pub use state::State;
 
 use embassy_time::Timer;
 use embedded_graphics::{
@@ -59,12 +60,77 @@ pub struct App<D, B, Z> {
     menu: Menu<MenuId>,
 }
 
+const STATE_OFFSET: u32 = 0;
 impl<D, B, Z> App<D, B, Z>
 where
     D: DrawTarget<Color = GuiColor> + 'static,
-    B: BoardDevice,
+    B: BoardDevice + NvmDevice,
     Z: BuzzerDevice,
 {
+    fn load_state(&mut self) -> Result<()> {
+        // read state magic
+        let magic: u64 = 0;
+        self.board
+            .read(STATE_OFFSET, magic.to_ne_bytes().as_mut())?;
+        if magic == STATE_MAGIC {
+            defmt::info!("state magic matched");
+            // read version
+            let version: u64 = 0;
+            self.board
+                .read(STATE_OFFSET + 8, version.to_ne_bytes().as_mut())?;
+            if version == self.state.version {
+                defmt::info!("state version matched");
+                // read state
+                let state: State = Default::default();
+                let ptr = &state as *const State as *mut u8;
+                self.board.read(STATE_OFFSET, unsafe {
+                    core::slice::from_raw_parts_mut(ptr, core::mem::size_of::<State>())
+                })?;
+                self.state = state;
+                Ok(())
+            } else {
+                defmt::info!("state version mismatched");
+                Err(AppError::StateFormatError)
+            }
+        } else {
+            defmt::info!(
+                "state magic mismatched, read: {:x} expected: {:x}",
+                magic,
+                STATE_MAGIC
+            );
+            Err(AppError::StateFormatError)
+        }
+    }
+    fn save_state(&mut self) -> Result<()> {
+        // write state
+        let ptr = &self.state as *const State as *const u8;
+        self.board
+            .erase(STATE_OFFSET, core::mem::size_of::<State>())?;
+        defmt::info!("state erased");
+        self.board.write(STATE_OFFSET, unsafe {
+            core::slice::from_raw_parts(ptr, core::mem::size_of::<State>())
+        })?;
+        Ok(())
+    }
+    fn init(mut self) -> Self {
+        match self.load_state() {
+            Ok(_) => {
+                defmt::info!("state loaded");
+            }
+            Err(_) => {
+                defmt::info!("state not loaded, save default");
+                match self.save_state() {
+                    Ok(_) => {
+                        defmt::info!("state saved");
+                    }
+                    Err(_) => {
+                        defmt::warn!("state not saved");
+                    }
+                }
+            }
+        }
+        self
+    }
     pub fn new(display: D, board: B, buzzer: Z) -> Self {
         let panel_items = core::array::from_fn(|i| {
             let p = Panel::from(i);
@@ -112,6 +178,7 @@ where
             select_items: Default::default(),
             menu: Menu::new(&MENU),
         }
+        .init()
     }
 
     async fn draw_main_window(&mut self) -> Result<()> {
@@ -916,7 +983,7 @@ pub async fn main_loop<D, B, Z, K, A, F>(
     loop_start: F,
 ) where
     D: DrawTarget<Color = GuiColor> + 'static,
-    B: BoardDevice + 'static,
+    B: BoardDevice + NvmDevice + 'static,
     Z: BuzzerDevice + 'static,
     K: KeyboardDevice + 'static,
     A: AdcDevice + 'static,

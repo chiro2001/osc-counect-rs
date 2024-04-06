@@ -15,7 +15,7 @@ embassy-executor = { version = "0.5.0", path = "./embassy/embassy-executor", fea
     # "defmt",
     "integrated-timers",
     # "task-arena-size-12288",
-    "task-arena-size-10240"
+    "task-arena-size-10240",
 ] }
 embassy-time = { version = "0.3.0", path = "./embassy/embassy-time", features = [
     # "defmt",
@@ -53,6 +53,7 @@ nb = "1"
 num_enum = { version = "0.7.2", default-features = false }
 libm = { version = "0.2.8", features = ["rand"] }
 itertools = { version = "0.12.1", default-features = false }
+embedded-storage = "0.3.1"
 
 [target.'cfg(all(target_arch = "arm", target_os = "none"))'.dependencies]
 embassy-stm32 = { version = "0.1.0", path = "./embassy/embassy-stm32", features = [
@@ -90,7 +91,7 @@ version = "0.4.21"
 members = ["tm1668", "display-interface-fsmc", "ili9327"]
 
 [profile.dev]
-opt-level = 0
+opt-level = 1
 #opt-level = 0
 debug = true
 lto = true
@@ -136,3 +137,6 @@ path = "src/main.rs"
 [[bin]]
 name = "simulator"
 path = "src/sim.rs"
+
+[build-dependencies]
+chrono = "0.4.37"

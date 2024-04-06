@@ -32,8 +32,13 @@ pub enum StateMarker {
     AllFlush,
 }
 
+pub const STATE_MAGIC: u64 = 0xdeadbeef_11451419;
+
 #[derive(Debug)]
 pub struct State {
+    pub magic: u64,
+    /// build timestamp
+    pub version: u64,
     pub panel_page: u8,
     pub panel_focused: Option<Panel>,
     pub running_state: RunningState,
@@ -127,6 +132,8 @@ impl Default for State {
             }
         }
         Self {
+            magic: STATE_MAGIC,
+            version: Default::default(),
             panel_page: 0,
             panel_focused: Default::default(),
             running_state: Default::default(),
@@ -158,3 +165,9 @@ impl Default for State {
         }
     }
 }
+
+// const STATE_SIZE: usize = core::mem::size_of::<State>();
+pub const STATE_SIZE: usize = 1024;
+
+#[no_mangle]
+pub static STATE_STORAGE: [u8; STATE_SIZE] = [0; STATE_SIZE];
