@@ -200,25 +200,6 @@ where
             .draw(display, &mut self.state, &mut self.updated)
             .await?;
 
-        // // generate random data for testing
-        // static mut OFFSET: f64 = 0.0;
-        // use libm::*;
-        // for channel in (ProbeChannel::B as usize)..(ProbeChannel::Endding as usize) {
-        //     let data_new = (0..self.state.waveform[channel].len).map(|i| {
-        //         (sin(i as f64 * 0.3 + unsafe { OFFSET })
-        //             * 2.0
-        //             * (if channel != 0 { 1.0 } else { -1.0 })) as f32
-        //     });
-        //     self.state.waveform[channel].append_iter(data_new)?;
-        // }
-        // unsafe {
-        //     OFFSET += 0.1;
-        //     if OFFSET >= 2.0 * 3.14159265 {
-        //         OFFSET = 0.0;
-        //         self.updated.request(StateMarker::Waveform);
-        //     }
-        // }
-        // self.updated.request(StateMarker::WaveformData);
         Ok(())
     }
 
@@ -756,6 +737,7 @@ pub async fn main_loop<D, K, A, F>(
             }
             Err(_) => {}
         }
-        Timer::after_millis(5).await;
+        // Timer::after_millis(5).await;
+        Timer::after_micros(10).await;
     }
 }
