@@ -194,22 +194,19 @@ async fn main(spawner: Spawner) {
         config.rcc.sys = Sysclk::PLL1_P;
         #[cfg(feature = "stm32f103vc")]
         {
+            config.rcc.apb2_pre = APBPrescaler::DIV1;
             #[cfg(feature = "overclocking")]
             {
                 config.rcc.ahb_pre = AHBPrescaler::DIV2;
-            }
-            #[cfg(not(feature = "overclocking"))]
-            {
                 config.rcc.apb1_pre = APBPrescaler::DIV2;
-            }
-            config.rcc.apb2_pre = APBPrescaler::DIV1;
-            // overclocking ADC 16MHz, note that the max ADC clock is 14MHz
-            #[cfg(feature = "overclocking")]
-            {
+                // overclocking ADC 16MHz, note that the max ADC clock is 14MHz
                 config.rcc.adc_pre = ADCPrescaler::DIV4;
             }
             #[cfg(not(feature = "overclocking"))]
             {
+                config.rcc.ahb_pre = AHBPrescaler::DIV1;
+                config.rcc.apb1_pre = APBPrescaler::DIV2;
+                // ADC 72 / 6 = 12 MHz
                 config.rcc.adc_pre = ADCPrescaler::DIV6;
             }
         }
