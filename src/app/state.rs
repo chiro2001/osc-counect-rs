@@ -79,6 +79,9 @@ pub struct State {
     // settings
     pub backlight: u8,
     pub volume: u8,
+
+    pub music_freq_idx: Option<usize>,
+    pub music_sharp_pressed: bool,
 }
 
 #[derive(Debug, Default)]
@@ -164,6 +167,8 @@ impl Default for State {
             menu_idx_l2_last: Default::default(),
             backlight: 50,
             volume: 0,
+            music_freq_idx: None,
+            music_sharp_pressed: false,
         }
     }
 }

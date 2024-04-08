@@ -383,11 +383,36 @@ where
         Ok(())
     }
 
+    async fn draw_music_board_window(&mut self) -> Result<()> {
+        static mut LAST_VAL: f32 = 0.0;
+        if let Some(idx) = self.state.music_freq_idx {
+            let freq = MUSIC_FREQ[idx + if self.state.music_sharp_pressed { 7 } else { 0 }];
+            let val = freq as f32 * 6.0 / (1975.0 - 523.0) - 3.0;
+            self.data_input(&[val], ProbeChannel::A).await?;
+            unsafe {
+                LAST_VAL = val;
+            }
+        } else {
+            // self.data_input(&[-3.0], ProbeChannel::A).await?;
+            self.data_input(&[unsafe { LAST_VAL }], ProbeChannel::A)
+                .await?;
+        }
+
+        self.waveform
+            .draw(&mut self.display, &mut self.state, &mut self.updated)
+            .await?;
+
+        self.updated.request(StateMarker::WaveformData);
+
+        Ok(())
+    }
+
     pub async fn draw(&mut self) -> Result<()> {
         match self.state.window {
             Window::Main => self.draw_main_window().await,
             Window::SetValue => self.draw_set_value_window().await,
             Window::Settings => self.draw_settings_window().await,
+            Window::MusicBoard => self.draw_music_board_window().await,
         }
     }
 
@@ -454,13 +479,17 @@ where
             *x = false;
         }
     }
-    pub async fn input_key_event(&mut self, key: Keys) -> Result<()> {
+    pub async fn input_key_event(&mut self, key: KeyEvent) -> Result<()> {
         // beep if volume is not 0
         if self.state.volume != 0 {
-            self.buzzer.beep(523, 10).await;
+            self.buzzer.beep(2093, 10).await;
         }
         match self.state.window {
             Window::Main => {
+                let key = match key {
+                    KeyEvent::Released(k) => k,
+                    _ => Keys::None,
+                };
                 match key {
                     Keys::Sharp => {
                         self.updated.clear();
@@ -525,6 +554,10 @@ where
                 Ok(())
             }
             Window::SetValue => {
+                let key = match key {
+                    KeyEvent::Released(k) => k,
+                    _ => Keys::None,
+                };
                 let panel = Panel::from(self.state.setting_index as usize);
                 match key {
                     Keys::Left => {
@@ -665,6 +698,10 @@ where
                 Ok(())
             }
             Window::Settings => {
+                let key = match key {
+                    KeyEvent::Released(k) => k,
+                    _ => Keys::None,
+                };
                 match key {
                     Keys::X => {
                         // cancel
@@ -743,6 +780,49 @@ where
                 }
                 Ok(())
             }
+            Window::MusicBoard => {
+                match key {
+                    KeyEvent::Released(Keys::X) => {
+                        self.state.window = Window::Main;
+                        self.updated.clear();
+                    }
+                    KeyEvent::Pressed(Keys::Key1)
+                    | KeyEvent::Pressed(Keys::Key2)
+                    | KeyEvent::Pressed(Keys::Key3)
+                    | KeyEvent::Pressed(Keys::Key4)
+                    | KeyEvent::Pressed(Keys::Key5)
+                    | KeyEvent::Pressed(Keys::Key6)
+                    | KeyEvent::Pressed(Keys::Key7) => {
+                        let key = match key {
+                            KeyEvent::Pressed(k) => k,
+                            _ => Keys::None,
+                        };
+                        let k = key.digital_value() - 1;
+                        self.state.music_freq_idx = Some(k as usize);
+                        let freq = MUSIC_FREQ
+                            [k as usize + if self.state.music_sharp_pressed { 7 } else { 0 }];
+                        self.buzzer.beep_on(freq).await;
+                    }
+                    KeyEvent::Released(Keys::Key1)
+                    | KeyEvent::Released(Keys::Key2)
+                    | KeyEvent::Released(Keys::Key3)
+                    | KeyEvent::Released(Keys::Key4)
+                    | KeyEvent::Released(Keys::Key5)
+                    | KeyEvent::Released(Keys::Key6)
+                    | KeyEvent::Released(Keys::Key7) => {
+                        self.state.music_freq_idx = None;
+                        self.buzzer.beep_off().await;
+                    }
+                    KeyEvent::Pressed(Keys::Sharp) => {
+                        self.state.music_sharp_pressed = true;
+                    }
+                    KeyEvent::Released(Keys::Sharp) => {
+                        self.state.music_sharp_pressed = false;
+                    }
+                    _ => {}
+                }
+                Ok(())
+            }
         }
     }
 
@@ -798,6 +878,15 @@ where
                     _ => 100,
                 };
                 self.state.volume = volume;
+                Ok(())
+            }
+            MenuId::Music => {
+                self.state.window = Window::MusicBoard;
+                self.state.timebase_mode = TimebaseMode::Rolling;
+                for w in self.state.waveform.iter_mut() {
+                    w.clear();
+                }
+                self.updated.clear();
                 Ok(())
             }
             _ => Err(AppError::NotImplemented),
@@ -897,8 +986,9 @@ pub enum MenuId {
     About,
     Backlight,
     Volume,
+    Music,
 }
-static MENU: MenuItems<3, MenuId> = [
+static MENU: MenuItems<4, MenuId> = [
     (Some(MenuId::About), "About", &[]),
     (
         Some(MenuId::Backlight),
@@ -917,9 +1007,15 @@ static MENU: MenuItems<3, MenuId> = [
         "Volume",
         &[(None, "OFF"), (None, "ON")],
     ),
+    (Some(MenuId::Music), "Music", &[]),
 ];
 
-static KBD_CHANNEL: Channel<ThreadModeRawMutex, Keys, 16> = Channel::new();
+const MUSIC_FREQ: &'static [u32] = &[
+    523, 554, 587, 622, 659, 698, 740, 784, 831, 880, 932, 988, 1047, 1109, 1175, 1245, 1319, 1397,
+    1480, 1568, 1661, 1760, 1865, 1975,
+];
+
+static KBD_CHANNEL: Channel<ThreadModeRawMutex, KeyEvent, 16> = Channel::new();
 static BUZZER_CHANNEL: Channel<ThreadModeRawMutex, (u32, u32), 8> = Channel::new();
 static ADC_CHANNEL: Channel<ThreadModeRawMutex, usize, 1> = Channel::new();
 static ADC_REQ_CHANNEL: Channel<ThreadModeRawMutex, AdcReadOptions, 8> = Channel::new();
@@ -957,12 +1053,12 @@ async fn adc_task(
 
 #[embassy_executor::task]
 async fn keyboad_task(
-    sender: Sender<'static, ThreadModeRawMutex, Keys, 16>,
+    sender: Sender<'static, ThreadModeRawMutex, KeyEvent, 16>,
     mut keyboard: impl KeyboardDevice + 'static,
 ) {
     loop {
-        let key = keyboard.read_key();
-        if key != Keys::None {
+        let key = keyboard.read_key_event();
+        if key != KeyEvent::None {
             // let s: &str = key.into();
             // crate::debug!("send Key: {:?}", s);
             sender.send(key).await;
@@ -1048,20 +1144,26 @@ pub async fn main_loop<D, B, Z, K, A, F>(
         app.state.window_next = None;
         match KBD_CHANNEL.try_receive() {
             Ok(key) => {
-                let s: &str = key.into();
+                let s: &str = match key {
+                    KeyEvent::Pressed(k) => k.into(),
+                    KeyEvent::Released(k) => k.into(),
+                    KeyEvent::None => Keys::None.into(),
+                };
                 crate::info!("recv Key: {:?}", s);
                 app.input_key_event(key).await.unwrap();
             }
             Err(_) => {}
         }
-        match ADC_CHANNEL.try_receive() {
-            Ok(sz) => {
-                // defmt::info!("recv ADC data: {}", sz);
-                let data = unsafe { core::slice::from_raw_parts(ADC_DATA.as_ptr(), sz) };
-                app.data_input(data, ProbeChannel::A).await.unwrap();
-                send_req = true;
+        if app.state.window != Window::MusicBoard {
+            match ADC_CHANNEL.try_receive() {
+                Ok(sz) => {
+                    // defmt::info!("recv ADC data: {}", sz);
+                    let data = unsafe { core::slice::from_raw_parts(ADC_DATA.as_ptr(), sz) };
+                    app.data_input(data, ProbeChannel::A).await.unwrap();
+                    send_req = true;
+                }
+                Err(_) => {}
             }
-            Err(_) => {}
         }
         // Timer::after_millis(5).await;
         Timer::after_micros(10).await;

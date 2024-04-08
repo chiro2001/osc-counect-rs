@@ -114,6 +114,26 @@ where
         self.keys = keys;
         r
     }
+    fn read_key_event(&mut self) -> app::devices::KeyEvent {
+        let mut keys = [false; 20];
+        self.driver.read_decode_keys(&mut keys);
+        let mut r = app::devices::KeyEvent::None;
+        for (i, k) in keys.iter().enumerate() {
+            // read key up
+            if !*k && self.keys[i] {
+                r = app::devices::KeyEvent::Released(app::devices::Keys::try_from(i).unwrap());
+                self.keys[i] = false;
+                break;
+            }
+            // read key down
+            if *k && !self.keys[i] {
+                r = app::devices::KeyEvent::Pressed(app::devices::Keys::try_from(i).unwrap());
+                self.keys[i] = true;
+                break;
+            }
+        }
+        r
+    }
 }
 
 #[embassy_executor::main]
@@ -543,10 +563,16 @@ where
     T: GeneralInstance4Channel,
 {
     async fn beep(&mut self, frequency: u32, duration_ms: u32) {
-        self.pwm.set_frequency(Hertz::hz(frequency));
-        self.pwm.enable(self.channel);
-        Timer::after(embassy_time::Duration::from_millis(duration_ms as u64)).await;
-        self.pwm.disable(self.channel);
+        if frequency == 0 {
+            self.pwm.disable(self.channel);
+        } else {
+            self.pwm.set_frequency(Hertz::hz(frequency));
+            self.pwm.enable(self.channel);
+            if duration_ms != 0 {
+                Timer::after(embassy_time::Duration::from_millis(duration_ms as u64)).await;
+                self.pwm.disable(self.channel);
+            }
+        }
     }
 }
 

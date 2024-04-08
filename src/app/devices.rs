@@ -85,8 +85,22 @@ impl Into<&'static str> for Keys {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
+pub enum KeyEvent {
+    Pressed(Keys),
+    Released(Keys),
+    None,
+}
+
 pub trait KeyboardDevice {
     fn read_key(&mut self) -> Keys;
+    fn read_key_event(&mut self) -> KeyEvent {
+        let key = self.read_key();
+        match key {
+            Keys::None => KeyEvent::None,
+            _ => KeyEvent::Released(key),
+        }
+    }
 }
 
 #[cfg(feature = "simulator")]
@@ -170,6 +184,12 @@ impl AdcDevice for DummyAdcDevice {
 
 pub trait BuzzerDevice {
     async fn beep(&mut self, frequency: u32, duration_ms: u32);
+    async fn beep_on(&mut self, frequency: u32) {
+        self.beep(frequency, 0).await;
+    }
+    async fn beep_off(&mut self) {
+        self.beep(0, 0).await;
+    }
 }
 
 pub struct DummyBuzzerDevice;

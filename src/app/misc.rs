@@ -33,6 +33,7 @@ pub enum Window {
     Main,
     SetValue,
     Settings,
+    MusicBoard,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
