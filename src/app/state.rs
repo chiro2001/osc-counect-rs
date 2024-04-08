@@ -81,6 +81,7 @@ pub struct State {
     pub volume: u8,
 
     pub music_freq_idx: Option<usize>,
+    pub music_star_pressed: bool,
     pub music_sharp_pressed: bool,
 }
 
@@ -168,6 +169,7 @@ impl Default for State {
             backlight: 50,
             volume: 0,
             music_freq_idx: None,
+            music_star_pressed: false,
             music_sharp_pressed: false,
         }
     }

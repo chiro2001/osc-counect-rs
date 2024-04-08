@@ -386,8 +386,12 @@ where
     async fn draw_music_board_window(&mut self) -> Result<()> {
         static mut LAST_VAL: f32 = 0.0;
         if let Some(idx) = self.state.music_freq_idx {
-            let freq = MUSIC_FREQ[idx + if self.state.music_sharp_pressed { 7 } else { 0 }];
-            let val = freq as f32 * 6.0 / (1975.0 - 523.0) - 3.0;
+            let freq = MUSIC_FREQ[(idx as i32
+                + 7
+                + if self.state.music_sharp_pressed { 7 } else { 0 }
+                + if self.state.music_star_pressed { -7 } else { 0 })
+                as usize];
+            let val = freq as f32 * 6.0 / (1975.0 - 261.0) - 3.0;
             self.data_input(&[val], ProbeChannel::A).await?;
             unsafe {
                 LAST_VAL = val;
@@ -799,8 +803,11 @@ where
                         };
                         let k = key.digital_value() - 1;
                         self.state.music_freq_idx = Some(k as usize);
-                        let freq = MUSIC_FREQ
-                            [k as usize + if self.state.music_sharp_pressed { 7 } else { 0 }];
+                        let freq = MUSIC_FREQ[(k as i32
+                            + 7
+                            + if self.state.music_sharp_pressed { 7 } else { 0 }
+                            + if self.state.music_star_pressed { -7 } else { 0 })
+                            as usize];
                         self.buzzer.beep_on(freq).await;
                     }
                     KeyEvent::Released(Keys::Key1)
@@ -818,6 +825,12 @@ where
                     }
                     KeyEvent::Released(Keys::Sharp) => {
                         self.state.music_sharp_pressed = false;
+                    }
+                    KeyEvent::Pressed(Keys::Star) => {
+                        self.state.music_star_pressed = true;
+                    }
+                    KeyEvent::Released(Keys::Star) => {
+                        self.state.music_star_pressed = false;
                     }
                     _ => {}
                 }
@@ -1010,9 +1023,11 @@ static MENU: MenuItems<4, MenuId> = [
     (Some(MenuId::Music), "Music", &[]),
 ];
 
+#[rustfmt::skip]
 const MUSIC_FREQ: &'static [u32] = &[
-    523, 554, 587, 622, 659, 698, 740, 784, 831, 880, 932, 988, 1047, 1109, 1175, 1245, 1319, 1397,
-    1480, 1568, 1661, 1760, 1865, 1975,
+    261, 277, 294, 311, 330, 349, 370, 392, 415, 440, 466, 494, 
+    523, 554, 587, 622, 659, 698, 740, 784, 831, 880, 932, 988, 
+    1047, 1109, 1175, 1245, 1319, 1397, 1480, 1568, 1661, 1760, 1865, 1975,
 ];
 
 static KBD_CHANNEL: Channel<ThreadModeRawMutex, KeyEvent, 16> = Channel::new();
