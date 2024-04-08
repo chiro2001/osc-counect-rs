@@ -35,6 +35,8 @@ pub enum StateMarker {
 pub const STATE_MAGIC: u64 = 0xdeadbeef_11451419;
 
 #[derive(Debug)]
+#[repr(C)]
+// #[repr(align(4))]
 pub struct State {
     pub magic: u64,
     /// build timestamp

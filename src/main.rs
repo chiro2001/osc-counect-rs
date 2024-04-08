@@ -434,10 +434,11 @@ async fn main(spawner: Spawner) {
     for region in embassy_stm32::flash::get_flash_regions() {
         defmt::info!("region: {:?}", region);
     }
-    // let region = embassy_stm32::flash::get_flash_regions()[0];
-    // defmt::assert!(core::mem::size_of::<app::State>() <= 1024);
-    // let offset = region.size - 1024;
-    let offset = 0x26000;
+    let region = embassy_stm32::flash::get_flash_regions()[0];
+    let state_max = 4096;
+    defmt::assert!(core::mem::size_of::<app::State>() <= state_max);
+    let offset = region.size - state_max as u32;
+    // let offset = 1024 * 64;
     let flash = embassy_stm32::flash::Flash::new_blocking(p.FLASH)
         .into_blocking_regions()
         .bank1_region;
@@ -584,22 +585,49 @@ impl<'d, T, F> NvmDevice for BoardDriver<'d, T, F>
 where
     T: GeneralInstance4Channel,
     F: NorFlash + ReadNorFlash,
+    <F as embedded_storage::nor_flash::ErrorType>::Error: defmt::Format,
 {
     fn read(&mut self, address: u32, buf: &mut [u8]) -> app::Result<()> {
+        defmt::info!("read at {:x}", address + self.flash_offset);
         self.flash
             .read(address + self.flash_offset, buf)
             .map_err(|_| app::AppError::StorageIOError)
     }
 
     fn write(&mut self, address: u32, buf: &[u8]) -> app::Result<()> {
-        self.flash
-            .write(address + self.flash_offset, buf)
-            .map_err(|_| app::AppError::StorageIOError)
+        let len = buf.len();
+        let blksz = 2048;
+        let aligned = ((len + blksz - 1) / blksz) * blksz;
+        defmt::info!("write at {:x}, len {}", address + self.flash_offset, len);
+        if len != aligned {
+            defmt::info!("write at {:x}, len {}", address + self.flash_offset, len);
+            let mut buf_vec = alloc::vec::Vec::from(buf);
+            buf_vec.resize(aligned, 0);
+            defmt::info!("data[0]: {:x}, buf[0]: {:x}", buf[0], buf_vec[0]);
+            self.flash
+                .write(address + self.flash_offset, &buf_vec)
+                .map_err(|_| app::AppError::StorageIOError)
+        } else {
+            defmt::info!("write at {:x}, len {}", address + self.flash_offset, len);
+            self.flash
+                .write(address + self.flash_offset, buf)
+                .map_err(|_| app::AppError::StorageIOError)
+        }
+        // self.flash
+        //     .write(address + self.flash_offset, buf)
+        //     .map_err(|_| app::AppError::StorageIOError)
     }
 
     fn erase(&mut self, address: u32, len: usize) -> app::Result<()> {
-        self.flash
-            .erase(address + self.flash_offset, len as u32)
-            .map_err(|_| app::AppError::StorageIOError)
+        let blksz = 2048;
+        // let aligned = len / blksz * blksz;
+        let aligned = ((len + blksz - 1) / blksz) * blksz;
+        defmt::info!("erase at {:x}, len {}", address + self.flash_offset, len);
+        let from = address + self.flash_offset;
+        let to = from + aligned as u32;
+        self.flash.erase(from, to).map_err(|e| {
+            defmt::info!("erase error: {:?}", e);
+            app::AppError::StorageIOError
+        })
     }
 }

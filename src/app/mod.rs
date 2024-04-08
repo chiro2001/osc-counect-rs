@@ -67,7 +67,7 @@ where
     B: BoardDevice + NvmDevice,
     Z: BuzzerDevice,
 {
-    fn load_state(&mut self) -> Result<()> {
+    async fn load_state(&mut self) -> Result<()> {
         // read state magic
         let magic: u64 = 0;
         self.board
@@ -101,25 +101,44 @@ where
             Err(AppError::StateFormatError)
         }
     }
-    fn save_state(&mut self) -> Result<()> {
+    async fn save_state(&mut self) -> Result<()> {
         // write state
         let ptr = &self.state as *const State as *const u8;
         self.board
             .erase(STATE_OFFSET, core::mem::size_of::<State>())?;
+        defmt::info!(
+            "saving state: {=[u8]:x} at ptr {} or {}",
+            unsafe { core::slice::from_raw_parts(ptr, 16) },
+            ptr,
+            &self.state.magic as *const u64 as *const u8
+        );
         defmt::info!("state erased");
         self.board.write(STATE_OFFSET, unsafe {
             core::slice::from_raw_parts(ptr, core::mem::size_of::<State>())
         })?;
+        embassy_time::Timer::after_millis(100).await;
+        // check written state
+        let state_magic_written: u64 = 0;
+        self.board
+            .read(STATE_OFFSET, state_magic_written.to_ne_bytes().as_mut())?;
+        if state_magic_written == STATE_MAGIC {
+            defmt::info!("state saved, magic matched");
+        } else {
+            defmt::warn!(
+                "state saved, magic mismatched, read: {:x}",
+                state_magic_written
+            );
+        }
         Ok(())
     }
-    fn init(mut self) -> Self {
-        match self.load_state() {
+    async fn init(mut self) -> Self {
+        match self.load_state().await {
             Ok(_) => {
                 defmt::info!("state loaded");
             }
             Err(_) => {
                 defmt::info!("state not loaded, save default");
-                match self.save_state() {
+                match self.save_state().await {
                     Ok(_) => {
                         defmt::info!("state saved");
                     }
@@ -131,7 +150,7 @@ where
         }
         self
     }
-    pub fn new(display: D, board: B, buzzer: Z) -> Self {
+    pub async fn new(display: D, board: B, buzzer: Z) -> Self {
         let panel_items = core::array::from_fn(|i| {
             let p = Panel::from(i);
             PanelItem::new(p, p.into(), "--", p.style())
@@ -179,6 +198,7 @@ where
             menu: Menu::new(&MENU),
         }
         .init()
+        .await
     }
 
     async fn draw_main_window(&mut self) -> Result<()> {
@@ -1005,7 +1025,7 @@ pub async fn main_loop<D, B, Z, K, A, F>(
     let buzzer_device = ChanneledBuzzer {
         sender: BUZZER_CHANNEL.sender(),
     };
-    let mut app = App::new(display, board, buzzer_device);
+    let mut app = App::new(display, board, buzzer_device).await;
     let mut send_req = true;
     loop {
         loop_start(&app.display);
