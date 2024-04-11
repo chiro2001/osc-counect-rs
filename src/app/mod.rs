@@ -485,7 +485,7 @@ where
     }
     pub async fn input_key_event(&mut self, key: KeyEvent) -> Result<()> {
         // beep if volume is not 0
-        if self.state.volume != 0 {
+        if self.state.window != Window::MusicBoard && self.state.volume != 0 {
             self.buzzer.beep(2093, 10).await;
         }
         match self.state.window {
@@ -1179,6 +1179,9 @@ pub async fn main_loop<D, B, Z, K, A, F>(
                 }
                 Err(_) => {}
             }
+        }
+        if app.board.read_power_key() {
+            app.board.set_power_on(false);
         }
         // Timer::after_millis(5).await;
         Timer::after_micros(10).await;

@@ -9,7 +9,10 @@ use core::convert::Infallible;
 
 use app::devices::{BoardDevice, BuzzerDevice, NvmDevice};
 use defmt::*;
-use embedded_hal::{delay::DelayNs, digital::OutputPin};
+use embedded_hal::{
+    delay::DelayNs,
+    digital::{InputPin, OutputPin},
+};
 use embedded_storage::nor_flash::{NorFlash, ReadNorFlash};
 
 use {defmt_rtt as _, panic_probe as _};
@@ -465,8 +468,11 @@ async fn main(spawner: Spawner) {
 
     // let adc_device = DummyAdcDevice {};
     let adc_device = SimpleAdcDevice::new(PeripheralRef::new(p.ADC1), p.PA1, p.PA2);
+    let mut power_key_test = Flex::new(p.PE1);
+    power_key_test.set_as_input(Pull::Down);
+    let power_on = Output::new(p.PE0, Level::High, Speed::Low);
     // let adc_device = app::input::DummyAdcDevice {};
-    let board_device = BoardDriver::new(bl, flash, offset);
+    let board_device = BoardDriver::new(bl, flash, offset, power_key_test, power_on);
     let buzzer_device = BuzzerDriver::new(beep, Channel::Ch4);
     app::main_loop(
         spawner,
@@ -576,28 +582,40 @@ where
     }
 }
 
-struct BoardDriver<'d, T: GeneralInstance4Channel, F> {
+struct BoardDriver<'d, T: GeneralInstance4Channel, F, P, W> {
     backlight: SimplePwm<'d, T>,
     flash: F,
     flash_offset: u32,
+    power_key_test: P,
+    power_on: W,
 }
 
-impl<'d, T, F> BoardDriver<'d, T, F>
+impl<'d, T, F, P, W> BoardDriver<'d, T, F, P, W>
 where
     T: GeneralInstance4Channel,
 {
-    fn new(backlight: SimplePwm<'d, T>, flash: F, flash_offset: u32) -> Self {
+    fn new(
+        backlight: SimplePwm<'d, T>,
+        flash: F,
+        flash_offset: u32,
+        power_key_test: P,
+        power_on: W,
+    ) -> Self {
         Self {
             backlight,
             flash,
             flash_offset,
+            power_key_test,
+            power_on,
         }
     }
 }
 
-impl<'d, T, F> BoardDevice for BoardDriver<'d, T, F>
+impl<'d, T, F, P, W> BoardDevice for BoardDriver<'d, T, F, P, W>
 where
     T: GeneralInstance4Channel,
+    P: InputPin,
+    W: OutputPin,
 {
     fn set_brightness(&mut self, brightness: u8) {
         self.backlight.set_duty(
@@ -605,9 +623,19 @@ where
             brightness.min(100) as u32 * self.backlight.get_max_duty() / 100,
         );
     }
+    fn set_power_on(&mut self, on: bool) {
+        if on {
+            self.power_on.set_high().unwrap();
+        } else {
+            self.power_on.set_low().unwrap();
+        }
+    }
+    fn read_power_key(&mut self) -> bool {
+        self.power_key_test.is_high().unwrap()
+    }
 }
 
-impl<'d, T, F> NvmDevice for BoardDriver<'d, T, F>
+impl<'d, T, F, P, W> NvmDevice for BoardDriver<'d, T, F, P, W>
 where
     T: GeneralInstance4Channel,
     F: NorFlash + ReadNorFlash,

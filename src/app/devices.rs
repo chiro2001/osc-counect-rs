@@ -201,6 +201,11 @@ pub trait BoardDevice {
     /// Set the brightness of the backlight.
     /// The brightness is a value between 0 and 100.
     fn set_brightness(&mut self, brightness: u8);
+
+    fn set_power_on(&mut self, _on: bool) {}
+    fn read_power_key(&mut self) -> bool {
+        false
+    }
 }
 
 pub trait NvmDevice {
