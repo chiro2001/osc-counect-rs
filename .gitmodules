@@ -1,6 +1,3 @@
-[submodule "embassy"]
-	path = embassy
-	url = https://github.com/chiro2001/embassy
 [submodule "ili9327"]
 	path = ili9327
 	url = https://github.com/chiro2001/ili9341-rs

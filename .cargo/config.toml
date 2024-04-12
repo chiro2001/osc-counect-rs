@@ -12,7 +12,7 @@ rustflags = ["-C", "link-arg=-Tlinkall.x", "-C", "force-frame-pointers"]
 # target = "thumbv7m-none-eabi"
 # target = "thumbv7em-none-eabi"
 target = "riscv32imc-unknown-none-elf"
-rustflags = ["-Z", "threads=8"]
+# rustflags = ["-Z", "threads=8"]
 
 [tasks.flash]
 command = "openocd"

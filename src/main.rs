@@ -25,7 +25,7 @@ use embassy_stm32::{
     gpio::{Flex, OutputType, Pull},
     peripherals::ADC1,
     time::Hertz,
-    timer::{Channel, CaptureCompare16bitInstance},
+    timer::{CaptureCompare16bitInstance, Channel},
     Peripheral, PeripheralRef,
 };
 use embassy_stm32::{
@@ -513,9 +513,10 @@ impl<ADC, A, B> SimpleAdcDevice<ADC, A, B> {
 
 impl<ADC, A, B> app::devices::AdcDevice for SimpleAdcDevice<ADC, A, B>
 where
-    ADC: Peripheral<P: embassy_stm32::adc::Instance>,
+    ADC: Peripheral,
     A: embassy_stm32::adc::AdcPin<ADC::P>,
     B: embassy_stm32::adc::AdcPin<ADC::P>,
+    <ADC as Peripheral>::P: embassy_stm32::adc::Instance,
 {
     async fn read(
         &mut self,
