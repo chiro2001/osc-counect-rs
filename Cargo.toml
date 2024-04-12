@@ -64,6 +64,9 @@ esp-hal = { version = "0.16.0", path = "./esp-hal/esp-hal", features = [
     "async",
 ] }
 esp-println = { version = "0.9.1" }
+st7789 = { version = "0.7.0", path = "./st7789" }
+display-interface-spi = "0.5.0"
+embassy-embedded-hal = "0.1.0"
 
 [target.'cfg(not(target_arch = "x86_64"))'.dependencies]
 defmt = { version = "0.3", optional = true }
@@ -134,6 +137,7 @@ defmt = [
     "embassy-stm32/defmt",
     "esp-hal/defmt",
     "esp-println/defmt-espflash",
+    "embassy-embedded-hal/defmt",
 ]
 waveform_3bit = []
 # overclocking = ["embassy-stm32/overclocking"]

@@ -4,3 +4,6 @@
 [submodule "esp-hal"]
 	path = esp-hal
 	url = https://github.com/esp-rs/esp-hal
+[submodule "st7789"]
+	path = st7789
+	url = https://github.com/chiro2001/st7789
