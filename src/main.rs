@@ -25,7 +25,7 @@ use embassy_stm32::{
     gpio::{Flex, OutputType, Pull},
     peripherals::ADC1,
     time::Hertz,
-    timer::{Channel, GeneralInstance4Channel},
+    timer::{Channel, CaptureCompare16bitInstance},
     Peripheral, PeripheralRef,
 };
 use embassy_stm32::{
@@ -48,11 +48,14 @@ bind_interrupts!(struct Irqs {
 use embedded_alloc::Heap;
 #[global_allocator]
 static HEAP: Heap = Heap::empty();
-struct DioPin<'d> {
-    pin: Flex<'d>,
+struct DioPin<'d, T: embassy_stm32::gpio::Pin> {
+    pin: Flex<'d, T>,
 }
 
-impl<'d> InoutPin for DioPin<'d> {
+impl<'d, T> InoutPin for DioPin<'d, T>
+where
+    T: embassy_stm32::gpio::Pin,
+{
     fn set_input(&mut self) {
         self.pin.set_as_input(Pull::None);
     }
@@ -145,7 +148,7 @@ async fn main(spawner: Spawner) {
     // heap_init!(32 * 1024);
     let mut config = Config::default();
     {
-        use embassy_stm32::rcc::*;
+        // use embassy_stm32::rcc::*;
         #[cfg(feature = "stm32h743vi")]
         {
             config.rcc.hse = Some(Hse {
@@ -161,49 +164,56 @@ async fn main(spawner: Spawner) {
                 divr: None,
             });
         }
-        #[cfg(feature = "stm32f103vc")]
-        {
-            config.rcc.hse = Some(Hse {
-                freq: Hertz(8_000_000),
-                mode: HseMode::Oscillator,
-            });
-            #[cfg(not(feature = "overclocking"))]
-            {
-                config.rcc.pll = Some(Pll {
-                    src: PllSource::HSE,
-                    prediv: PllPreDiv::DIV1,
-                    mul: PllMul::MUL9,
-                });
-            }
-            #[cfg(feature = "overclocking")]
-            {
-                config.rcc.pll = Some(Pll {
-                    src: PllSource::HSE,
-                    prediv: PllPreDiv::DIV1,
-                    // overclocking to 8 * 16 = 128 MHz
-                    mul: PllMul::MUL16,
-                });
-            }
-        }
-        config.rcc.sys = Sysclk::PLL1_P;
-        #[cfg(feature = "stm32f103vc")]
-        {
-            config.rcc.apb2_pre = APBPrescaler::DIV1;
-            #[cfg(feature = "overclocking")]
-            {
-                config.rcc.ahb_pre = AHBPrescaler::DIV2;
-                config.rcc.apb1_pre = APBPrescaler::DIV2;
-                // overclocking ADC 16MHz, note that the max ADC clock is 14MHz
-                config.rcc.adc_pre = ADCPrescaler::DIV4;
-            }
-            #[cfg(not(feature = "overclocking"))]
-            {
-                config.rcc.ahb_pre = AHBPrescaler::DIV1;
-                config.rcc.apb1_pre = APBPrescaler::DIV2;
-                // ADC 72 / 6 = 12 MHz
-                config.rcc.adc_pre = ADCPrescaler::DIV6;
-            }
-        }
+        // #[cfg(feature = "stm32f103vc")]
+        // {
+        //     config.rcc.hse = Some(Hse {
+        //         freq: Hertz(8_000_000),
+        //         mode: HseMode::Oscillator,
+        //     });
+        //     #[cfg(not(feature = "overclocking"))]
+        //     {
+        //         config.rcc.pll = Some(Pll {
+        //             src: PllSource::HSE,
+        //             prediv: PllPreDiv::DIV1,
+        //             mul: PllMul::MUL9,
+        //         });
+        //     }
+        //     #[cfg(feature = "overclocking")]
+        //     {
+        //         config.rcc.pll = Some(Pll {
+        //             src: PllSource::HSE,
+        //             prediv: PllPreDiv::DIV1,
+        //             // overclocking to 8 * 16 = 128 MHz
+        //             mul: PllMul::MUL16,
+        //         });
+        //     }
+        // }
+        // config.rcc.sys = Sysclk::PLL1_P;
+        // #[cfg(feature = "stm32f103vc")]
+        // {
+        //     config.rcc.apb2_pre = APBPrescaler::DIV1;
+        //     #[cfg(feature = "overclocking")]
+        //     {
+        //         config.rcc.ahb_pre = AHBPrescaler::DIV2;
+        //         config.rcc.apb1_pre = APBPrescaler::DIV2;
+        //         // overclocking ADC 16MHz, note that the max ADC clock is 14MHz
+        //         config.rcc.adc_pre = ADCPrescaler::DIV4;
+        //     }
+        //     #[cfg(not(feature = "overclocking"))]
+        //     {
+        //         config.rcc.ahb_pre = AHBPrescaler::DIV1;
+        //         config.rcc.apb1_pre = APBPrescaler::DIV2;
+        //         // ADC 72 / 6 = 12 MHz
+        //         config.rcc.adc_pre = ADCPrescaler::DIV6;
+        //     }
+        // }
+        config.rcc.hse = Some(Hertz(8_000_000));
+        config.rcc.sys_ck = Some(Hertz(72_000_000));
+        config.rcc.hclk = Some(Hertz(72_000_000));
+        config.rcc.pclk1 = Some(Hertz(36_000_000));
+        config.rcc.pclk2 = Some(Hertz(72_000_000));
+        config.rcc.adcclk = Some(Hertz(12_000_000));
+
         #[cfg(feature = "stm32h743vi")]
         {
             config.rcc.d1c_pre = AHBPrescaler::DIV1;
@@ -513,7 +523,7 @@ where
         buf: &mut [f32],
     ) -> app::Result<usize> {
         // let length = app::input::ADC_BUF_SZ.min(options.length - options.pos);
-        let mut adc = embassy_stm32::adc::Adc::new(&self.adc, &mut Delay);
+        let mut adc = embassy_stm32::adc::Adc::new(&mut self.adc, &mut Delay);
         let mut vrefint = adc.enable_vref(&mut Delay);
         let vrefint_sample = adc.read(&mut vrefint).await;
         let convert_to_millivolts = |sample| {
@@ -548,13 +558,13 @@ where
     }
 }
 
-struct BuzzerDriver<'d, T: GeneralInstance4Channel> {
+struct BuzzerDriver<'d, T> {
     pwm: SimplePwm<'d, T>,
     channel: Channel,
 }
 impl<'d, T> BuzzerDriver<'d, T>
 where
-    T: GeneralInstance4Channel,
+    T: CaptureCompare16bitInstance,
 {
     fn init(mut self) -> Self {
         self.pwm.set_duty(self.channel, self.pwm.get_max_duty() / 2);
@@ -566,7 +576,7 @@ where
 }
 impl<'d, T> BuzzerDevice for BuzzerDriver<'d, T>
 where
-    T: GeneralInstance4Channel,
+    T: CaptureCompare16bitInstance,
 {
     async fn beep(&mut self, frequency: u32, duration_ms: u32) {
         if frequency == 0 {
@@ -582,7 +592,7 @@ where
     }
 }
 
-struct BoardDriver<'d, T: GeneralInstance4Channel, F, P, W> {
+struct BoardDriver<'d, T: CaptureCompare16bitInstance, F, P, W> {
     backlight: SimplePwm<'d, T>,
     flash: F,
     flash_offset: u32,
@@ -592,7 +602,7 @@ struct BoardDriver<'d, T: GeneralInstance4Channel, F, P, W> {
 
 impl<'d, T, F, P, W> BoardDriver<'d, T, F, P, W>
 where
-    T: GeneralInstance4Channel,
+    T: CaptureCompare16bitInstance,
 {
     fn new(
         backlight: SimplePwm<'d, T>,
@@ -613,14 +623,14 @@ where
 
 impl<'d, T, F, P, W> BoardDevice for BoardDriver<'d, T, F, P, W>
 where
-    T: GeneralInstance4Channel,
+    T: CaptureCompare16bitInstance,
     P: InputPin,
     W: OutputPin,
 {
     fn set_brightness(&mut self, brightness: u8) {
         self.backlight.set_duty(
             Channel::Ch3,
-            brightness.min(100) as u32 * self.backlight.get_max_duty() / 100,
+            brightness.min(100) as u16 * self.backlight.get_max_duty() / 100,
         );
     }
     fn set_power_on(&mut self, on: bool) {
@@ -637,7 +647,7 @@ where
 
 impl<'d, T, F, P, W> NvmDevice for BoardDriver<'d, T, F, P, W>
 where
-    T: GeneralInstance4Channel,
+    T: CaptureCompare16bitInstance,
     F: NorFlash + ReadNorFlash,
     <F as embedded_storage::nor_flash::ErrorType>::Error: defmt::Format,
 {

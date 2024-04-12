@@ -77,9 +77,11 @@ pub const PROJECT_AUTHOR: &str = "{}";"#,
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rustc-env=BUILD_INFO={}", dest_path.display());
 
-    if std::env::var("CARGO_CFG_TARGET_ARCH") != Ok("x86_64".to_string()) {
+    if std::env::var("CARGO_CFG_TARGET_ARCH") == Ok("arm".to_string()) {
         println!("cargo:rustc-link-arg-bins=--nmagic");
         println!("cargo:rustc-link-arg-bins=-Tlink.x");
+    }
+    if let Ok(_s) = std::env::var("CARGO_FEATURE_DEFMT") {
         println!("cargo:rustc-link-arg-bins=-Tdefmt.x");
     }
 }

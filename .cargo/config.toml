@@ -4,9 +4,14 @@ runner = "probe-rs run --chip STM32H743VITx"
 [target.thumbv7m-none-eabi]
 runner = "probe-rs run --chip STM32F103VC"
 
+[target.'cfg(target_arch = "riscv32")']
+runner = "espflash flash --monitor"
+rustflags = ["-C", "link-arg=-Tlinkall.x", "-C", "force-frame-pointers"]
+
 [build]
-target = "thumbv7m-none-eabi"
+# target = "thumbv7m-none-eabi"
 # target = "thumbv7em-none-eabi"
+target = "riscv32imc-unknown-none-elf"
 rustflags = ["-Z", "threads=8"]
 
 [tasks.flash]
@@ -17,3 +22,6 @@ args = ["-f", "openocd.cfg"]
 # DEFMT_LOG = "info"
 DEFMT_LOG = "trace"
 RUST_LOG = "info"
+
+[unstable]
+build-std = ["alloc", "core"]
