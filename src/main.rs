@@ -120,20 +120,20 @@ where
         self.keys = keys;
         r
     }
-    fn read_key_event(&mut self) -> app::devices::KeyEvent {
+    fn read_key_event(&mut self) -> app::devices::InputEvent {
         let mut keys = [false; 20];
         self.driver.read_decode_keys(&mut keys);
-        let mut r = app::devices::KeyEvent::None;
+        let mut r = app::devices::InputEvent::None;
         for (i, k) in keys.iter().enumerate() {
             // read key up
             if !*k && self.keys[i] {
-                r = app::devices::KeyEvent::Released(app::devices::Keys::try_from(i).unwrap());
+                r = app::devices::InputEvent::KeyReleased(app::devices::Keys::try_from(i).unwrap());
                 self.keys[i] = false;
                 break;
             }
             // read key down
             if *k && !self.keys[i] {
-                r = app::devices::KeyEvent::Pressed(app::devices::Keys::try_from(i).unwrap());
+                r = app::devices::InputEvent::KeyPressed(app::devices::Keys::try_from(i).unwrap());
                 self.keys[i] = true;
                 break;
             }

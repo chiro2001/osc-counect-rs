@@ -10,9 +10,9 @@ use core::ops::Range;
 
 use devices::*;
 use embassy_sync::channel::{Channel, Receiver, Sender};
-#[cfg(not(feature = "stm32"))]
+#[cfg(not(feature = "esp"))]
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex as MutexUse;
-#[cfg(feature = "stm32")]
+#[cfg(feature = "esp")]
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex as MutexUse;
 use gui::*;
 use misc::*;
@@ -484,7 +484,7 @@ where
             *x = false;
         }
     }
-    pub async fn input_key_event(&mut self, key: KeyEvent) -> Result<()> {
+    pub async fn input_key_event(&mut self, key: InputEvent) -> Result<()> {
         // beep if volume is not 0
         if self.state.window != Window::MusicBoard && self.state.volume != 0 {
             self.buzzer.beep(2093, 10).await;
@@ -492,7 +492,7 @@ where
         match self.state.window {
             Window::Main => {
                 let key = match key {
-                    KeyEvent::Released(k) => k,
+                    InputEvent::KeyReleased(k) => k,
                     _ => Keys::None,
                 };
                 match key {
@@ -560,7 +560,7 @@ where
             }
             Window::SetValue => {
                 let key = match key {
-                    KeyEvent::Released(k) => k,
+                    InputEvent::KeyReleased(k) => k,
                     _ => Keys::None,
                 };
                 let panel = Panel::from(self.state.setting_index as usize);
@@ -704,7 +704,7 @@ where
             }
             Window::Settings => {
                 let key = match key {
-                    KeyEvent::Released(k) => k,
+                    InputEvent::KeyReleased(k) => k,
                     _ => Keys::None,
                 };
                 match key {
@@ -787,19 +787,19 @@ where
             }
             Window::MusicBoard => {
                 match key {
-                    KeyEvent::Released(Keys::X) => {
+                    InputEvent::KeyReleased(Keys::X) => {
                         self.state.window = Window::Main;
                         self.updated.clear();
                     }
-                    KeyEvent::Pressed(Keys::Key1)
-                    | KeyEvent::Pressed(Keys::Key2)
-                    | KeyEvent::Pressed(Keys::Key3)
-                    | KeyEvent::Pressed(Keys::Key4)
-                    | KeyEvent::Pressed(Keys::Key5)
-                    | KeyEvent::Pressed(Keys::Key6)
-                    | KeyEvent::Pressed(Keys::Key7) => {
+                    InputEvent::KeyPressed(Keys::Key1)
+                    | InputEvent::KeyPressed(Keys::Key2)
+                    | InputEvent::KeyPressed(Keys::Key3)
+                    | InputEvent::KeyPressed(Keys::Key4)
+                    | InputEvent::KeyPressed(Keys::Key5)
+                    | InputEvent::KeyPressed(Keys::Key6)
+                    | InputEvent::KeyPressed(Keys::Key7) => {
                         let key = match key {
-                            KeyEvent::Pressed(k) => k,
+                            InputEvent::KeyPressed(k) => k,
                             _ => Keys::None,
                         };
                         let k = key.digital_value() - 1;
@@ -811,26 +811,26 @@ where
                             as usize];
                         self.buzzer.beep_on(freq).await;
                     }
-                    KeyEvent::Released(Keys::Key1)
-                    | KeyEvent::Released(Keys::Key2)
-                    | KeyEvent::Released(Keys::Key3)
-                    | KeyEvent::Released(Keys::Key4)
-                    | KeyEvent::Released(Keys::Key5)
-                    | KeyEvent::Released(Keys::Key6)
-                    | KeyEvent::Released(Keys::Key7) => {
+                    InputEvent::KeyReleased(Keys::Key1)
+                    | InputEvent::KeyReleased(Keys::Key2)
+                    | InputEvent::KeyReleased(Keys::Key3)
+                    | InputEvent::KeyReleased(Keys::Key4)
+                    | InputEvent::KeyReleased(Keys::Key5)
+                    | InputEvent::KeyReleased(Keys::Key6)
+                    | InputEvent::KeyReleased(Keys::Key7) => {
                         self.state.music_freq_idx = None;
                         self.buzzer.beep_off().await;
                     }
-                    KeyEvent::Pressed(Keys::Sharp) => {
+                    InputEvent::KeyPressed(Keys::Sharp) => {
                         self.state.music_sharp_pressed = true;
                     }
-                    KeyEvent::Released(Keys::Sharp) => {
+                    InputEvent::KeyReleased(Keys::Sharp) => {
                         self.state.music_sharp_pressed = false;
                     }
-                    KeyEvent::Pressed(Keys::Star) => {
+                    InputEvent::KeyPressed(Keys::Star) => {
                         self.state.music_star_pressed = true;
                     }
-                    KeyEvent::Released(Keys::Star) => {
+                    InputEvent::KeyReleased(Keys::Star) => {
                         self.state.music_star_pressed = false;
                     }
                     _ => {}
@@ -1031,7 +1031,7 @@ const MUSIC_FREQ: &'static [u32] = &[
     1047, 1109, 1175, 1245, 1319, 1397, 1480, 1568, 1661, 1760, 1865, 1975,
 ];
 
-static KBD_CHANNEL: Channel<MutexUse, KeyEvent, 16> = Channel::new();
+static KBD_CHANNEL: Channel<MutexUse, InputEvent, 16> = Channel::new();
 static BUZZER_CHANNEL: Channel<MutexUse, (u32, u32), 8> = Channel::new();
 static ADC_CHANNEL: Channel<MutexUse, usize, 1> = Channel::new();
 static ADC_REQ_CHANNEL: Channel<MutexUse, AdcReadOptions, 8> = Channel::new();
@@ -1069,12 +1069,12 @@ async fn adc_task(
 
 #[embassy_executor::task]
 async fn keyboad_task(
-    sender: Sender<'static, MutexUse, KeyEvent, 16>,
+    sender: Sender<'static, MutexUse, InputEvent, 16>,
     mut keyboard: impl KeyboardDevice + 'static,
 ) {
     loop {
         let key = keyboard.read_key_event();
-        if key != KeyEvent::None {
+        if key != InputEvent::None {
             // let s: &str = key.into();
             // crate::debug!("send Key: {:?}", s);
             sender.send(key).await;
@@ -1161,9 +1161,9 @@ pub async fn main_loop<D, B, Z, K, A, F>(
         match KBD_CHANNEL.try_receive() {
             Ok(key) => {
                 let s: &str = match key {
-                    KeyEvent::Pressed(k) => k.into(),
-                    KeyEvent::Released(k) => k.into(),
-                    KeyEvent::None => Keys::None.into(),
+                    InputEvent::KeyPressed(k) => k.into(),
+                    InputEvent::KeyReleased(k) => k.into(),
+                    InputEvent::None => Keys::None.into(),
                 };
                 crate::info!("recv Key: {:?}", s);
                 app.input_key_event(key).await.unwrap();

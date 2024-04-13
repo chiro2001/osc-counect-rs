@@ -86,19 +86,19 @@ impl Into<&'static str> for Keys {
 }
 
 #[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
-pub enum KeyEvent {
-    Pressed(Keys),
-    Released(Keys),
+pub enum InputEvent {
+    KeyPressed(Keys),
+    KeyReleased(Keys),
     None,
 }
 
 pub trait KeyboardDevice {
     fn read_key(&mut self) -> Keys;
-    fn read_key_event(&mut self) -> KeyEvent {
+    fn read_key_event(&mut self) -> InputEvent {
         let key = self.read_key();
         match key {
-            Keys::None => KeyEvent::None,
-            _ => KeyEvent::Released(key),
+            Keys::None => InputEvent::None,
+            _ => InputEvent::KeyReleased(key),
         }
     }
 }
