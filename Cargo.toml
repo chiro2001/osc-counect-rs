@@ -118,7 +118,7 @@ stm32 = [
     "embassy-executor/executor-thread",
     "embassy-executor/integrated-timers",
 ]
-esp = ["embassy-time/generic-queue-8"]
+esp = ["embassy-time/generic-queue-8", "waveform_16bit"]
 embedded = []
 simulator = [
     "embassy-time/std",
@@ -140,6 +140,7 @@ defmt = [
     "embassy-embedded-hal/defmt",
 ]
 waveform_3bit = []
+waveform_16bit = []
 # overclocking = ["embassy-stm32/overclocking"]
 
 [[bin]]

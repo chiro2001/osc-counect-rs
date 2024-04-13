@@ -1,6 +1,6 @@
 use num_enum::{FromPrimitive, IntoPrimitive};
 
-use super::{gui_color, GuiColor, VoltageUnit, WaveformColor};
+use super::{gui_color, waveform_color, GuiColor, VoltageUnit, WaveformColor};
 
 pub type Result<T, E = AppError> = core::result::Result<T, E>;
 #[derive(Debug)]
@@ -215,9 +215,9 @@ impl ProbeChannel {
     }
     pub fn color_waveform(&self) -> WaveformColor {
         match self {
-            ProbeChannel::A => WaveformColor::new(2),
-            ProbeChannel::B => WaveformColor::new(3),
-            _ => WaveformColor::new(0),
+            ProbeChannel::A => waveform_color(2),
+            ProbeChannel::B => waveform_color(3),
+            _ => waveform_color(0),
         }
     }
 }

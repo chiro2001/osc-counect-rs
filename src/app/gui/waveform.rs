@@ -16,9 +16,12 @@ use crate::app::{
 };
 
 use super::{
-    gui_color, Draw, GUIInfo, GuiColor, StateResult, WaveformColor, WaveformColorEx,
+    gui_color, waveform_color_ex, Draw, GUIInfo, GuiColor, StateResult, WaveformColor,
     WaveformColorRaw, SCREEN_HEIGHT, SCREEN_WIDTH,
 };
+
+#[cfg(feature = "waveform_3bit")]
+use super::WaveformColorEx;
 
 pub struct Waveform {
     pub(crate) info: GUIInfo,
@@ -112,9 +115,9 @@ where
         let update_full = !vec.at(StateMarker::Waveform);
         let update_data = update_full || !vec.at(StateMarker::WaveformData);
         let style = PrimitiveStyleBuilder::new()
-            .stroke_color(WaveformColorEx::from(1))
+            .stroke_color(waveform_color_ex(1))
             .stroke_width(1)
-            .fill_color(WaveformColorEx::from(0))
+            .fill_color(waveform_color_ex(0))
             .build();
         // let trans = self.info.position;
         let trans = Point::zero();
@@ -155,7 +158,7 @@ where
                         .map_err(|_| AppError::DisplayError)?;
                 } else {
                     let p = Point::new(x, y) + trans;
-                    Pixel(p, WaveformColorEx::from(1))
+                    Pixel(p, waveform_color_ex(1))
                         .draw(display_ex)
                         .map_err(|_| AppError::DisplayError)?;
                 }
@@ -175,7 +178,7 @@ where
                         .map_err(|_| AppError::DisplayError)?;
                 } else {
                     let p = Point::new(x, y) + trans;
-                    Pixel(p, WaveformColorEx::from(1))
+                    Pixel(p, waveform_color_ex(1))
                         .draw(display_ex)
                         .map_err(|_| AppError::DisplayError)?;
                 }
@@ -249,7 +252,10 @@ where
             });
         #[cfg(not(feature = "waveform_3bit"))]
         let contiguous = data
-            .chunks(WF_WIDTH_WIDTH as usize / (8 / WaveformColorRaw::BITS_PER_PIXEL))
+            .chunks(
+                WF_WIDTH_WIDTH as usize / (8 / WaveformColorRaw::BITS_PER_PIXEL).max(1)
+                    * (WaveformColorRaw::BITS_PER_PIXEL / 8).min(1),
+            )
             // copy lines
             .flat_map(|row| core::iter::repeat(row).take(WF_SCALING as usize))
             .flat_map(|row| {
@@ -257,7 +263,7 @@ where
                     (0..4)
                         .map(move |j| {
                             let d = (d >> ((3 - j) * 2)) & 0b11;
-                            WaveformColor::new(d)
+                            waveform_color(d)
                         })
                         .flat_map(|color| {
                             // copy pixels
