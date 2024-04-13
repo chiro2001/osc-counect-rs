@@ -15,6 +15,21 @@
                     "programBinary": "${workspaceFolder}/target/thumbv7m-none-eabi/debug/osc-counect",
                 }
             ]
+        },
+        {
+            // "preLaunchTask": "${defaultBuildTask}",
+            "type": "probe-rs-debug",
+            "request": "launch",
+            "name": "probe_rs esp32c3",
+            "flashingConfig": {
+                "flashingEnabled": true,
+            },
+            "chip": "ESP32C3",
+            "coreConfigs": [
+                {
+                    "programBinary": "${workspaceFolder}/target/riscv32imc-unknown-none-elf/debug/osc-esp32c3",
+                }
+            ]
         }
     ]
 }

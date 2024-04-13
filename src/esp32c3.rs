@@ -1,5 +1,6 @@
 #![no_std]
 #![no_main]
+#![feature(type_alias_impl_trait)]
 
 use core::cell::RefCell;
 
@@ -34,10 +35,11 @@ use esp_hal::{
     spi::{master::Spi, SpiMode},
     timer::TimerGroup,
 };
+use static_cell::make_static;
 
-use crate::app::devices::{
-    DummyAdcDevice, DummyBuzzerDevice,
-};
+use rtt_target::rtt_init_print;
+
+use crate::app::devices::{DummyAdcDevice, DummyBuzzerDevice};
 use crate::app::Result;
 
 mod app;
@@ -76,6 +78,8 @@ async fn main(spawner: Spawner) {
     let timg0 = TimerGroup::new_async(peripherals.TIMG0, clocks);
     embassy::init(&clocks, timg0);
 
+    rtt_init_print!();
+
     let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
     let sclk = io.pins.gpio2;
     let mosi = io.pins.gpio3;
@@ -86,16 +90,10 @@ async fn main(spawner: Spawner) {
     let bl = io.pins.gpio11.into_push_pull_output();
     let bl2 = io.pins.gpio0.into_push_pull_output();
 
-    static mut LEDC: Option<LEDC<'static>> = None;
-    let mut ledc = LEDC::new(peripherals.LEDC, clocks);
+    let ledc = make_static!(LEDC::new(peripherals.LEDC, clocks));
     ledc.set_global_slow_clock(LSGlobalClkSource::APBClk);
-    let ledc = unsafe {
-        LEDC.replace(ledc);
-        LEDC.as_ref().unwrap()
-    };
 
-    static mut LEDC_TIMER: Option<esp_hal::ledc::timer::Timer<'static, LowSpeed>> = None;
-    let mut lstimer0 = ledc.get_timer::<LowSpeed>(timer::Number::Timer0);
+    let lstimer0 = make_static!(ledc.get_timer::<LowSpeed>(timer::Number::Timer0));
     lstimer0
         .configure(timer::config::Config {
             duty: timer::config::Duty::Duty8Bit,
@@ -103,10 +101,6 @@ async fn main(spawner: Spawner) {
             frequency: 24.kHz(),
         })
         .unwrap();
-    let lstimer0 = unsafe {
-        LEDC_TIMER.replace(lstimer0);
-        LEDC_TIMER.as_ref().unwrap()
-    };
 
     let mut channel0 = ledc.get_channel(channel::Number::Channel0, bl);
     channel0

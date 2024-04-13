@@ -2,6 +2,7 @@
 #![allow(static_mut_refs)]
 #![no_main]
 #![no_std]
+#![feature(type_alias_impl_trait)]
 
 extern crate alloc;
 

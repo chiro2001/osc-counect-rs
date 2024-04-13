@@ -10,6 +10,7 @@ use core::ops::Range;
 
 use devices::*;
 #[cfg(feature = "esp")]
+// use embassy_sync::blocking_mutex::raw::NoopRawMutex as MutexUse;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex as MutexUse;
 #[cfg(not(feature = "esp"))]
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex as MutexUse;
@@ -33,6 +34,8 @@ use embedded_graphics::{
     transform::Transform,
     Drawable,
 };
+use static_cell::make_static;
+
 pub struct App<D, B, Z> {
     pub state: State,
     pub updated: StateVec,
@@ -1127,10 +1130,6 @@ const MUSIC_FREQ: &'static [u32] = &[
     1047, 1109, 1175, 1245, 1319, 1397, 1480, 1568, 1661, 1760, 1865, 1975,
 ];
 
-static KBD_CHANNEL: Channel<MutexUse, InputEvent, 16> = Channel::new();
-static BUZZER_CHANNEL: Channel<MutexUse, (u32, u32), 8> = Channel::new();
-static ADC_CHANNEL: Channel<MutexUse, usize, 1> = Channel::new();
-static ADC_REQ_CHANNEL: Channel<MutexUse, AdcReadOptions, 8> = Channel::new();
 static mut ADC_DATA: [f32; ADC_BUF_SZ] = [0.0; ADC_BUF_SZ];
 
 #[embassy_executor::task]
@@ -1214,22 +1213,18 @@ pub async fn main_loop<D, B, Z, K, A, F>(
     A: AdcDevice + 'static,
     F: Fn(&D) -> (),
 {
-    spawner
-        .spawn(keyboad_task(KBD_CHANNEL.sender(), keyboard))
-        .unwrap();
-    spawner
-        .spawn(buzzer_task(BUZZER_CHANNEL.receiver(), buzzer))
-        .unwrap();
-    spawner
-        .spawn(adc_task(
-            ADC_REQ_CHANNEL.receiver(),
-            ADC_CHANNEL.sender(),
-            adc,
-        ))
-        .unwrap();
-    let buzzer_device = ChanneledBuzzer {
-        sender: BUZZER_CHANNEL.sender(),
-    };
+    let kbd_channel = &*make_static!(Channel::new());
+    let (kbd_tx, kbd_rx) = (kbd_channel.sender(), kbd_channel.receiver());
+    spawner.spawn(keyboad_task(kbd_tx, keyboard)).unwrap();
+    let buzzer_channel = &*make_static!(Channel::new());
+    let (buzzer_tx, buzzer_rx) = (buzzer_channel.sender(), buzzer_channel.receiver());
+    spawner.spawn(buzzer_task(buzzer_rx, buzzer)).unwrap();
+    let adc_channel = &*make_static!(Channel::new());
+    let (adc_tx, adc_rx) = (adc_channel.sender(), adc_channel.receiver());
+    let adc_req_channel = &*make_static!(Channel::new());
+    let (adc_req_tx, adc_req_rx) = (adc_req_channel.sender(), adc_req_channel.receiver());
+    spawner.spawn(adc_task(adc_req_rx, adc_tx, adc)).unwrap();
+    let buzzer_device = ChanneledBuzzer { sender: buzzer_tx };
     let mut app = App::new(display, board, buzzer_device).await;
     let mut send_req = true;
     loop {
@@ -1240,7 +1235,7 @@ pub async fn main_loop<D, B, Z, K, A, F>(
                 TimebaseMode::Rolling => (WAVEFORM_LEN / 128).max(1),
                 TimebaseMode::XY => WAVEFORM_LEN,
             };
-            ADC_REQ_CHANNEL
+            adc_req_tx
                 .send(AdcReadOptions::new(ProbeChannel::A, request_length, 1000))
                 .await;
             send_req = false;
@@ -1251,29 +1246,40 @@ pub async fn main_loop<D, B, Z, K, A, F>(
             app.state.window = window_next;
         }
         app.state.window_next = None;
-        let r = KBD_CHANNEL.try_receive();
-        match r {
+
+        // static mut CNT: i32 = 0;
+        // crate::debug!("recving... {}", unsafe { CNT });
+        // unsafe {
+        //     CNT += 1;
+        // }
+        match kbd_rx.try_receive() {
             Ok(e) => {
                 crate::info!("recv Key: {:?}", e);
                 app.input_key_event(e).await.unwrap();
             }
-            Err(_) => {}
-        }
-        if app.state.window != Window::MusicBoard {
-            match ADC_CHANNEL.try_receive() {
-                Ok(sz) => {
-                    // defmt::info!("recv ADC data: {}", sz);
-                    let data = unsafe { core::slice::from_raw_parts(ADC_DATA.as_ptr(), sz) };
-                    app.data_input(data, ProbeChannel::A).await.unwrap();
-                    send_req = true;
-                }
-                Err(_) => {}
+            Err(_e) => {
+                // crate::info!("cannot recv Key: {:?}", _e);
             }
         }
+        // let r = kbd_rx.receive().await;
+        // crate::info!("recv key: {:?}", r);
+        // crate::debug!("try_recv key done");
+
+        // if app.state.window != Window::MusicBoard {
+        //     match adc_rx.try_receive() {
+        //         Ok(sz) => {
+        //             // defmt::info!("recv ADC data: {}", sz);
+        //             let data = unsafe { core::slice::from_raw_parts(ADC_DATA.as_ptr(), sz) };
+        //             app.data_input(data, ProbeChannel::A).await.unwrap();
+        //             send_req = true;
+        //         }
+        //         Err(_) => {}
+        //     }
+        // }
         if app.board.read_power_key() {
             app.board.set_power_on(false);
         }
-        // Timer::after_millis(5).await;
-        Timer::after_micros(10).await;
+        // Timer::after_millis(100).await;
+        Timer::after_micros(5).await;
     }
 }
