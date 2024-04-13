@@ -1,13 +1,15 @@
+#![feature(type_alias_impl_trait)]
+
 use std::sync::{mpsc::Receiver, Arc, Mutex};
 
-use app::input::{AdcDevice, AdcReadOptions, KeyboardDevice, Keys};
+use app::devices::{AdcDevice, AdcReadOptions, KeyboardDevice, Keys};
 use defmt::*;
 
 use embassy_executor::Spawner;
 use embedded_graphics::prelude::*;
 use embedded_graphics_simulator::{OutputSettingsBuilder, SimulatorDisplay, Window};
 
-use crate::app::GuiColor;
+use crate::app::{devices::{DummyBoardDevice, DummyBuzzerDevice}, GuiColor};
 
 mod app;
 

@@ -116,12 +116,12 @@ where
         let ptr = &self.state as *const State as *const u8;
         self.board
             .erase(STATE_OFFSET, core::mem::size_of::<State>())?;
-        defmt::info!(
-            "saving state: {=[u8]:x} at ptr {} or {}",
-            unsafe { core::slice::from_raw_parts(ptr, 16) },
-            ptr,
-            &self.state.magic as *const u64 as *const u8
-        );
+        // defmt::info!(
+        //     "saving state: {=[u8]:x} at ptr {} or {}",
+        //     unsafe { core::slice::from_raw_parts(ptr, 16) },
+        //     ptr,
+        //     &self.state.magic as *const u64 as *const u8
+        // );
         defmt::info!("state erased");
         self.board.write(STATE_OFFSET, unsafe {
             core::slice::from_raw_parts(ptr, core::mem::size_of::<State>())

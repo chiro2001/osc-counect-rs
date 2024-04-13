@@ -132,7 +132,10 @@ simulator = [
     "embassy-time/std",
     # "embassy-time/tick-hz-32_768",
     "embassy-executor/arch-std",
+    "embassy-executor/executor-thread",
+    "embassy-executor/integrated-timers",
     "embassy-sync/std",
+    "screen-320x240"
 ]
 defmt = [
     "dep:defmt",
