@@ -1,11 +1,14 @@
 use embedded_graphics::pixelcolor::{
     raw::{RawData, RawU1, RawU16, RawU2},
-    Bgr565, GrayColor, PixelColor, Rgb565, WebColors,
+    GrayColor, PixelColor, WebColors,
 };
 use embedded_graphics::prelude::RgbColor;
 
 // pub type GuiColor = Gray4;
-pub type GuiColor = Bgr565;
+#[cfg(feature = "esp")]
+pub type GuiColor = embedded_graphics::pixelcolor::Bgr565;
+#[cfg(not(feature = "esp"))]
+pub type GuiColor = embedded_graphics::pixelcolor::Rgb565;
 
 pub const COLOR_HALF_YELLOW: GuiColor = GuiColor::new(GuiColor::MAX_R / 2, GuiColor::MAX_G / 2, 0);
 pub const COLOR_HALF_GREEN: GuiColor = GuiColor::new(0, GuiColor::MAX_G / 2, 0);

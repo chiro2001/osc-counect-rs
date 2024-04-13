@@ -9,7 +9,6 @@ use embassy_executor::Spawner;
 use embassy_sync::blocking_mutex::NoopMutex;
 use embassy_time::Timer;
 use embedded_graphics::draw_target::DrawTargetExt;
-use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::Primitive;
 use embedded_graphics::primitives::Rectangle;
 use embedded_graphics::Drawable;
