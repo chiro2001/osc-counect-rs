@@ -10,8 +10,9 @@ use core::ops::Range;
 
 use devices::*;
 use embassy_sync::channel::{Channel, Receiver, Sender};
-// use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex as MutexUse;
-// use embassy_sync::blocking_mutex::raw::NoopRawMutex as MutexUse;
+#[cfg(not(feature = "stm32"))]
+use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex as MutexUse;
+#[cfg(feature = "stm32")]
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex as MutexUse;
 use gui::*;
 use misc::*;
