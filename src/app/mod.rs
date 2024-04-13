@@ -165,7 +165,7 @@ where
                 p.into(),
                 "--",
                 p.style(),
-                board.has_keyboard(),
+                board.has_keypad(),
                 panel_per_page,
             )
         });
@@ -197,6 +197,10 @@ where
             MeasureItem::new(2, ProbeChannel::B, "", "--", true, small_screen),
             MeasureItem::new(3, ProbeChannel::B, "Vrms", "430uV", true, small_screen),
         ];
+        let mut generator = Generator::new("Sin 10k");
+        if small_screen {
+            generator.info.disable();
+        }
         let mut s = Self {
             state: Default::default(),
             updated: Default::default(),
@@ -231,7 +235,7 @@ where
             clock,
             panel_items,
             measure_items,
-            generator: Generator::new("Sin 10k"),
+            generator,
             trigger_level: Default::default(),
             select_items: Default::default(),
             menu: Menu::new(&MENU),
@@ -273,7 +277,13 @@ where
                 .unwrap_or(4);
             self.overview.info.position.x = last_enabled_x;
             self.overview.info.position.y = SCREEN_HEIGHT as i32 - 11;
-            self.overview.info.size = Size::new(SCREEN_WIDTH - 48 - last_enabled_x as u32, 10);
+            let right_margin = if self.generator.info.enabled() {
+                self.generator.info.width()
+            } else {
+                0
+            } as u32;
+            self.overview.info.size =
+                Size::new(SCREEN_WIDTH - right_margin - last_enabled_x as u32, 10);
             self.overview.info.disabled = false;
         }
     }
@@ -358,7 +368,7 @@ where
                     .map_err(|_| AppError::DisplayError)?;
                 }
                 // add info: 0 to switch page
-                if self.board.has_keyboard() {
+                if self.board.has_keypad() {
                     Text::with_alignment(
                         "0:Page",
                         Point::new(SCREEN_WIDTH as i32 - 24, SCREEN_HEIGHT as i32 - 11 * 3 + 5)
@@ -1159,13 +1169,10 @@ async fn keyboad_task(
     mut keyboard: impl KeyboardDevice + 'static,
 ) {
     loop {
-        let key = keyboard.read_key_event();
-        if key != InputEvent::None {
-            // let s: &str = key.into();
-            // crate::debug!("send Key: {:?}", s);
-            sender.send(key).await;
-        } else {
-            // crate::debug!("send no Key");
+        let e = keyboard.read_key_event();
+        if e != InputEvent::None {
+            // crate::debug!("send Key: {:?}", e);
+            sender.send(e).await;
         }
         Timer::after_millis(10).await;
     }
@@ -1244,15 +1251,11 @@ pub async fn main_loop<D, B, Z, K, A, F>(
             app.state.window = window_next;
         }
         app.state.window_next = None;
-        match KBD_CHANNEL.try_receive() {
-            Ok(key) => {
-                let s: &str = match key {
-                    InputEvent::KeyPressed(k) => k.into(),
-                    InputEvent::KeyReleased(k) => k.into(),
-                    InputEvent::None => Keys::None.into(),
-                };
-                crate::info!("recv Key: {:?}", s);
-                app.input_key_event(key).await.unwrap();
+        let r = KBD_CHANNEL.try_receive();
+        match r {
+            Ok(e) => {
+                crate::info!("recv Key: {:?}", e);
+                app.input_key_event(e).await.unwrap();
             }
             Err(_) => {}
         }

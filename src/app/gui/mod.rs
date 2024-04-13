@@ -685,11 +685,14 @@ where
     }
 }
 
-pub struct Generator(LineDisp<'static>);
+pub struct Generator {
+    pub(crate) info: GUIInfo,
+    pub(crate) text: &'static str,
+}
 
 impl Generator {
     pub fn new(text: &'static str) -> Self {
-        Self(LineDisp {
+        Self {
             info: GUIInfo {
                 size: Size::new(48 - 1, 10),
                 position: Point::new(SCREEN_WIDTH as i32 - 48 + 1, SCREEN_HEIGHT as i32 - 11),
@@ -698,8 +701,7 @@ impl Generator {
                 ..Default::default()
             },
             text,
-            font: MonoTextStyle::new(&FONT_6X9, gui_color(15)),
-        })
+        }
     }
 }
 
@@ -707,11 +709,19 @@ impl<D> Draw<D> for Generator
 where
     D: DrawTarget<Color = GuiColor>,
 {
+    fn enabled(&self) -> bool {
+        self.info.enabled()
+    }
     fn state_emit_mask(&self) -> &[StateMarker] {
         &[StateMarker::Generator]
     }
     fn draw_state(&self, display: &mut D, _state: &mut State) -> StateResult {
-        self.0.draw_state(display, _state)?;
+        let disp = LineDisp {
+            info: self.info.clone(),
+            text: self.text,
+            font: MonoTextStyle::new(&FONT_6X9, gui_color(15)),
+        };
+        disp.draw_state(display, _state)?;
         Ok(Some(&[StateMarker::Generator]))
     }
 }

@@ -651,7 +651,7 @@ where
     fn has_clock(&self) -> bool {
         true
     }
-    fn has_keyboard(&self) -> bool {
+    fn has_keypad(&self) -> bool {
         true
     }
     fn get_battery_percentage(&self) -> u8 {

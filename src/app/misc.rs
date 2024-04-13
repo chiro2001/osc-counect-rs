@@ -4,6 +4,7 @@ use super::{gui_color, waveform_color, GuiColor, VoltageUnit, WaveformColor};
 
 pub type Result<T, E = AppError> = core::result::Result<T, E>;
 #[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum AppError {
     DisplayError,
     DataFormatError,

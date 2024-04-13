@@ -14,6 +14,7 @@ use super::WAVEFORM_LEN;
 
 #[derive(IntoPrimitive, TryFromPrimitive, Clone, Copy, PartialEq, PartialOrd, Debug)]
 #[repr(usize)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[rustfmt::skip]
 pub enum Keys {
     None  = 30,
@@ -86,6 +87,7 @@ impl Into<&'static str> for Keys {
 }
 
 #[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum InputEvent {
     KeyPressed(Keys),
     KeyReleased(Keys),
@@ -214,7 +216,7 @@ pub trait BoardDevice {
         false
     }
 
-    fn has_keyboard(&self) -> bool {
+    fn has_keypad(&self) -> bool {
         false
     }
 
