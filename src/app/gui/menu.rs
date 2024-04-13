@@ -24,10 +24,11 @@ pub type MenuItemsRef<I> = &'static [(
 
 pub struct Menu<I: 'static> {
     pub items: MenuItemsRef<I>,
+    pub position: Point,
 }
 impl<I> Menu<I> {
-    pub fn new(items: MenuItemsRef<I>) -> Self {
-        Self { items }
+    pub fn new(items: MenuItemsRef<I>, position: Point) -> Self {
+        Self { items, position }
     }
 }
 
@@ -49,7 +50,7 @@ impl<D, I> Draw<D> for Menu<I> {
     where
         D: DrawTarget<Color = GuiColor>,
     {
-        let offset_l1 = Point::new(48, 14);
+        let offset_l1 = self.position;
         if !vec.at(StateMarker::SettingsMenuMoveL1) || !vec.at(StateMarker::SettingsMenu) {
             self.draw_level(
                 display,
@@ -64,7 +65,7 @@ impl<D, I> Draw<D> for Menu<I> {
         }
         if let Some(idx) = state.menu_idx_l2 {
             if !vec.at(StateMarker::SettingsMenuMoveL2) || !vec.at(StateMarker::SettingsMenu) {
-                let offset_l2 = Point::new(48 + 74, 14 + 12 * state.menu_idx_l1 as i32);
+                let offset_l2 = offset_l1 + Point::new(74, 12 * state.menu_idx_l1 as i32);
                 self.draw_level(
                     display,
                     state,

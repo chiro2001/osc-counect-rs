@@ -36,6 +36,10 @@ use embedded_graphics::{
 };
 use static_cell::make_static;
 
+fn is_small_screen() -> bool {
+    SCREEN_WIDTH < 200
+}
+
 pub struct App<D, B, Z> {
     pub state: State,
     pub updated: StateVec,
@@ -156,9 +160,6 @@ where
         }
         self
     }
-    fn is_small_screen() -> bool {
-        SCREEN_WIDTH < 200
-    }
     pub async fn new(display: D, board: B, buzzer: Z) -> Self {
         let panel_per_page = ((SCREEN_HEIGHT - 24) / 27) as usize;
         let panel_items = core::array::from_fn(|i| {
@@ -185,7 +186,7 @@ where
         } else {
             clock.info.disable();
         }
-        let small_screen = Self::is_small_screen();
+        let small_screen = is_small_screen();
         let mut overview = Overview::new();
         let overview_width = if small_screen {
             overview.info.disable();
@@ -204,6 +205,14 @@ where
         if small_screen {
             generator.info.disable();
         }
+        let menu = Menu::new(
+            &MENU,
+            if small_screen {
+                Point::new(0, 0)
+            } else {
+                Point::new(48, 14)
+            },
+        );
         let mut s = Self {
             state: Default::default(),
             updated: Default::default(),
@@ -241,7 +250,7 @@ where
             generator,
             trigger_level: Default::default(),
             select_items: Default::default(),
-            menu: Menu::new(&MENU),
+            menu,
             panel_per_page,
         }
         .init()
@@ -251,7 +260,7 @@ where
     }
 
     fn update_buttom_layout(&mut self) {
-        if Self::is_small_screen() {
+        if is_small_screen() {
             let mut last_x =
                 self.measure_items[0].info.width() + self.measure_items[0].info.position.x + 1;
             for it in self.measure_items.iter_mut().skip(1) {
@@ -469,13 +478,17 @@ where
     }
 
     async fn draw_settings_window(&mut self) -> Result<()> {
-        if !self.updated.at(StateMarker::SettingsMenu) {
-            // redraw background
-            let _ = self.waveform.draw_state_vec(
-                &mut self.display,
-                &mut self.state,
-                &mut self.updated,
-            )?;
+        if is_small_screen() {
+            self.draw_main_window().await?;
+        } else {
+            if !self.updated.at(StateMarker::SettingsMenu) {
+                // redraw background
+                let _ = self.waveform.draw_state_vec(
+                    &mut self.display,
+                    &mut self.state,
+                    &mut self.updated,
+                )?;
+            }
         }
         self.menu
             .draw(&mut self.display, &mut self.state, &mut self.updated)
@@ -873,7 +886,11 @@ where
                         // back to level 1 menu
                         if self.state.menu_idx_l2.is_some() {
                             self.state.menu_idx_l2 = None;
-                            self.updated.request(StateMarker::SettingsMenu);
+                            if is_small_screen() {
+                                self.updated.clear();
+                            } else {
+                                self.updated.request(StateMarker::SettingsMenu);
+                            }
                         } else {
                             // back to main window
                             self.state.window = Window::Main;
@@ -1247,11 +1264,6 @@ pub async fn main_loop<D, B, Z, K, A, F>(
         }
         app.state.window_next = None;
 
-        // static mut CNT: i32 = 0;
-        // crate::debug!("recving... {}", unsafe { CNT });
-        // unsafe {
-        //     CNT += 1;
-        // }
         match kbd_rx.try_receive() {
             Ok(e) => {
                 crate::info!("recv Key: {:?}", e);
@@ -1261,10 +1273,6 @@ pub async fn main_loop<D, B, Z, K, A, F>(
                 // crate::info!("cannot recv Key: {:?}", _e);
             }
         }
-        // let r = kbd_rx.receive().await;
-        // crate::info!("recv key: {:?}", r);
-        // crate::debug!("try_recv key done");
-
         // if app.state.window != Window::MusicBoard {
         //     match adc_rx.try_receive() {
         //         Ok(sz) => {
