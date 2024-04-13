@@ -607,6 +607,7 @@ pub struct MeasureItem {
     pub(crate) label: &'static str,
     pub(crate) text: &'static str,
     pub(crate) enabled: bool,
+    pub(crate) flexible: bool,
 }
 
 impl MeasureItem {
@@ -616,10 +617,12 @@ impl MeasureItem {
         label: &'static str,
         text: &'static str,
         enabled: bool,
+        flexible: bool,
     ) -> Self {
+        let short = label.is_empty() && flexible;
         Self {
             info: GUIInfo {
-                size: Size::new(66, 10),
+                size: Size::new(if short { 32 } else { 66 }, 10),
                 position: Point::new(67 * index as i32 + 4, SCREEN_HEIGHT as i32 - 11),
                 color_primary: gui_color(2),
                 color_secondary: gui_color(3),
@@ -629,6 +632,7 @@ impl MeasureItem {
             label,
             text,
             enabled,
+            flexible,
         }
     }
 }
@@ -637,6 +641,9 @@ impl<D> Draw<D> for MeasureItem
 where
     D: DrawTarget<Color = GuiColor>,
 {
+    fn enabled(&self) -> bool {
+        self.info.enabled()
+    }
     fn state_emit_mask(&self) -> &[StateMarker] {
         &[StateMarker::Measures]
     }
@@ -659,8 +666,12 @@ where
             return Ok(None);
         }
         let mut buf = [0u8; 16];
-        let text = format_no_std::show(&mut buf, format_args!("{}:{}", self.label, self.text))
-            .map_err(|_| AppError::DataFormatError)?;
+        let text = if self.label.is_empty() {
+            self.text
+        } else {
+            format_no_std::show(&mut buf, format_args!("{}:{}", self.label, self.text))
+                .map_err(|_| AppError::DataFormatError)?
+        };
         Text::with_alignment(
             text,
             self.info.size_center() + TEXT_OFFSET,

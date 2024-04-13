@@ -1,9 +1,8 @@
 use embedded_graphics::{
-    draw_target::DrawTarget,
-    draw_target::DrawTargetExt,
+    draw_target::{DrawTarget, DrawTargetExt},
     framebuffer::Framebuffer,
     geometry::{Point, Size},
-    pixelcolor::raw::{LittleEndian, RawData},
+    pixelcolor::raw::LittleEndian,
     primitives::{Line, PrimitiveStyle, PrimitiveStyleBuilder, Rectangle, StyledDrawable},
     transform::Transform,
     Drawable, Pixel,
@@ -219,6 +218,7 @@ where
         }
         let mut display_translated = display_target.translated(self.info.position);
         let mut display_converted = display_translated.color_converted();
+        #[cfg(not(feature = "waveform_16bit"))]
         let data = display.data();
         #[cfg(feature = "waveform_3bit")]
         let data_ex = display_ex.data();
@@ -250,28 +250,35 @@ where
                             })
                     })
             });
-        #[cfg(not(feature = "waveform_3bit"))]
-        let contiguous = data
-            .chunks(
-                WF_WIDTH_WIDTH as usize / (8 / WaveformColorRaw::BITS_PER_PIXEL).max(1)
-                    * (WaveformColorRaw::BITS_PER_PIXEL / 8).min(1),
-            )
-            // copy lines
-            .flat_map(|row| core::iter::repeat(row).take(WF_SCALING as usize))
-            .flat_map(|row| {
-                row.iter().flat_map(|&d| {
-                    (0..4)
-                        .map(move |j| {
-                            let d = (d >> ((3 - j) * 2)) & 0b11;
-                            waveform_color(d)
-                        })
-                        .flat_map(|color| {
-                            // copy pixels
-                            core::iter::repeat(color).take(WF_SCALING as usize)
-                        })
+        #[cfg(not(any(feature = "waveform_3bit", feature = "waveform_16bit")))]
+        let contiguous = {
+            use embedded_graphics_core::prelude::RawData;
+            data.chunks(WF_WIDTH_WIDTH as usize / (8 / WaveformColorRaw::BITS_PER_PIXEL))
+                // copy lines
+                .flat_map(|row| core::iter::repeat(row).take(WF_SCALING as usize))
+                .flat_map(|row| {
+                    row.iter().flat_map(|&d| {
+                        (0..4)
+                            .map(move |j| {
+                                let d = (d >> ((3 - j) * 2)) & 0b11;
+                                waveform_color(d)
+                            })
+                            .flat_map(|color| {
+                                // copy pixels
+                                core::iter::repeat(color).take(WF_SCALING as usize)
+                            })
+                    })
                 })
-            });
-
+        };
+        #[cfg(feature = "waveform_16bit")]
+        {
+            let im = display.as_image();
+            let image = embedded_graphics::image::Image::new(&im, Point::zero());
+            image
+                .draw(&mut display_converted)
+                .map_err(|_| AppError::DisplayError)?;
+        }
+        #[cfg(not(feature = "waveform_16bit"))]
         display_converted
             .fill_contiguous(
                 &Rectangle::new(

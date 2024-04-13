@@ -2,7 +2,6 @@
     "rust-analyzer.cargo.noDefaultFeatures": true,
     "rust-analyzer.check.noDefaultFeatures": true,
     "rust-analyzer.showUnlinkedFileNotification": false,
-    
     // "rust-analyzer.cargo.target": "x86_64-unknown-linux-gnu",
     // "rust-analyzer.cargo.features": [
     //     "simulator"
@@ -19,9 +18,11 @@
     // ],
     "rust-analyzer.cargo.target": "riscv32imc-unknown-none-elf",
     "rust-analyzer.cargo.features": [
-        "esp32c3", "defmt"
+        "esp32c3",
+        "defmt"
     ],
     "rust-analyzer.check.features": [
-        "esp32c3", "defmt"
+        "esp32c3",
+        "defmt"
     ],
 }

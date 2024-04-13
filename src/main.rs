@@ -534,6 +534,7 @@ where
 
             (u32::from(sample) * VREFINT_MV / u32::from(vrefint_sample)) as u16
         };
+        // let convert_to_millivolts = |sample| sample as u16;
         let mut it = buf.iter_mut();
         // for i in 0..length {
         //     let v = adc.read(&mut self.channels.0).await;
@@ -643,6 +644,18 @@ where
     }
     fn read_power_key(&mut self) -> bool {
         self.power_key_test.is_high().unwrap()
+    }
+    fn has_battery(&self) -> bool {
+        true
+    }
+    fn has_clock(&self) -> bool {
+        true
+    }
+    fn has_keyboard(&self) -> bool {
+        true
+    }
+    fn get_battery_percentage(&self) -> u8 {
+        50
     }
 }
 

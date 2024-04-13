@@ -153,6 +153,9 @@ where
         }
         self
     }
+    fn is_small_screen() -> bool {
+        SCREEN_WIDTH < 200
+    }
     pub async fn new(display: D, board: B, buzzer: Z) -> Self {
         let panel_per_page = ((SCREEN_HEIGHT - 24) / 27) as usize;
         let panel_items = core::array::from_fn(|i| {
@@ -179,7 +182,7 @@ where
         } else {
             clock.info.disable();
         }
-        let small_screen = SCREEN_WIDTH < 200;
+        let small_screen = Self::is_small_screen();
         let mut overview = Overview::new();
         let overview_width = if small_screen {
             overview.info.disable();
@@ -187,13 +190,20 @@ where
         } else {
             overview.info.width()
         };
-        Self {
+        let waveform: Waveform = Default::default();
+        let measure_items = [
+            MeasureItem::new(0, ProbeChannel::A, "", "34kHz", true, small_screen),
+            MeasureItem::new(1, ProbeChannel::A, "Vpp", "2.3mV", false, small_screen),
+            MeasureItem::new(2, ProbeChannel::B, "", "--", true, small_screen),
+            MeasureItem::new(3, ProbeChannel::B, "Vrms", "430uV", true, small_screen),
+        ];
+        let mut s = Self {
             state: Default::default(),
             updated: Default::default(),
             display,
             board,
             buzzer,
-            waveform: Default::default(),
+            waveform,
             running_state: Default::default(),
             time_scale: Default::default(),
             overview,
@@ -220,12 +230,7 @@ where
             battery,
             clock,
             panel_items,
-            measure_items: [
-                MeasureItem::new(0, ProbeChannel::A, "Freq", "34kHz", true),
-                MeasureItem::new(1, ProbeChannel::A, "Vp-p", "2.3mV", false),
-                MeasureItem::new(2, ProbeChannel::B, "Freq", "--", true),
-                MeasureItem::new(3, ProbeChannel::B, "Vrms", "430uV", true),
-            ],
+            measure_items,
             generator: Generator::new("Sin 10k"),
             trigger_level: Default::default(),
             select_items: Default::default(),
@@ -233,7 +238,44 @@ where
             panel_per_page,
         }
         .init()
-        .await
+        .await;
+        s.update_buttom_layout();
+        s
+    }
+
+    fn update_buttom_layout(&mut self) {
+        if Self::is_small_screen() {
+            let mut last_x =
+                self.measure_items[0].info.width() + self.measure_items[0].info.position.x + 1;
+            for it in self.measure_items.iter_mut().skip(1) {
+                it.info.position.x = last_x;
+                last_x += it.info.width() + 1;
+            }
+            for it in self.measure_items.iter_mut() {
+                if it.info.position.x + it.info.size.width as i32
+                    > self.waveform.info.position.x + self.waveform.info.size.width as i32
+                {
+                    it.info.disable();
+                }
+            }
+
+            for it in self.measure_items.iter_mut() {
+                if !it.enabled {
+                    it.info.disable();
+                }
+            }
+            let last_enabled_x = self
+                .measure_items
+                .iter()
+                .filter(|x| x.info.enabled())
+                .last()
+                .map(|x| x.info.position.x + x.info.size.width as i32 + 1)
+                .unwrap_or(4);
+            self.overview.info.position.x = last_enabled_x;
+            self.overview.info.position.y = SCREEN_HEIGHT as i32 - 11;
+            self.overview.info.size = Size::new(SCREEN_WIDTH - 48 - last_enabled_x as u32, 10);
+            self.overview.info.disabled = false;
+        }
     }
 
     async fn draw_main_window(&mut self) -> Result<()> {

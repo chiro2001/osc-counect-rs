@@ -61,11 +61,15 @@ pub type WaveformColorEx = WaveformColor;
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
 pub struct WaveformColorEx(embedded_graphics::pixelcolor::BinaryColor);
 
-#[cfg(not(feature = "waveform_3bit"))]
+#[cfg(feature = "waveform_16bit")]
 pub fn waveform_color_ex(r: u8) -> WaveformColorEx {
-    GUI_COLOR_LUT_16[r as usize].into()
+    let r = match r {
+        1 => 7,
+        r => r,
+    } as usize;
+    GUI_COLOR_LUT_16[r].into()
 }
-#[cfg(feature = "waveform_3bit")]
+#[cfg(not(feature = "waveform_16bit"))]
 pub fn waveform_color_ex(r: u8) -> WaveformColorEx {
     WaveformColorEx::new(r)
 }
@@ -81,7 +85,7 @@ impl WaveformColorEx {
     }
 }
 #[cfg(feature = "waveform_3bit")]
-impl PixelColor for WaveformColorEx {
+impl embedded_graphics::pixelcolor::PixelColor for WaveformColorEx {
     type Raw = WaveformColorExRaw;
 }
 #[cfg(feature = "waveform_3bit")]
@@ -111,12 +115,13 @@ impl WaveformColor {
     }
 }
 #[cfg(not(feature = "waveform_16bit"))]
-impl PixelColor for WaveformColor {
+impl embedded_graphics::pixelcolor::PixelColor for WaveformColor {
     type Raw = WaveformColorRaw;
 }
 #[cfg(not(feature = "waveform_16bit"))]
 impl embedded_graphics::pixelcolor::GrayColor for WaveformColor {
     fn luma(&self) -> u8 {
+        use embedded_graphics_core::prelude::RawData;
         self.0.into_inner()
     }
     const BLACK: Self = Self::new(0);
@@ -143,6 +148,7 @@ impl From<u8> for WaveformColor {
 #[cfg(not(feature = "waveform_16bit"))]
 impl From<WaveformColor> for GuiColor {
     fn from(color: WaveformColor) -> Self {
+        use embedded_graphics_core::pixelcolor::GrayColor;
         let luma = color.luma();
         GUI_COLOR_LUT_4[luma as usize]
     }
