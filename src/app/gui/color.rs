@@ -1,40 +1,41 @@
 use embedded_graphics::pixelcolor::{
     raw::{RawData, RawU1, RawU16, RawU2},
-    GrayColor, PixelColor, Rgb565, WebColors,
+    Bgr565, GrayColor, PixelColor, Rgb565, WebColors,
 };
 use embedded_graphics::prelude::RgbColor;
 
-pub const COLOR_HALF_YELLOW: Rgb565 = Rgb565::new(Rgb565::MAX_R / 2, Rgb565::MAX_G / 2, 0);
-pub const COLOR_HALF_GREEN: Rgb565 = Rgb565::new(0, Rgb565::MAX_G / 2, 0);
-pub const GUI_COLOR_LUT_16: [Rgb565; 16] = [
-    Rgb565::BLACK,               // 0
-    Rgb565::CSS_DARK_SLATE_GRAY, // 1
-    Rgb565::YELLOW,              // 2
-    Rgb565::GREEN,               // 3
-    Rgb565::RED,                 // 4
-    Rgb565::MAGENTA,             // 5
-    Rgb565::CYAN,                // 6
-    Rgb565::CSS_LIGHT_GRAY,      // 7
-    Rgb565::CSS_PURPLE,          // 8
-    Rgb565::CSS_ORANGE_RED,      // 9
-    Rgb565::CSS_DARK_RED,        // 10
-    COLOR_HALF_YELLOW,           // 11
-    COLOR_HALF_GREEN,            // 12
-    Rgb565::WHITE,               // 13
-    Rgb565::WHITE,               // 14
-    Rgb565::WHITE,               // 15
-];
-pub const GUI_COLOR_LUT_4: [Rgb565; 4] = [
-    Rgb565::BLACK,          // 0
-    Rgb565::CSS_LIGHT_GRAY, // 1
-    Rgb565::YELLOW,         // 2
-    Rgb565::GREEN,          // 3
-];
 // pub type GuiColor = Gray4;
+pub type GuiColor = Bgr565;
+
+pub const COLOR_HALF_YELLOW: GuiColor = GuiColor::new(GuiColor::MAX_R / 2, GuiColor::MAX_G / 2, 0);
+pub const COLOR_HALF_GREEN: GuiColor = GuiColor::new(0, GuiColor::MAX_G / 2, 0);
+pub const GUI_COLOR_LUT_16: [GuiColor; 16] = [
+    GuiColor::BLACK,               // 0
+    GuiColor::CSS_DARK_SLATE_GRAY, // 1
+    GuiColor::YELLOW,              // 2
+    GuiColor::GREEN,               // 3
+    GuiColor::RED,                 // 4
+    GuiColor::MAGENTA,             // 5
+    GuiColor::CYAN,                // 6
+    GuiColor::CSS_LIGHT_GRAY,      // 7
+    GuiColor::CSS_PURPLE,          // 8
+    GuiColor::CSS_ORANGE_RED,      // 9
+    GuiColor::CSS_DARK_RED,        // 10
+    COLOR_HALF_YELLOW,             // 11
+    COLOR_HALF_GREEN,              // 12
+    GuiColor::WHITE,               // 13
+    GuiColor::WHITE,               // 14
+    GuiColor::WHITE,               // 15
+];
+pub const GUI_COLOR_LUT_4: [GuiColor; 4] = [
+    GuiColor::BLACK,          // 0
+    GuiColor::CSS_LIGHT_GRAY, // 1
+    GuiColor::YELLOW,         // 2
+    GuiColor::GREEN,          // 3
+];
 // pub const fn gui_color(r: u8) -> GuiColor {
 //     Gray4::new(r)
 // }
-pub type GuiColor = Rgb565;
 pub type GuiColorRaw = RawU16;
 pub const fn gui_color(r: u16) -> GuiColor {
     GUI_COLOR_LUT_16[r as usize]
@@ -114,7 +115,7 @@ impl From<u8> for WaveformColor {
         Self::new(data)
     }
 }
-impl From<WaveformColor> for Rgb565 {
+impl From<WaveformColor> for GuiColor {
     fn from(color: WaveformColor) -> Self {
         let luma = color.luma();
         GUI_COLOR_LUT_4[luma as usize]
@@ -145,7 +146,7 @@ impl From<WaveformCombinedColor> for WaveformCombinedColorRaw {
         RawU16::new((color.0.into_inner() as u16) << 8 | color.1.into_inner() as u16)
     }
 }
-impl From<WaveformCombinedColor> for Rgb565 {
+impl From<WaveformCombinedColor> for GuiColor {
     fn from(color: WaveformCombinedColor) -> Self {
         let (color, color_ex) = (color.0.into_inner(), color.1.into_inner());
         if color_ex != 0 {

@@ -7,8 +7,12 @@ use defmt::*;
 use embassy_embedded_hal::shared_bus::blocking::spi::SpiDevice;
 use embassy_executor::Spawner;
 use embassy_sync::blocking_mutex::NoopMutex;
+use embassy_time::Timer;
 use embedded_graphics::draw_target::DrawTargetExt;
-use embedded_graphics::pixelcolor::{IntoStorage, Rgb565};
+use embedded_graphics::pixelcolor::Rgb565;
+use embedded_graphics::prelude::Primitive;
+use embedded_graphics::primitives::Rectangle;
+use embedded_graphics::Drawable;
 use embedded_graphics::{geometry::Point, pixelcolor::RgbColor};
 use esp_backtrace as _;
 use esp_hal::{
@@ -107,15 +111,20 @@ async fn main(spawner: Spawner) {
     let mut delay = Delay::new(&clocks);
     lcd.init(&mut delay).unwrap();
     lcd.set_orientation(st7789::Orientation::Landscape).unwrap();
-    lcd.set_pixels(
-        0,
-        0,
-        160,
-        80,
-        core::iter::repeat(Rgb565::CYAN.into_storage()).take(160 * 80),
+    let mut display = lcd;
+    // let mut display = display.color_converted::<app::GuiColor>();
+    let mut display = display.translated(Point::new(1, 26));
+
+    Rectangle::new(
+        Point::new(0, 0),
+        embedded_graphics::geometry::Size::new(160, 80),
     )
+    .into_styled(embedded_graphics::primitives::PrimitiveStyle::with_fill(
+        app::GuiColor::RED,
+    ))
+    .draw(&mut display)
     .unwrap();
-    let display = lcd.translated(Point::new(1, 26));
+    Timer::after_millis(1000).await;
 
     let adc_device = DummyAdcDevice {};
     let kbd_device = DummyKeyboardDevice {};
