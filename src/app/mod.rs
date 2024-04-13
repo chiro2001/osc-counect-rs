@@ -9,10 +9,10 @@ mod unit;
 use core::ops::Range;
 
 use devices::*;
-use embassy_sync::{
-    blocking_mutex::raw::ThreadModeRawMutex,
-    channel::{Channel, Receiver, Sender},
-};
+use embassy_sync::channel::{Channel, Receiver, Sender};
+// use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex as MutexUse;
+// use embassy_sync::blocking_mutex::raw::NoopRawMutex as MutexUse;
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex as MutexUse;
 use gui::*;
 use misc::*;
 use state::*;
@@ -63,7 +63,7 @@ pub struct App<D, B, Z> {
 const STATE_OFFSET: u32 = 0;
 impl<D, B, Z> App<D, B, Z>
 where
-    D: DrawTarget<Color = GuiColor> + 'static,
+    D: DrawTarget<Color = GuiColor>,
     B: BoardDevice + NvmDevice,
     Z: BuzzerDevice,
 {
@@ -1030,16 +1030,16 @@ const MUSIC_FREQ: &'static [u32] = &[
     1047, 1109, 1175, 1245, 1319, 1397, 1480, 1568, 1661, 1760, 1865, 1975,
 ];
 
-static KBD_CHANNEL: Channel<ThreadModeRawMutex, KeyEvent, 16> = Channel::new();
-static BUZZER_CHANNEL: Channel<ThreadModeRawMutex, (u32, u32), 8> = Channel::new();
-static ADC_CHANNEL: Channel<ThreadModeRawMutex, usize, 1> = Channel::new();
-static ADC_REQ_CHANNEL: Channel<ThreadModeRawMutex, AdcReadOptions, 8> = Channel::new();
+static KBD_CHANNEL: Channel<MutexUse, KeyEvent, 16> = Channel::new();
+static BUZZER_CHANNEL: Channel<MutexUse, (u32, u32), 8> = Channel::new();
+static ADC_CHANNEL: Channel<MutexUse, usize, 1> = Channel::new();
+static ADC_REQ_CHANNEL: Channel<MutexUse, AdcReadOptions, 8> = Channel::new();
 static mut ADC_DATA: [f32; ADC_BUF_SZ] = [0.0; ADC_BUF_SZ];
 
 #[embassy_executor::task]
 async fn adc_task(
-    receiver: Receiver<'static, ThreadModeRawMutex, AdcReadOptions, 8>,
-    sender: Sender<'static, ThreadModeRawMutex, usize, 1>,
+    receiver: Receiver<'static, MutexUse, AdcReadOptions, 8>,
+    sender: Sender<'static, MutexUse, usize, 1>,
     mut adc: impl AdcDevice + 'static,
 ) {
     loop {
@@ -1068,7 +1068,7 @@ async fn adc_task(
 
 #[embassy_executor::task]
 async fn keyboad_task(
-    sender: Sender<'static, ThreadModeRawMutex, KeyEvent, 16>,
+    sender: Sender<'static, MutexUse, KeyEvent, 16>,
     mut keyboard: impl KeyboardDevice + 'static,
 ) {
     loop {
@@ -1086,7 +1086,7 @@ async fn keyboad_task(
 
 #[embassy_executor::task]
 async fn buzzer_task(
-    receiver: Receiver<'static, ThreadModeRawMutex, (u32, u32), 8>,
+    receiver: Receiver<'static, MutexUse, (u32, u32), 8>,
     mut buzzer: impl BuzzerDevice + 'static,
 ) {
     loop {
@@ -1096,7 +1096,7 @@ async fn buzzer_task(
 }
 
 struct ChanneledBuzzer {
-    sender: Sender<'static, ThreadModeRawMutex, (u32, u32), 8>,
+    sender: Sender<'static, MutexUse, (u32, u32), 8>,
 }
 impl BuzzerDevice for ChanneledBuzzer {
     async fn beep(&mut self, freq: u32, duration: u32) {
@@ -1113,7 +1113,7 @@ pub async fn main_loop<D, B, Z, K, A, F>(
     adc: A,
     loop_start: F,
 ) where
-    D: DrawTarget<Color = GuiColor> + 'static,
+    D: DrawTarget<Color = GuiColor>,
     B: BoardDevice + NvmDevice + 'static,
     Z: BuzzerDevice + 'static,
     K: KeyboardDevice + 'static,

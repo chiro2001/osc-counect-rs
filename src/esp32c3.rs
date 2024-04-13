@@ -3,20 +3,13 @@
 
 use core::cell::RefCell;
 
+use defmt::*;
 use embassy_embedded_hal::shared_bus::blocking::spi::SpiDevice;
 use embassy_executor::Spawner;
 use embassy_sync::blocking_mutex::NoopMutex;
-use embassy_time::{Duration, Timer};
-use embedded_graphics::geometry::Size;
+use embedded_graphics::draw_target::DrawTargetExt;
 use embedded_graphics::pixelcolor::{IntoStorage, Rgb565};
-use embedded_graphics::prelude::Primitive;
-use embedded_graphics::transform::Transform;
-use embedded_graphics::Drawable;
-use embedded_graphics::{
-    geometry::Point,
-    pixelcolor::RgbColor,
-    primitives::{PrimitiveStyle, Rectangle},
-};
+use embedded_graphics::{geometry::Point, pixelcolor::RgbColor};
 use esp_backtrace as _;
 use esp_hal::{
     clock::ClockControl,
@@ -28,6 +21,12 @@ use esp_hal::{
     spi::{master::Spi, SpiMode},
     timer::TimerGroup,
 };
+
+use crate::app::devices::{
+    DummyAdcDevice, DummyBoardDevice, DummyBuzzerDevice, DummyKeyboardDevice,
+};
+
+mod app;
 
 /*
 ST7789 <-> ESP32C3
@@ -49,7 +48,7 @@ BTN    <-> IO13
 */
 
 #[main]
-async fn main(_spawner: Spawner) {
+async fn main(spawner: Spawner) {
     esp_println::println!("Init!");
     let peripherals = Peripherals::take();
     let system = peripherals.SYSTEM.split();
@@ -66,7 +65,7 @@ async fn main(_spawner: Spawner) {
     let cs = io.pins.gpio7.into_push_pull_output();
     let bl = io.pins.gpio11.into_push_pull_output();
 
-    let spi = Spi::new(peripherals.SPI2, 100.kHz(), SpiMode::Mode0, &clocks)
+    let spi = Spi::new(peripherals.SPI2, 80.MHz(), SpiMode::Mode0, &clocks)
         .with_sck(sclk)
         .with_mosi(mosi);
     let spi_mutex = NoopMutex::new(RefCell::new(spi));
@@ -76,24 +75,29 @@ async fn main(_spawner: Spawner) {
     let mut delay = Delay::new(&clocks);
     lcd.init(&mut delay).unwrap();
     lcd.set_orientation(st7789::Orientation::Landscape).unwrap();
-
     lcd.set_pixels(
         0,
         0,
         160,
-        160,
-        core::iter::repeat(Rgb565::CYAN.into_storage()).take(160 * 160),
+        80,
+        core::iter::repeat(Rgb565::CYAN.into_storage()).take(160 * 80),
     )
     .unwrap();
+    let display = lcd.translated(Point::new(1, 26));
 
-    Rectangle::new(Point::new(0, 0), Size::new(160, 80))
-        .into_styled(PrimitiveStyle::with_fill(Rgb565::GREEN))
-        .translate(Point::new(1, 26))
-        .draw(&mut lcd)
-        .unwrap();
-
-    loop {
-        esp_println::println!("Bing!");
-        Timer::after(Duration::from_millis(1_000)).await;
-    }
+    let adc_device = DummyAdcDevice {};
+    let kbd_device = DummyKeyboardDevice {};
+    let board = DummyBoardDevice {};
+    let buzzer = DummyBuzzerDevice {};
+    app::main_loop(
+        spawner,
+        display,
+        board,
+        buzzer,
+        kbd_device,
+        adc_device,
+        |_| {},
+    )
+    .await;
+    defmt::panic!("Simulator stopped");
 }

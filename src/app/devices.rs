@@ -103,6 +103,13 @@ pub trait KeyboardDevice {
     }
 }
 
+pub struct DummyKeyboardDevice;
+impl KeyboardDevice for DummyKeyboardDevice {
+    fn read_key(&mut self) -> Keys {
+        Keys::None
+    }
+}
+
 #[cfg(feature = "simulator")]
 impl From<embedded_graphics_simulator::sdl2::Keycode> for Keys {
     fn from(value: embedded_graphics_simulator::sdl2::Keycode) -> Self {
