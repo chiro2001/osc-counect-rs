@@ -24,6 +24,7 @@ impl Overview {
                 position: Point::new(70, 0),
                 color_primary: gui_color(15),
                 color_secondary: gui_color(0),
+                ..Default::default()
             },
             text: "Overview",
         }
@@ -33,6 +34,9 @@ impl<D> Draw<D> for Overview
 where
     D: DrawTarget<Color = GuiColor>,
 {
+    fn enabled(&self) -> bool {
+        self.info.enabled()
+    }
     fn state_emit_mask(&self) -> &[StateMarker] {
         &[StateMarker::Waveform]
     }

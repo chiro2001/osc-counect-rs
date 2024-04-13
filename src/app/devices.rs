@@ -213,6 +213,21 @@ pub trait BoardDevice {
     fn read_power_key(&mut self) -> bool {
         false
     }
+
+    fn has_keyboard(&self) -> bool {
+        false
+    }
+
+    fn has_clock(&self) -> bool {
+        false
+    }
+
+    fn has_battery(&self) -> bool {
+        false
+    }
+    fn get_battery_percentage(&self) -> u8 {
+        0
+    }
 }
 
 pub trait NvmDevice {

@@ -103,7 +103,12 @@ lto = true
 # default = ["stm32f103vc"]
 default = ["esp32c3"]
 # default = ["simulator"]
-stm32f103vc = ["embassy-stm32/stm32f103vc", "embedded", "stm32"]
+stm32f103vc = [
+    "embassy-stm32/stm32f103vc",
+    "embedded",
+    "stm32",
+    "screen-320x240",
+]
 stm32h743vi = ["embassy-stm32/stm32h743vi", "embedded", "stm32"]
 esp32c3 = [
     "esp-hal/esp32c3",
@@ -111,6 +116,7 @@ esp32c3 = [
     "esp-println/esp32c3",
     "embedded",
     "esp",
+    "screen-160x80",
 ]
 stm32 = [
     "embassy-time/tick-hz-1_000_000",
@@ -138,10 +144,13 @@ defmt = [
     "esp-hal/defmt",
     "esp-println/defmt-espflash",
     "embassy-embedded-hal/defmt",
+    "embedded-graphics-core/defmt",
 ]
 waveform_3bit = []
 waveform_16bit = []
 # overclocking = ["embassy-stm32/overclocking"]
+screen-320x240 = []
+screen-160x80 = []
 
 [[bin]]
 name = "osc-counect"

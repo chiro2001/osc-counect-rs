@@ -26,15 +26,30 @@ pub use overview::*;
 pub use waveform::*;
 
 pub const TEXT_OFFSET: Point = Point::new(0, 2);
-pub const SCREEN_WIDTH: u32 = 320;
-pub const SCREEN_HEIGHT: u32 = 240;
+#[cfg(feature = "screen-320x240")]
+mod screen_size {
+    pub const SCREEN_WIDTH: u32 = 320;
+    pub const SCREEN_HEIGHT: u32 = 240;
+}
+#[cfg(feature = "screen-160x80")]
+mod screen_size {
+    pub const SCREEN_WIDTH: u32 = 160;
+    pub const SCREEN_HEIGHT: u32 = 80;
+}
+pub use screen_size::*;
 
 type StateResult = Result<Option<&'static [StateMarker]>>;
 pub trait Draw<D> {
+    fn enabled(&self) -> bool {
+        true
+    }
     async fn draw(&self, display: &mut D, state: &mut State, vec: &mut StateVec) -> Result<()>
     where
         D: DrawTarget<Color = GuiColor>,
     {
+        if !self.enabled() {
+            return Ok(());
+        }
         let state_mask = self.state_emit_mask();
         let do_update = if state_mask.len() != 0 {
             // if any of the state markers are not updated, start drawing
@@ -98,6 +113,7 @@ pub struct GUIInfo {
     pub(crate) position: Point,
     pub(crate) color_primary: GuiColor,
     pub(crate) color_secondary: GuiColor,
+    pub(crate) disabled: bool,
 }
 
 impl GUIInfo {
@@ -115,6 +131,12 @@ impl GUIInfo {
             self.position.x + self.size.width as i32,
             self.position.y + self.size.height as i32,
         )
+    }
+    pub fn disable(&mut self) {
+        self.disabled = true;
+    }
+    pub fn enabled(&self) -> bool {
+        !self.disabled
     }
 }
 
@@ -171,6 +193,7 @@ impl RunningStateDisp {
                 position: Point::new(4, 0),
                 color_primary: color,
                 color_secondary: gui_color(15),
+                ..Default::default()
             },
             font: MonoTextStyle::new(&FONT_6X9, gui_color(15)),
             text,
@@ -211,6 +234,7 @@ impl TimeScaleDisp {
                 position: Point::new(4 + 29 + 1, 0),
                 color_primary: gui_color(5),
                 color_secondary: gui_color(15),
+                ..Default::default()
             },
             text,
             font: MonoTextStyle::new(&FONT_6X9, gui_color(15)),
@@ -284,13 +308,20 @@ impl Battery {
                 position: Point::new(SCREEN_WIDTH as i32 - 17, 1),
                 color_primary: gui_color(15),
                 color_secondary: gui_color(0),
+                ..Default::default()
             },
             level,
         }
     }
+    pub fn set_level(&mut self, level: u8) {
+        self.level = level;
+    }
 }
 
 impl<D> Draw<D> for Battery {
+    fn enabled(&self) -> bool {
+        self.info.enabled()
+    }
     fn state_emit_mask(&self) -> &[StateMarker] {
         &[StateMarker::Battery]
     }
@@ -351,6 +382,7 @@ impl Clock {
                 position: Point::new(SCREEN_WIDTH as i32 - 48 - 1, 0),
                 color_primary: gui_color(15),
                 color_secondary: gui_color(1),
+                ..Default::default()
             },
             hour: 12,
             minute: 30,
@@ -366,6 +398,9 @@ impl<D> Draw<D> for Clock
 where
     D: DrawTarget<Color = GuiColor>,
 {
+    fn enabled(&self) -> bool {
+        self.info.enabled()
+    }
     fn state_emit_mask(&self) -> &[StateMarker] {
         &[StateMarker::Clock]
     }
@@ -404,22 +439,37 @@ pub struct PanelItem {
     pub(crate) text: &'static str,
     pub(crate) style: PanelStyle,
     pub(crate) panel: Panel,
+    pub(crate) show_index: bool,
+    pub(crate) per_page: usize,
 }
 
 impl PanelItem {
-    pub fn new(panel: Panel, label: &'static str, text: &'static str, style: PanelStyle) -> Self {
+    pub fn new(
+        panel: Panel,
+        label: &'static str,
+        text: &'static str,
+        style: PanelStyle,
+        show_index: bool,
+        per_page: usize,
+    ) -> Self {
         let index: usize = panel.into();
         Self {
             info: GUIInfo {
                 size: Size::new(48 - 1, 26),
-                position: Point::new(SCREEN_WIDTH as i32 - 48 + 1, 12 + (index % 8) as i32 * 27),
+                position: Point::new(
+                    SCREEN_WIDTH as i32 - 48 + 1,
+                    12 + (index % per_page) as i32 * 27,
+                ),
                 color_primary: gui_color(8),
                 color_secondary: gui_color(0),
+                ..Default::default()
             },
             label,
             text,
             style,
             panel,
+            show_index,
+            per_page,
         }
     }
 }
@@ -467,40 +517,42 @@ where
         let mut buf = [0u8; 2];
         let index: usize = self.panel.into();
         let index_disp = (index % 8) + 1;
-        let text_index = format_no_std::show(&mut buf, format_args!("{}", index_disp))
-            .map_err(|_| AppError::DataFormatError)?;
         let color_label = if self.style == PanelStyle::ChannelColor {
             gui_color(0)
         } else {
             gui_color(15)
         };
-        let color_index = if self.style == PanelStyle::Normal {
-            gui_color(6)
-        } else {
-            gui_color(10)
-        };
-        Text::with_alignment(
-            text_index,
-            Point::new(1, self.info.size.height as i32 * 1 / 4) + TEXT_OFFSET,
-            MonoTextStyle::new(&FONT_6X9, color_index),
-            Alignment::Left,
-        )
-        .translate(self.info.position)
-        .draw(display)
-        .map_err(|_| AppError::DisplayError)?;
-        if index_disp == 8 {
+        if self.show_index {
+            let text_index = format_no_std::show(&mut buf, format_args!("{}", index_disp))
+                .map_err(|_| AppError::DataFormatError)?;
+            let color_index = if self.style == PanelStyle::Normal {
+                gui_color(6)
+            } else {
+                gui_color(10)
+            };
             Text::with_alignment(
-                "0",
-                Point::new(
-                    self.info.size.width as i32 - 7,
-                    self.info.size.height as i32 * 1 / 4,
-                ) + TEXT_OFFSET,
+                text_index,
+                Point::new(1, self.info.size.height as i32 * 1 / 4) + TEXT_OFFSET,
                 MonoTextStyle::new(&FONT_6X9, color_index),
                 Alignment::Left,
             )
             .translate(self.info.position)
             .draw(display)
             .map_err(|_| AppError::DisplayError)?;
+            if index_disp == self.per_page {
+                Text::with_alignment(
+                    "0",
+                    Point::new(
+                        self.info.size.width as i32 - 7,
+                        self.info.size.height as i32 * 1 / 4,
+                    ) + TEXT_OFFSET,
+                    MonoTextStyle::new(&FONT_6X9, color_index),
+                    Alignment::Left,
+                )
+                .translate(self.info.position)
+                .draw(display)
+                .map_err(|_| AppError::DisplayError)?;
+            }
         }
         Text::with_alignment(
             self.label,
@@ -571,6 +623,7 @@ impl MeasureItem {
                 position: Point::new(67 * index as i32 + 4, SCREEN_HEIGHT as i32 - 11),
                 color_primary: gui_color(2),
                 color_secondary: gui_color(3),
+                ..Default::default()
             },
             channel,
             label,
@@ -631,6 +684,7 @@ impl Generator {
                 position: Point::new(SCREEN_WIDTH as i32 - 48 + 1, SCREEN_HEIGHT as i32 - 11),
                 color_primary: gui_color(9),
                 color_secondary: gui_color(15),
+                ..Default::default()
             },
             text,
             font: MonoTextStyle::new(&FONT_6X9, gui_color(15)),

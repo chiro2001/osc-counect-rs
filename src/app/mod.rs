@@ -9,11 +9,11 @@ mod unit;
 use core::ops::Range;
 
 use devices::*;
-use embassy_sync::channel::{Channel, Receiver, Sender};
-#[cfg(not(feature = "esp"))]
-use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex as MutexUse;
 #[cfg(feature = "esp")]
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex as MutexUse;
+#[cfg(not(feature = "esp"))]
+use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex as MutexUse;
+use embassy_sync::channel::{Channel, Receiver, Sender};
 use gui::*;
 use misc::*;
 use state::*;
@@ -59,6 +59,8 @@ pub struct App<D, B, Z> {
 
     // setting menu
     menu: Menu<MenuId>,
+
+    panel_per_page: usize,
 }
 
 const STATE_OFFSET: u32 = 0;
@@ -152,10 +154,39 @@ where
         self
     }
     pub async fn new(display: D, board: B, buzzer: Z) -> Self {
+        let panel_per_page = ((SCREEN_HEIGHT - 24) / 27) as usize;
         let panel_items = core::array::from_fn(|i| {
             let p = Panel::from(i);
-            PanelItem::new(p, p.into(), "--", p.style())
+            PanelItem::new(
+                p,
+                p.into(),
+                "--",
+                p.style(),
+                board.has_keyboard(),
+                panel_per_page,
+            )
         });
+        let mut battery = Battery::new(50);
+        if board.has_battery() {
+            battery.set_level(board.get_battery_percentage());
+        } else {
+            battery.info.disable();
+        }
+        let mut clock = Clock::new();
+        if board.has_clock() {
+            // TODO: Get clock
+            // clock.set_time(&mut board).await;
+        } else {
+            clock.info.disable();
+        }
+        let small_screen = SCREEN_WIDTH < 200;
+        let mut overview = Overview::new();
+        let overview_width = if small_screen {
+            overview.info.disable();
+            0
+        } else {
+            overview.info.width()
+        };
         Self {
             state: Default::default(),
             updated: Default::default(),
@@ -165,27 +196,29 @@ where
             waveform: Default::default(),
             running_state: Default::default(),
             time_scale: Default::default(),
-            overview: Overview::new(),
+            overview,
             channel_info1: ChannelSettingDisp::new(
                 ProbeChannel::A,
                 GUIInfo {
                     size: Size::new(33, 10),
-                    position: Point::new(204, 0),
+                    position: Point::new((204 - 133) + overview_width, 0),
                     color_primary: ProbeChannel::A.color(),
                     color_secondary: gui_color(0),
+                    ..Default::default()
                 },
             ),
             channel_info2: ChannelSettingDisp::new(
                 ProbeChannel::B,
                 GUIInfo {
                     size: Size::new(33, 10),
-                    position: Point::new(205 + 33, 0),
+                    position: Point::new((205 + 33 - 133) + overview_width, 0),
                     color_primary: ProbeChannel::B.color(),
                     color_secondary: gui_color(0),
+                    ..Default::default()
                 },
             ),
-            battery: Battery::new(50),
-            clock: Clock::new(),
+            battery,
+            clock,
             panel_items,
             measure_items: [
                 MeasureItem::new(0, ProbeChannel::A, "Freq", "34kHz", true),
@@ -197,6 +230,7 @@ where
             trigger_level: Default::default(),
             select_items: Default::default(),
             menu: Menu::new(&MENU),
+            panel_per_page,
         }
         .init()
         .await
@@ -206,8 +240,15 @@ where
         let display = &mut self.display;
         if self.updated.iter().all(|&x| !x) {
             // clear screen at the first time
-            display
-                .clear(GUI_BG_COLOR)
+            // let bounding_box = display.bounding_box();
+            // crate::info!("display size: {:?}", bounding_box);
+            // display.clear() bugs on translated display...
+            // display
+            //     .clear(GUI_BG_COLOR)
+            //     .map_err(|_| AppError::DisplayError)?;
+            Rectangle::new(Point::zero(), Size::new(SCREEN_WIDTH, SCREEN_HEIGHT))
+                .into_styled(PrimitiveStyle::with_fill(GUI_BG_COLOR))
+                .draw(display)
                 .map_err(|_| AppError::DisplayError)?;
         }
 
@@ -246,24 +287,24 @@ where
 
         if !self.updated.at(StateMarker::PanelPage) {
             let drawed_panel_items = if self.state.panel_page == 0 {
-                8
+                self.panel_per_page
             } else {
-                self.panel_items.len() - 8
+                self.panel_items.len() - self.panel_per_page
             };
             for item in self
                 .panel_items
                 .iter_mut()
-                .skip(self.state.panel_page as usize * 8)
-                .take(8)
+                .skip(self.state.panel_page as usize * self.panel_per_page)
+                .take(self.panel_per_page)
             {
                 item.draw(display, &mut self.state, &mut self.updated)
                     .await?;
             }
-            if drawed_panel_items < 8 {
+            if drawed_panel_items < self.panel_per_page {
                 // clear some items
                 let range = Range {
                     start: drawed_panel_items,
-                    end: 8,
+                    end: self.panel_per_page,
                 };
                 for i in range {
                     Rectangle::new(
@@ -275,15 +316,17 @@ where
                     .map_err(|_| AppError::DisplayError)?;
                 }
                 // add info: 0 to switch page
-                Text::with_alignment(
-                    "0:Page",
-                    Point::new(SCREEN_WIDTH as i32 - 24, SCREEN_HEIGHT as i32 - 11 * 3 + 5)
-                        + TEXT_OFFSET,
-                    MonoTextStyle::new(&FONT_6X9, gui_color(15)),
-                    Alignment::Center,
-                )
-                .draw(display)
-                .map_err(|_| AppError::DisplayError)?;
+                if self.board.has_keyboard() {
+                    Text::with_alignment(
+                        "0:Page",
+                        Point::new(SCREEN_WIDTH as i32 - 24, SCREEN_HEIGHT as i32 - 11 * 3 + 5)
+                            + TEXT_OFFSET,
+                        MonoTextStyle::new(&FONT_6X9, gui_color(15)),
+                        Alignment::Center,
+                    )
+                    .draw(display)
+                    .map_err(|_| AppError::DisplayError)?;
+                }
             }
             self.updated.confirm(StateMarker::PanelPage);
         }
@@ -331,6 +374,7 @@ where
                         position: Point::new(0, 14) + window_rect.top_left,
                         color_primary: gui_color(5),
                         color_secondary: gui_color(0),
+                        ..Default::default()
                     },
                     items,
                 };
