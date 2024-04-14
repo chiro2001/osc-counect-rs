@@ -1,6 +1,7 @@
 [alias]
 simulator = "run --bin simulator --target x86_64-unknown-linux-gnu --features=simulator --no-default-features --release"
-esp32c3 = "run --no-default-features --features=esp32c3,defmt --bin osc-esp32c3 --target=riscv32imc-unknown-none-elf"
+esp32c3 = "run --no-default-features --features=esp32c3,defmt --bin osc-esp --target=riscv32imc-unknown-none-elf"
+esp32s3 = "run --no-default-features --features=esp32s3,defmt --bin osc-esp --target=xtensa-esp32s3-none-elf"
 stm32f103vc = "run --no-default-features --features=stm32f103vc,defmt --release --bin=osc-counect --target=thumbv7m-none-eabi"
 
 [target.thumbv7em-none-eabi]
@@ -13,10 +14,15 @@ runner = "probe-rs run --chip STM32F103VC"
 runner = "espflash flash --monitor -L defmt"
 rustflags = ["-C", "link-arg=-Tlinkall.x", "-C", "force-frame-pointers"]
 
+[target.'cfg(target_arch = "xtensa")']
+runner = "espflash flash --monitor -L defmt"
+rustflags = ["-C", "link-arg=-Wl,-Tlinkall.x", "-C", "link-arg=-nostartfiles"]
+
 [build]
 # target = "thumbv7m-none-eabi"
 # target = "thumbv7em-none-eabi"
-target = "riscv32imc-unknown-none-elf"
+# target = "riscv32imc-unknown-none-elf"
+target = "xtensa-esp32s3-none-elf"
 # rustflags = ["-Z", "threads=8"]
 
 [tasks.flash]
@@ -28,5 +34,5 @@ args = ["-f", "openocd.cfg"]
 DEFMT_LOG = "trace"
 RUST_LOG = "info"
 
-# [unstable]
-# build-std = ["alloc", "core"]
+[unstable]
+build-std = ["alloc", "core"]

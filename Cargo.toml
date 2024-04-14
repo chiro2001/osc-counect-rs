@@ -51,7 +51,7 @@ display-interface-fsmc = { path = "display-interface-fsmc", features = [
 tm1668 = { path = "tm1668" }
 panic-probe = { version = "0.3", features = ["print-defmt"], optional = true }
 
-[target.'cfg(target_arch = "riscv32")'.dependencies]
+[target.'cfg(any(target_arch = "riscv32", target_arch = "xtensa"))'.dependencies]
 esp-alloc = "0.3.0"
 esp-backtrace = { version = "0.11.1", features = [
     "exception-handler",
@@ -120,6 +120,14 @@ esp32c3 = [
     "esp",
     "screen-160x80",
 ]
+esp32s3 = [
+    "esp-hal/esp32s3",
+    "esp-backtrace/esp32s3",
+    "esp-println/esp32s3",
+    "embedded",
+    "esp",
+    "screen-160x80",
+]
 stm32 = [
     "embassy-time/tick-hz-1_000_000",
     "embassy-executor/arch-cortex-m",
@@ -162,8 +170,8 @@ name = "osc-counect"
 path = "src/main.rs"
 
 [[bin]]
-name = "osc-esp32c3"
-path = "src/esp32c3.rs"
+name = "osc-esp"
+path = "src/esp.rs"
 
 [[bin]]
 name = "simulator"
