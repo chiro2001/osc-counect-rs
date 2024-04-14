@@ -6,10 +6,14 @@ use core::cell::RefCell;
 
 use app::devices::{BoardDevice, KeyboardDevice, Keys, NvmDevice};
 use defmt::*;
+use display_interface::DataFormat;
 use embassy_embedded_hal::shared_bus::blocking::spi::SpiDevice;
+// use embassy_embedded_hal::shared_bus::blocking::spi::SpiDevice;
 use embassy_executor::Spawner;
-use embassy_sync::blocking_mutex::NoopMutex;
+use embassy_sync::blocking_mutex::{CriticalSectionMutex, NoopMutex};
+use embassy_time::Timer;
 use embedded_graphics::draw_target::DrawTargetExt;
+use embedded_graphics::pixelcolor::IntoStorage;
 use embedded_graphics::prelude::Primitive;
 use embedded_graphics::primitives::Rectangle;
 use embedded_graphics::Drawable;
@@ -35,6 +39,8 @@ use esp_hal::{
     spi::{master::Spi, SpiMode},
     timer::TimerGroup,
 };
+use gc9a01::display::{DisplayDefinition, NewZeroed};
+use gc9a01::rotation::DisplayRotation;
 use static_cell::make_static;
 
 use rtt_target::rtt_init_print;
@@ -43,6 +49,50 @@ use crate::app::devices::{DummyAdcDevice, DummyBuzzerDevice};
 use crate::app::Result;
 
 mod app;
+
+#[cfg(feature = "psram")]
+extern crate alloc;
+#[cfg(feature = "psram")]
+#[global_allocator]
+static ALLOCATOR: esp_alloc::EspHeap = esp_alloc::EspHeap::empty();
+#[cfg(feature = "psram")]
+fn init_psram_heap() {
+    unsafe {
+        ALLOCATOR.init(
+            esp_hal::psram::psram_vaddr_start() as *mut u8,
+            esp_hal::psram::PSRAM_BYTES,
+        );
+    }
+}
+
+#[cfg(feature = "display-gc9a01")]
+#[derive(Debug, Copy, Clone)]
+struct DisplayResolution240x240;
+
+#[cfg(feature = "display-gc9a01")]
+struct MyBuffer<const N: usize>(alloc::boxed::Box<[u16; N]>);
+
+#[cfg(feature = "display-gc9a01")]
+impl DisplayDefinition for DisplayResolution240x240 {
+    const WIDTH: u16 = 240;
+    const HEIGHT: u16 = 240;
+
+    type Buffer = MyBuffer<{ Self::WIDTH as usize * Self::HEIGHT as usize }>;
+}
+
+#[cfg(feature = "display-gc9a01")]
+impl<const N: usize> NewZeroed for MyBuffer<N> {
+    fn new_zeroed() -> Self {
+        MyBuffer(alloc::boxed::Box::new([0; N]))
+    }
+}
+
+#[cfg(feature = "display-gc9a01")]
+impl<const N: usize> AsMut<[u16]> for MyBuffer<N> {
+    fn as_mut(&mut self) -> &mut [u16] {
+        &mut self.0[..]
+    }
+}
 
 /*
 ST7789 <-> ESP32C3
@@ -78,17 +128,49 @@ async fn main(spawner: Spawner) {
     let timg0 = TimerGroup::new_async(peripherals.TIMG0, clocks);
     embassy::init(&clocks, timg0);
 
+    #[cfg(feature = "psram")]
+    {
+        esp_hal::psram::init_psram(peripherals.PSRAM);
+        init_psram_heap();
+    }
+
     rtt_init_print!();
 
     let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
-    let sclk = io.pins.gpio2;
-    let mosi = io.pins.gpio3;
-    let res = io.pins.gpio10.into_push_pull_output();
-    let dc = io.pins.gpio6.into_push_pull_output();
-    let cs = io.pins.gpio7.into_push_pull_output();
-    // espefuse.py -p /dev/ttyACM0 burn_efuse VDD_SPI_AS_GPIO 1
-    let bl = io.pins.gpio11.into_push_pull_output();
-    let bl2 = io.pins.gpio0.into_push_pull_output();
+    #[cfg(feature = "display-st7789")]
+    let (sclk, mosi, res, dc, cs, bl, bl2) = {
+        let sclk = io.pins.gpio2.into_push_pull_output();
+        let mosi = io.pins.gpio3.into_push_pull_output();
+        let res = io.pins.gpio10.into_push_pull_output();
+        let dc = io.pins.gpio6.into_push_pull_output();
+        let cs = io.pins.gpio7.into_push_pull_output();
+        // espefuse.py -p /dev/ttyACM0 burn_efuse VDD_SPI_AS_GPIO 1
+        let bl = io.pins.gpio11.into_push_pull_output();
+        let bl2 = io.pins.gpio0.into_push_pull_output();
+        (sclk, mosi, res, dc, cs, bl, bl2)
+    };
+    #[cfg(feature = "display-st7789-a")]
+    let (sclk, mosi, res, dc, cs, bl, bl2) = {
+        let sclk = io.pins.gpio18.into_push_pull_output();
+        let mosi = io.pins.gpio17.into_push_pull_output();
+        let res = io.pins.gpio4.into_push_pull_output();
+        let dc = io.pins.gpio5.into_push_pull_output();
+        let cs = io.pins.gpio8.into_push_pull_output();
+        let bl = io.pins.gpio6.into_push_pull_output();
+        let bl2 = io.pins.gpio0.into_push_pull_output();
+        (sclk, mosi, res, dc, cs, bl, bl2)
+    };
+    #[cfg(feature = "display-gc9a01")]
+    let (sclk, mosi, res, dc, cs, bl, bl2) = {
+        let sclk = io.pins.gpio18.into_push_pull_output();
+        let mosi = io.pins.gpio17.into_push_pull_output();
+        let res = io.pins.gpio4.into_push_pull_output();
+        let dc = io.pins.gpio5.into_push_pull_output();
+        let cs = io.pins.gpio11.into_push_pull_output();
+        let bl = io.pins.gpio6.into_push_pull_output();
+        let bl2 = io.pins.gpio0.into_push_pull_output();
+        (sclk, mosi, res, dc, cs, bl, bl2)
+    };
 
     let ledc = make_static!(LEDC::new(peripherals.LEDC, clocks));
     ledc.set_global_slow_clock(LSGlobalClkSource::APBClk);
@@ -110,22 +192,67 @@ async fn main(spawner: Spawner) {
             pin_config: channel::config::PinConfig::PushPull,
         })
         .unwrap();
-    channel0.set_duty(15).unwrap();
+    channel0.set_duty(50).unwrap();
     // channel0.start_duty_fade(0, 20, 200).unwrap();
 
-    let spi = Spi::new(peripherals.SPI2, 80.MHz(), SpiMode::Mode0, clocks)
+    let mut spi = Spi::new(peripherals.SPI2, 100.kHz(), SpiMode::Mode0, clocks)
         .with_sck(sclk)
         .with_mosi(mosi);
     let spi_mutex = NoopMutex::new(RefCell::new(spi));
     let spi_device = SpiDevice::new(&spi_mutex, cs);
-    let interface = display_interface_spi::SPIInterface::new(spi_device, dc);
-    let mut lcd = st7789::ST7789::new(interface, Some(res), Some(bl2), 160, 80);
+    let mut interface = display_interface_spi::SPIInterface::new(spi_device, dc);
     let mut delay = Delay::new(clocks);
-    lcd.init(&mut delay).unwrap();
-    lcd.set_orientation(st7789::Orientation::Landscape).unwrap();
-    let mut display = lcd;
-    // let mut display = display.color_converted::<app::GuiColor>();
-    let mut display = display.translated(Point::new(1, 26));
+
+    #[cfg(any(feature = "display-st7789", feature = "display-st7789-a"))]
+    let mut display = {
+        let mut lcd = st7789::ST7789::new(interface, Some(res), Some(bl2), 160, 80);
+        lcd.init(&mut delay).unwrap();
+        lcd.set_orientation(st7789::Orientation::Landscape).unwrap();
+        // let mut display = lcd;
+        // // let mut display = display.color_converted::<app::GuiColor>();
+        // display.translated(Point::new(1, 26))
+        lcd
+    };
+
+    #[cfg(feature = "display-gc9a01")]
+    let mut display = {
+        let lcd = gc9a01::Gc9a01::new(
+            interface,
+            DisplayResolution240x240 {},
+            DisplayRotation::Rotate0,
+        );
+        lcd.into_buffered_graphics()
+    };
+
+    #[cfg(not(feature = "display-gc9a01"))]
+    loop {
+        Rectangle::new(
+            Point::new(0, 0),
+            embedded_graphics::geometry::Size::new(160, 80),
+        )
+        .into_styled(embedded_graphics::primitives::PrimitiveStyle::with_fill(
+            app::GuiColor::RED,
+        ))
+        .draw(&mut display)
+        .unwrap();
+        Rectangle::new(
+            Point::new(0, 0),
+            embedded_graphics::geometry::Size::new(160, 80),
+        )
+        .into_styled(embedded_graphics::primitives::PrimitiveStyle::with_fill(
+            app::GuiColor::BLUE,
+        ))
+        .draw(&mut display)
+        .unwrap();
+    }
+
+    #[cfg(feature = "display-gc9a01")]
+    loop {
+        display.fill(app::GuiColor::RED.into_storage());
+        display.flush().unwrap();
+        display.fill(app::GuiColor::BLUE.into_storage());
+        display.flush().unwrap();
+    }
 
     Rectangle::new(
         Point::new(0, 0),
@@ -137,12 +264,13 @@ async fn main(spawner: Spawner) {
     .draw(&mut display)
     .unwrap();
 
-    let left = io.pins.gpio5.into_pull_up_input();
-    let right = io.pins.gpio9.into_pull_up_input();
-    let up = io.pins.gpio8.into_pull_up_input();
-    let down = io.pins.gpio13.into_pull_up_input();
-    let enter = io.pins.gpio4.into_pull_up_input();
-    let kbd_device = KeysInputDriver::new(left, right, up, down, enter);
+    // let left = io.pins.gpio5.into_pull_up_input();
+    // let right = io.pins.gpio9.into_pull_up_input();
+    // let up = io.pins.gpio8.into_pull_up_input();
+    // let down = io.pins.gpio13.into_pull_up_input();
+    // let enter = io.pins.gpio4.into_pull_up_input();
+    // let kbd_device = KeysInputDriver::new(left, right, up, down, enter);
+    let kbd_device = app::devices::DummyKeyboardDevice {};
 
     let adc_device = DummyAdcDevice {};
     let board = BoardDriver {
@@ -159,7 +287,7 @@ async fn main(spawner: Spawner) {
         |_| {},
     )
     .await;
-    defmt::panic!("Simulator stopped");
+    defmt::panic!("stopped");
 }
 
 struct KeysInputDriver<L, R, U, D, E> {

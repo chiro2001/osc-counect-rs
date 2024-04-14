@@ -9,7 +9,7 @@ default-run = "osc-counect"
 [dependencies]
 embassy-time = { version = "0.3.0" }
 embassy-sync = { version = "0.5.0" }
-embassy-executor = { version = "0.5.0", features = ["task-arena-size-10240"] }
+embassy-executor = { version = "0.5.0" }
 embassy-futures = { version = "0.1.0" }
 
 futures = { version = "0.3.17", default-features = false, features = [
@@ -69,6 +69,7 @@ st7789 = { version = "0.7.0", path = "./st7789" }
 display-interface-spi = "0.5.0"
 embassy-embedded-hal = "0.1.0"
 rtt-target = "0.5.0"
+gc9a01-rs = { version = "0.1.0", path = "./gc9a01/gc9a01-rs" }
 
 [target.'cfg(not(target_arch = "x86_64"))'.dependencies]
 defmt = { version = "0.3", optional = true }
@@ -110,6 +111,8 @@ stm32f103vc = [
     "embedded",
     "stm32",
     "screen-320x240",
+    "display-ili9327",
+    "embassy-executor/task-arena-size-10240",
 ]
 stm32h743vi = ["embassy-stm32/stm32h743vi", "embedded", "stm32"]
 esp32c3 = [
@@ -119,15 +122,22 @@ esp32c3 = [
     "embedded",
     "esp",
     "screen-160x80",
+    "display-st7789",
+    "embassy-executor/task-arena-size-131072",
 ]
 esp32s3 = [
     "esp-hal/esp32s3",
+    "psram",
     "esp-backtrace/esp32s3",
     "esp-println/esp32s3",
     "embedded",
     "esp",
     "screen-160x80",
+    "display-gc9a01",
+    # "display-st7789-a",
+    "embassy-executor/task-arena-size-262144",
 ]
+psram = ["esp-hal/psram-8m"]
 stm32 = [
     "embassy-time/tick-hz-1_000_000",
     "embassy-executor/arch-cortex-m",
@@ -143,7 +153,7 @@ simulator = [
     "embassy-executor/executor-thread",
     "embassy-executor/integrated-timers",
     "embassy-sync/std",
-    "screen-320x240"
+    "screen-320x240",
 ]
 defmt = [
     "dep:defmt",
@@ -164,6 +174,11 @@ waveform_16bit = []
 # overclocking = ["embassy-stm32/overclocking"]
 screen-320x240 = []
 screen-160x80 = []
+
+display-ili9327 = []
+display-st7789 = []
+display-st7789-a = []
+display-gc9a01 = []
 
 [[bin]]
 name = "osc-counect"

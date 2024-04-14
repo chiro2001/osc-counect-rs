@@ -1536,6 +1536,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "gc9a01-rs"
+version = "0.1.0"
+dependencies = [
+ "display-interface",
+ "display-interface-spi",
+ "embedded-graphics-core 0.4.0",
+ "embedded-hal 1.0.0",
+]
+
+[[package]]
 name = "gcd"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2179,6 +2189,7 @@ dependencies = [
  "format_no_std",
  "fugit",
  "futures",
+ "gc9a01-rs",
  "heapless 0.8.0",
  "ili9341",
  "itertools",
