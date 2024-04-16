@@ -59,7 +59,7 @@ esp-backtrace = { version = "0.11.1", features = [
     "panic-handler",
     "println",
 ] }
-esp-hal = { version = "0.16.0", path = "./esp-hal/esp-hal", features = [
+esp-hal = { version = "0.16.1", features = [
     "embassy",
     "embassy-time-timg0",
     "embassy-executor-thread",

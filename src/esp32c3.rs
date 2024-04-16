@@ -70,14 +70,10 @@ async fn main(spawner: Spawner) {
     let peripherals = Peripherals::take();
     let system = peripherals.SYSTEM.split();
     static mut CLOCKS: Option<Clocks<'static>> = None;
-    let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
-    let clocks = unsafe {
-        CLOCKS.replace(clocks);
-        CLOCKS.as_ref().unwrap()
-    };
+    let clocks = &*make_static!(ClockControl::max(system.clock_control).freeze());
 
-    let timg0 = TimerGroup::new_async(peripherals.TIMG0, clocks);
-    embassy::init(&clocks, timg0);
+    let timg0 = TimerGroup::new(peripherals.TIMG0, clocks);
+    embassy::init(clocks, timg0);
 
     rtt_init_print!();
 
@@ -99,7 +95,7 @@ async fn main(spawner: Spawner) {
         .configure(timer::config::Config {
             duty: timer::config::Duty::Duty8Bit,
             clock_source: timer::LSClockSource::APBClk,
-            frequency: 24.kHz(),
+            frequency: 24u32.kHz(),
         })
         .unwrap();
 
@@ -114,7 +110,7 @@ async fn main(spawner: Spawner) {
     channel0.set_duty(15).unwrap();
     // channel0.start_duty_fade(0, 20, 200).unwrap();
 
-    let spi = Spi::new(peripherals.SPI2, 80.MHz(), SpiMode::Mode0, clocks)
+    let spi = Spi::new(peripherals.SPI2, 80u32.MHz(), SpiMode::Mode0, clocks)
         .with_sck(sclk)
         .with_mosi(mosi);
     let spi_mutex = NoopMutex::new(RefCell::new(spi));
@@ -224,7 +220,10 @@ struct BoardDriver<'a, S: TimerSpeed, O: OutputPin> {
     backlight: Channel<'a, S, O>,
 }
 
-impl<'a, S: TimerSpeed, O: OutputPin> BoardDevice for BoardDriver<'a, S, O> {
+impl<'a, S: TimerSpeed, O: OutputPin> BoardDevice for BoardDriver<'a, S, O>
+where
+    Channel<'a, S, O>: esp_hal::ledc::channel::ChannelHW<O>,
+{
     fn set_brightness(&mut self, brightness: u8) {
         self.backlight.set_duty(brightness).unwrap();
     }
