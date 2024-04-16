@@ -404,7 +404,7 @@ impl Waveform {
                 (idx * (self.info.width() as usize) * width_caling / data.len()) as i32,
                 clamp((v * -1.0 * (self.info.height() as f32) / 6.0) as i32),
             );
-            if i != 0 {
+            if i != 0 && pt.x < self.info.width() as i32 {
                 Line::new(pt_last, pt)
                     .translate(screen_offset)
                     .draw_styled(&style, display)
