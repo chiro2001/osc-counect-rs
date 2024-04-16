@@ -76,7 +76,7 @@ pub struct App<D, B, Z> {
 const STATE_OFFSET: u32 = 0;
 impl<D, B, Z> App<D, B, Z>
 where
-    D: DrawTarget<Color = GuiColor>,
+    D: DrawTarget<Color = GuiColor> + DisplayFlushable,
     B: BoardDevice + NvmDevice,
     Z: BuzzerDevice,
 {
@@ -537,7 +537,9 @@ where
             Window::SetValue => self.draw_set_value_window().await,
             Window::Settings => self.draw_settings_window().await,
             Window::MusicBoard => self.draw_music_board_window().await,
-        }
+        }?;
+        self.display.do_display_flush()?;
+        Ok(())
     }
 
     pub async fn value_init(&mut self) -> Result<()> {
@@ -1230,7 +1232,7 @@ pub async fn main_loop<D, B, Z, K, A, F>(
     adc: A,
     loop_start: F,
 ) where
-    D: DrawTarget<Color = GuiColor>,
+    D: DrawTarget<Color = GuiColor> + DisplayFlushable,
     B: BoardDevice + NvmDevice + 'static,
     Z: BuzzerDevice + 'static,
     K: KeyboardDevice + 'static,

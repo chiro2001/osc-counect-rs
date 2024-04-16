@@ -254,3 +254,9 @@ impl NvmDevice for DummyBoardDevice {
         Err(super::AppError::NotImplemented)
     }
 }
+
+pub trait DisplayFlushable {
+    fn do_display_flush(&mut self) -> Result<()> {
+        Ok(())
+    }
+}

@@ -158,7 +158,7 @@ impl<T: display_interface::WriteOnlyDataCommand> DrawTarget for Gu256x128c<T> {
             let d = pixel.1.is_on();
             self.set_pixel(x, y, d)?;
         }
-        self.flush()?;
+        // self.flush()?;
         Ok(())
     }
     fn fill_contiguous<I>(
@@ -178,7 +178,7 @@ impl<T: display_interface::WriteOnlyDataCommand> DrawTarget for Gu256x128c<T> {
             let y = (i / area.size.width as usize) as u16 + area.top_left.y as u16;
             self.set_pixel(x, y, color.is_on())?;
         }
-        self.flush()?;
+        // self.flush()?;
         Ok(())
     }
 }

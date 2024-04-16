@@ -14,6 +14,7 @@ pub type GuiColor = embedded_graphics::pixelcolor::BinaryColor;
 
 #[cfg(any(feature = "color-rgb565", feature = "color-bgr565"))]
 mod colors {
+    use super::*;
     pub const COLOR_HALF_YELLOW: GuiColor =
         GuiColor::new(GuiColor::MAX_R / 2, GuiColor::MAX_G / 2, 0);
     pub const COLOR_HALF_GREEN: GuiColor = GuiColor::new(0, GuiColor::MAX_G / 2, 0);

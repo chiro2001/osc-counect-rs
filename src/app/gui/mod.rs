@@ -520,7 +520,7 @@ where
         )
         .draw(display)
         .map_err(|_| AppError::DisplayError)?;
-        if self.style == PanelStyle::ChannelColor {
+        if !DRAW_BOARDER_ONLY || self.style == PanelStyle::ChannelColor {
             Rectangle::new(self.info.position, size_half)
                 .into_styled(PrimitiveStyleBuilder::new().fill_color(color_main).build())
                 .draw(display)

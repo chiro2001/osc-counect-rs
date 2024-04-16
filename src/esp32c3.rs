@@ -43,6 +43,7 @@ use crate::app::devices::{DummyAdcDevice, DummyBuzzerDevice};
 use crate::app::Result;
 
 mod app;
+mod common;
 
 /*
 ST7789 <-> ESP32C3

@@ -10,7 +10,7 @@ extern crate alloc;
 
 use core::convert::Infallible;
 
-use app::devices::{BoardDevice, BuzzerDevice, NvmDevice};
+use app::devices::{BoardDevice, BuzzerDevice, DisplayFlushable, NvmDevice};
 use defmt::*;
 use embedded_graphics::{
     draw_target::DrawTargetExt,
@@ -56,6 +56,7 @@ use display_interface_fsmc as fsmc;
 use tm1668::InoutPin;
 
 mod app;
+mod common;
 
 #[cfg(feature = "stm32f103vc")]
 bind_interrupts!(struct Irqs {
@@ -367,10 +368,10 @@ async fn main(spawner: Spawner) {
             160,
             80
         ));
-        lcd.init(delay).unwrap();
-        lcd.set_orientation(st7789::Orientation::LandscapeSwapped)
+        display.init(delay).unwrap();
+        display.set_orientation(st7789::Orientation::LandscapeSwapped)
             .unwrap();
-        lcd.translated(Point::new(1, 26))
+        display.translated(Point::new(1, 26))
     };
     #[cfg(feature = "display-gu256x128c")]
     let display = {
@@ -404,7 +405,7 @@ async fn main(spawner: Spawner) {
         bl.set_duty(Channel::Ch3, bl.get_max_duty() / 2);
         (bl, Channel::Ch3)
     };
-    #[cfg(feature = "stm32h743vi")]
+    #[cfg(all(feature = "stm32h743vi", feature = "display-st7789-1"))]
     let (bl, bl_channel) = {
         let mut bl = ComplementaryPwm::new(
             p.TIM1,
