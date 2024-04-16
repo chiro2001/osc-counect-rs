@@ -2169,6 +2169,7 @@ dependencies = [
  "embedded-graphics 0.8.1",
  "embedded-graphics-core 0.4.0",
  "embedded-graphics-simulator",
+ "embedded-hal 0.2.7",
  "embedded-hal 1.0.0",
  "embedded-storage 0.3.1",
  "env_logger",

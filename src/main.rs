@@ -32,7 +32,10 @@ use embassy_stm32::{
     peripherals::ADC1,
     spi::Spi,
     time::Hertz,
-    timer::{CaptureCompare16bitInstance, Channel},
+    timer::{
+        complementary_pwm::{ComplementaryPwm, ComplementaryPwmPin},
+        CaptureCompare16bitInstance, Channel,
+    },
     Peripheral, PeripheralRef,
 };
 use embassy_stm32::{
@@ -272,7 +275,7 @@ async fn main(spawner: Spawner) {
     }
 
     #[cfg(feature = "display-ili9327")]
-    let mut lcd = {
+    let lcd = {
         let init = fsmc::FsmcNorsramInitTypeDef {
             ns_bank: 0,
             data_address_mux: 0,
@@ -339,7 +342,7 @@ async fn main(spawner: Spawner) {
     #[cfg(any(feature = "display-st7789-1", feature = "display-st7789-2"))]
     let lcd = {
         let dc = Output::new(p.PE13, Level::Low, Speed::Low);
-        let bl = OutputInversePin::new(Output::new(p.PE10, Level::Low, Speed::Low));
+        let bl2 = OutputInversePin::new(Output::new(p.PE9, Level::Low, Speed::Low));
         let cs = Output::new(p.PE11, Level::High, Speed::Low);
         let reset = Output::new(p.PE6, Level::High, Speed::Low);
         let mut spi_config = embassy_stm32::spi::Config::default();
@@ -354,7 +357,7 @@ async fn main(spawner: Spawner) {
         let lcd = make_static!(st7789::ST7789::new(
             interface,
             Some(reset),
-            Some(bl),
+            Some(bl2),
             160,
             80
         ));
@@ -365,18 +368,41 @@ async fn main(spawner: Spawner) {
     };
     info!("OK!");
 
-    let mut bl = SimplePwm::new(
-        // Warning: TIM3 channel 3 not usable
-        p.TIM8,
-        None,
-        None,
-        Some(PwmPin::new_ch3(p.PC8, OutputType::PushPull)),
-        None,
-        Hertz::khz(2),
-        Default::default(),
-    );
-    bl.enable(Channel::Ch3);
-    bl.set_duty(Channel::Ch3, bl.get_max_duty() / 2);
+    #[cfg(feature = "stm32f103vc")]
+    let (bl, bl_channel) = {
+        let mut bl = SimplePwm::new(
+            // Warning: TIM3 channel 3 not usable
+            p.TIM8,
+            None,
+            None,
+            Some(PwmPin::new_ch3(p.PC8, OutputType::PushPull)),
+            None,
+            Hertz::khz(2),
+            Default::default(),
+        );
+        bl.enable(Channel::Ch3);
+        bl.set_duty(Channel::Ch3, bl.get_max_duty() / 2);
+        (bl, Channel::Ch3)
+    };
+    #[cfg(feature = "stm32h743vi")]
+    let (bl, bl_channel) = {
+        let mut bl = ComplementaryPwm::new(
+            p.TIM1,
+            None,
+            None,
+            None,
+            Some(ComplementaryPwmPin::new_ch2(p.PE10, OutputType::PushPull)),
+            None,
+            None,
+            None,
+            None,
+            Hertz::khz(2),
+            Default::default(),
+        );
+        bl.enable(Channel::Ch2);
+        bl.set_duty(Channel::Ch2, bl.get_max_duty() / 2);
+        (bl, Channel::Ch2)
+    };
     let beep = SimplePwm::new(
         p.TIM3,
         None,
@@ -549,7 +575,7 @@ async fn main(spawner: Spawner) {
     let mut power_key_test = Flex::new(p.PE1);
     power_key_test.set_as_input(Pull::Down);
     let power_on = Output::new(p.PE0, Level::High, Speed::Low);
-    let board_device = BoardDriver::new(bl, flash, offset, power_key_test, power_on);
+    let board_device = BoardDriver::new(bl, bl_channel, flash, offset, power_key_test, power_on);
     let buzzer_device = BuzzerDriver::new(beep, Channel::Ch4);
     app::main_loop(
         spawner,
@@ -662,20 +688,22 @@ where
     }
 }
 
-struct BoardDriver<'d, T: CaptureCompare16bitInstance, F, P, W> {
-    backlight: SimplePwm<'d, T>,
+struct BoardDriver<PWM, C, F, P, W> {
+    backlight: PWM,
+    backlight_channel: C,
     flash: F,
     flash_offset: u32,
     power_key_test: P,
     power_on: W,
 }
 
-impl<'d, T, F, P, W> BoardDriver<'d, T, F, P, W>
+impl<PWM, F, P, W> BoardDriver<PWM, Channel, F, P, W>
 where
-    T: CaptureCompare16bitInstance,
+    PWM: embedded_hal_02::Pwm,
 {
     fn new(
-        backlight: SimplePwm<'d, T>,
+        backlight: PWM,
+        backlight_channel: Channel,
         flash: F,
         flash_offset: u32,
         power_key_test: P,
@@ -683,6 +711,7 @@ where
     ) -> Self {
         Self {
             backlight,
+            backlight_channel,
             flash,
             flash_offset,
             power_key_test,
@@ -691,15 +720,15 @@ where
     }
 }
 
-impl<'d, T, F, P, W> BoardDevice for BoardDriver<'d, T, F, P, W>
+impl<PWM, F, P, W> BoardDevice for BoardDriver<PWM, Channel, F, P, W>
 where
-    T: CaptureCompare16bitInstance,
+    PWM: embedded_hal_02::Pwm<Channel = Channel, Duty = u16>,
     P: InputPin,
     W: OutputPin,
 {
     fn set_brightness(&mut self, brightness: u8) {
         self.backlight.set_duty(
-            Channel::Ch3,
+            self.backlight_channel,
             brightness.min(100) as u16 * self.backlight.get_max_duty() / 100,
         );
     }
@@ -731,9 +760,8 @@ where
     }
 }
 
-impl<'d, T, F, P, W> NvmDevice for BoardDriver<'d, T, F, P, W>
+impl<PWM, F, P, W> NvmDevice for BoardDriver<PWM, Channel, F, P, W>
 where
-    T: CaptureCompare16bitInstance,
     F: NorFlash + ReadNorFlash,
     <F as embedded_storage::nor_flash::ErrorType>::Error: defmt::Format,
 {
