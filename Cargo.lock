@@ -727,9 +727,6 @@ name = "display-interface"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ba2aab1ef3793e6f7804162debb5ac5edb93b3d650fbcc5aeb72fcd0e6c03a0"
-dependencies = [
- "defmt",
-]
 
 [[package]]
 name = "display-interface-fsmc"
@@ -1292,6 +1289,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e98f0f58453dd2ce08d99228fc8757fad39d05dfd26643665d1093b8844f42cc"
 dependencies = [
  "critical-section 1.1.2",
+ "defmt",
 ]
 
 [[package]]

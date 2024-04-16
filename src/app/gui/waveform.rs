@@ -198,11 +198,6 @@ where
             let dir_x = k == 0;
             let mut x = center.x as i32;
             while x > 0 && x < self.info.width() as i32 {
-                if dir_x {
-                    x += dd;
-                } else {
-                    x -= dd;
-                }
                 for l in 0..2 {
                     let dir_y = l == 0;
                     let mut y = center.y as i32;
@@ -224,6 +219,11 @@ where
                             y -= dd;
                         }
                     }
+                }
+                if dir_x {
+                    x += dd;
+                } else {
+                    x -= dd;
                 }
             }
             let x = center.x as i32;
