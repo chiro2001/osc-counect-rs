@@ -9,7 +9,7 @@ default-run = "osc-counect"
 [dependencies]
 embassy-time = { version = "0.3.0" }
 embassy-sync = { version = "0.5.0" }
-embassy-executor = { version = "0.5.0", features = ["task-arena-size-10240"] }
+embassy-executor = { version = "0.5.0" }
 embassy-futures = { version = "0.1.0" }
 
 futures = { version = "0.3.17", default-features = false, features = [
@@ -112,6 +112,7 @@ stm32f103vc = [
     "embedded",
     "stm32",
     "display-ili9327",
+    "embassy-executor/task-arena-size-10240",
 ]
 stm32h743vi = [
     "embassy-stm32/stm32h743vi",
@@ -120,6 +121,7 @@ stm32h743vi = [
     # "display-st7789-1",
     # "waveform_16bit",
     "display-gu256x128c",
+    "embassy-executor/task-arena-size-163840",
 ]
 esp32c3 = [
     "esp-hal/esp32c3",
@@ -135,7 +137,11 @@ stm32 = [
     "embassy-executor/executor-thread",
     "embassy-executor/integrated-timers",
 ]
-esp = ["embassy-time/generic-queue-8", "waveform_16bit"]
+esp = [
+    "embassy-time/generic-queue-8",
+    "waveform_16bit",
+    "embassy-executor/task-arena-size-10240",
+]
 embedded = []
 simulator = [
     "embassy-time/std",
@@ -170,7 +176,11 @@ screen-256x128 = []
 display-ili9327 = ["color-rgb565", "screen-320x240"]
 display-st7789-1 = ["color-bgr565", "screen-160x80"]
 display-st7789-2 = ["color-rgb565", "screen-160x80"]
-display-gu256x128c = ["color-binary", "screen-256x128"]
+display-gu256x128c = [
+    "color-binary",
+    # "screen-256x128"
+    "screen-160x80",
+]
 
 color-rgb565 = []
 color-bgr565 = []

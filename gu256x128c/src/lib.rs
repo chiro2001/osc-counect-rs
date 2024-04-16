@@ -1,5 +1,7 @@
 #![no_std]
 
+use embedded_graphics_core::{draw_target::DrawTarget, geometry::Dimensions};
+
 pub type DisplayError = display_interface::DisplayError;
 
 pub struct Spi74hc595<S, L, C, R, D> {
@@ -27,18 +29,16 @@ where
         }
     }
     pub fn write_u8(&mut self, data: u8) -> Result<(), DisplayError> {
-        // defmt::info!("write_u8({:02x})", data);
+        // if data != 0 {
+        //     defmt::info!("write_u8({:02x})", data);
+        // }
         while self.ready.is_low().map_err(|_| DisplayError::DCError)? {
-            // self.delay.delay_us(1);
             self.delay.delay_ns(100);
-            // self.delay.delay_ms(1000);
-            // defmt::info!("waiting for ready");
         }
         self.cs.set_low().map_err(|_| DisplayError::CSError)?;
         self.spi
             .write(&[data])
             .map_err(|_| DisplayError::BusWriteError)?;
-        // defmt::info!("spi write!");
         self.delay.delay_us(2);
         self.latch.set_low().map_err(|_| DisplayError::DCError)?;
         self.delay.delay_us(2);
@@ -81,10 +81,14 @@ where
 
 pub struct Gu256x128c<I> {
     interface: I,
+    buffer: [u8; 256 * 128 / 8],
 }
 impl<I: display_interface::WriteOnlyDataCommand> Gu256x128c<I> {
     pub fn new(interface: I) -> Self {
-        Gu256x128c { interface }
+        Gu256x128c {
+            interface,
+            buffer: [0; 256 * 128 / 8],
+        }
     }
     pub fn init(&mut self) -> Result<(), DisplayError> {
         self.interface
@@ -96,5 +100,151 @@ impl<I: display_interface::WriteOnlyDataCommand> Gu256x128c<I> {
     pub fn write_str(&mut self, s: &str) -> Result<(), DisplayError> {
         self.interface
             .send_data(display_interface::DataFormat::U8Iter(&mut s.bytes()))
+    }
+    pub fn set_pixel(&mut self, x: u16, y: u16, color: bool) -> Result<(), DisplayError> {
+        // defmt::info!("set_pixel(x={}, y={}, color={})", x, y, color);
+        if x >= 256 || y >= 128 {
+            defmt::warn!(
+                "set_pixel(x={}, y={}, color={}) out of boundary",
+                x,
+                y,
+                color
+            );
+            return Err(DisplayError::OutOfBoundsError);
+            // return Ok(());
+        }
+        // let idx = (y as usize) / 8 * self.bounding_box().size.width as usize + x as usize;
+        // let bit = 7 - (y % 8) as u8;
+        // let idx = (x as usize) / 8 * self.bounding_box().size.height as usize + y as usize;
+        // let bit = 7 - (x % 8) as u8;
+        let idx = (x as usize) * self.bounding_box().size.height as usize / 8 + y as usize / 8;
+        let bit = 7 - (y % 8) as u8;
+        if idx >= self.buffer.len() {
+            defmt::warn!(
+                "set_pixel(x={}, y={}, color={}) out of buffer, idx={}",
+                x,
+                y,
+                color,
+                idx
+            );
+            return Err(DisplayError::OutOfBoundsError);
+        }
+        let d = &mut self.buffer[idx];
+        *d = *d & !(1 << bit) | ((color as u8) << bit);
+        // if *d != 0 {
+        //     defmt::info!("pixel({},{})={:08b}", x, y, *d);
+        // }
+        Ok(())
+    }
+    pub fn flush(&mut self) -> Result<(), DisplayError> {
+        // Bit image write: 02h,44h,DAD,46h, aL,aH,sL,sH, d(1)...d(s)
+        let s: u16 = 128 * 256 / 8;
+        let sel = [
+            0x02,
+            0x44,
+            DAD,
+            0x46,
+            0,
+            0,
+            (s & 0xff) as u8,
+            ((s >> 8) & 0xff) as u8,
+        ];
+        // for (i, b) in self.buffer.iter().enumerate() {
+        //     if *b != 0 {
+        //         defmt::info!("flush: [{}] {:08b}", i, b);
+        //     }
+        // }
+        self.interface
+            .send_data(display_interface::DataFormat::U8Iter(
+                &mut sel.iter().cloned().chain(self.buffer.iter().cloned()),
+            ))
+    }
+}
+
+impl<I> Dimensions for Gu256x128c<I> {
+    fn bounding_box(&self) -> embedded_graphics_core::primitives::Rectangle {
+        embedded_graphics_core::primitives::Rectangle::new(
+            embedded_graphics_core::geometry::Point::zero(),
+            embedded_graphics_core::geometry::Size::new(256, 128),
+        )
+    }
+}
+
+// ignored
+const DAD: u8 = 0x00;
+
+impl<T: display_interface::WriteOnlyDataCommand> DrawTarget for Gu256x128c<T> {
+    type Color = embedded_graphics_core::pixelcolor::BinaryColor;
+
+    type Error = DisplayError;
+
+    fn draw_iter<I>(&mut self, pixels: I) -> Result<(), Self::Error>
+    where
+        I: IntoIterator<Item = embedded_graphics_core::prelude::Pixel<Self::Color>>,
+    {
+        // for pixel in pixels.into_iter() {
+        //     let x = pixel.0.x as u16;
+        //     let y = pixel.0.y as u16;
+        //     let d = pixel.1.is_on() as u8;
+        //     self.interface
+        //         .send_data(display_interface::DataFormat::U8(&[
+        //             DAD,
+        //             0,
+        //             0,
+        //             (x & 0xff) as u8,
+        //             (x >> 8) as u8,
+        //             (y & 0xff) as u8,
+        //             (y >> 8) as u8,
+        //             d,
+        //         ]))?;
+        // }
+        for pixel in pixels.into_iter() {
+            let x = pixel.0.x as u16;
+            let y = pixel.0.y as u16;
+            let d = pixel.1.is_on();
+            self.set_pixel(x, y, d)?;
+        }
+        self.flush()?;
+        Ok(())
+    }
+    fn fill_contiguous<I>(
+        &mut self,
+        area: &embedded_graphics_core::primitives::Rectangle,
+        colors: I,
+    ) -> Result<(), Self::Error>
+    where
+        I: IntoIterator<Item = Self::Color>,
+    {
+        // let al = 0;
+        // let ah = 0;
+        // let sx = area.size.width as u16;
+        // let sy = area.size.height as u16;
+        // let sel = [
+        //     DAD,
+        //     al,
+        //     ah,
+        //     (sx & 0xff) as u8,
+        //     (sx >> 8) as u8,
+        //     (sy & 0xff) as u8,
+        //     (sy >> 8) as u8,
+        // ];
+        // self.interface
+        //     .send_data(display_interface::DataFormat::U8Iter(
+        //         &mut sel
+        //             .iter()
+        //             .cloned()
+        //             .chain(colors.into_iter().array_chunks().map(|c| c.is_on() as u8)),
+        //     ))
+        for (i, color) in colors
+            .into_iter()
+            .take((area.size.width * area.size.height) as usize)
+            .enumerate()
+        {
+            let x = (i % area.size.width as usize) as u16 + area.top_left.x as u16;
+            let y = (i / area.size.width as usize) as u16 + area.top_left.y as u16;
+            self.set_pixel(x, y, color.is_on())?;
+        }
+        self.flush()?;
+        Ok(())
     }
 }

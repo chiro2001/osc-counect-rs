@@ -12,7 +12,13 @@ use core::convert::Infallible;
 
 use app::devices::{BoardDevice, BuzzerDevice, NvmDevice};
 use defmt::*;
-use embedded_graphics::{draw_target::DrawTargetExt, geometry::Point};
+use embedded_graphics::{
+    draw_target::DrawTargetExt,
+    geometry::{Dimensions, Point},
+    pixelcolor::BinaryColor,
+    primitives::{Line, Primitive as _, PrimitiveStyle, Rectangle, StyledDrawable},
+    Drawable,
+};
 use embedded_hal::{
     delay::DelayNs,
     digital::{InputPin, OutputPin},
@@ -373,8 +379,6 @@ async fn main(spawner: Spawner) {
         let ready = Input::new(p.PB4, Pull::None);
         let mut spi_config = embassy_stm32::spi::Config::default();
         spi_config.frequency = Hertz(15_000_000);
-        // spi_config.frequency = Hertz(1_000_000);
-        // spi_config.frequency = Hertz(1_875_000);
         spi_config.mode = embedded_hal_02::spi::MODE_2;
         let spi = Spi::new(p.SPI6, p.PB3, p.PB5, p.PA6, NoDma, NoDma, spi_config);
         let interface = gu256x128c::Spi74hc595::new(spi, latch, cs, ready, delay);
@@ -384,12 +388,44 @@ async fn main(spawner: Spawner) {
     };
     info!("Display OK!");
 
-    let mut delay = Delay {};
-    loop {
-        let s = "TEST...\r\n";
-        display.write_str(s).unwrap();
-        delay.delay_ms(100);
-    }
+    // let mut delay = Delay {};
+    // loop {
+    //     // let s = "TEST...\r\n";
+    //     // display.write_str(s).unwrap();
+    //     // delay.delay_ms(100);
+
+    //     // let mut bounding_box = display.bounding_box();
+    //     // bounding_box.size.width /= 2;
+    //     // bounding_box
+    //     //     .clone()
+    //     //     .into_styled(embedded_graphics::primitives::PrimitiveStyle::with_fill(
+    //     //         embedded_graphics::pixelcolor::BinaryColor::On,
+    //     //     ))
+    //     //     .draw(&mut display)
+    //     //     .unwrap();
+
+    //     Line::new(
+    //         Point::zero(),
+    //         Point::new(255, 127)
+    //         // Point::new(255, 0),
+    //     )
+    //     .draw_styled(
+    //         &PrimitiveStyle::with_stroke(BinaryColor::On, 1),
+    //         &mut display,
+    //     )
+    //     .unwrap();
+
+    //     delay.delay_ms(5000);
+    //     let bounding_box = display.bounding_box();
+    //     bounding_box
+    //         .clone()
+    //         .into_styled(embedded_graphics::primitives::PrimitiveStyle::with_fill(
+    //             embedded_graphics::pixelcolor::BinaryColor::Off,
+    //         ))
+    //         .draw(&mut display)
+    //         .unwrap();
+    //     delay.delay_ms(100);
+    // }
 
     #[cfg(feature = "stm32f103vc")]
     let (bl, bl_channel) = {
@@ -453,36 +489,42 @@ async fn main(spawner: Spawner) {
     #[cfg(feature = "stm32h743vi")]
     let kbd_drv = app::devices::DummyKeyboardDevice {};
 
-    // for region in embassy_stm32::flash::get_flash_regions() {
-    //     defmt::info!("region: {:?}", region);
-    // }
-    // let region = embassy_stm32::flash::get_flash_regions()[0];
-    // let state_max = 4096;
-    // defmt::assert!(core::mem::size_of::<app::State>() <= state_max);
-    // let offset = region.size - state_max as u32;
-    // // let offset = 1024 * 64;
-    // let flash = embassy_stm32::flash::Flash::new_blocking(p.FLASH)
-    //     .into_blocking_regions()
-    //     .bank1_region;
-
-    // let adc_device = app::devices::DummyAdcDevice {};
-    // // let adc_device = SimpleAdcDevice::new(PeripheralRef::new(p.ADC1), p.PA1, p.PA2);
-    // let mut power_key_test = Flex::new(p.PE1);
-    // power_key_test.set_as_input(Pull::Down);
-    // let power_on = Output::new(p.PE0, Level::High, Speed::Low);
-    // let board_device = BoardDriver::new(bl, bl_channel, flash, offset, power_key_test, power_on);
-    // let buzzer_device = BuzzerDriver::new(beep, Channel::Ch4);
-    // app::main_loop(
-    //     spawner,
-    //     lcd,
-    //     board_device,
-    //     buzzer_device,
-    //     kbd_drv,
-    //     adc_device,
-    //     |_| {},
-    // )
-    // .await;
-    // defmt::panic!("unreachable");
+    let adc_device = app::devices::DummyAdcDevice {};
+    // let adc_device = SimpleAdcDevice::new(PeripheralRef::new(p.ADC1), p.PA1, p.PA2);
+    let mut power_key_test = Flex::new(p.PE1);
+    power_key_test.set_as_input(Pull::Down);
+    #[cfg(feature = "stm32f103vc")]
+    let board_device = {
+        for region in embassy_stm32::flash::get_flash_regions() {
+            defmt::info!("region: {:?}", region);
+        }
+        let region = embassy_stm32::flash::get_flash_regions()[0];
+        let state_max = 4096;
+        defmt::assert!(core::mem::size_of::<app::State>() <= state_max);
+        let offset = region.size - state_max as u32;
+        // let offset = 1024 * 64;
+        let flash = embassy_stm32::flash::Flash::new_blocking(p.FLASH)
+            .into_blocking_regions()
+            .bank1_region;
+        let power_on = Output::new(p.PE0, Level::High, Speed::Low);
+        let board_device =
+            BoardDriver::new(bl, bl_channel, flash, offset, power_key_test, power_on);
+        board_device
+    };
+    #[cfg(feature = "stm32h743vi")]
+    let board_device = app::devices::DummyBoardDevice {};
+    let buzzer_device = BuzzerDriver::new(beep, Channel::Ch4);
+    app::main_loop(
+        spawner,
+        display,
+        board_device,
+        buzzer_device,
+        kbd_drv,
+        adc_device,
+        |_| {},
+    )
+    .await;
+    defmt::panic!("unreachable");
 }
 
 struct SimpleAdcDevice<ADC, A, B> {
