@@ -1282,17 +1282,17 @@ pub async fn main_loop<D, B, Z, K, A, F>(
                 // crate::info!("cannot recv Key: {:?}", _e);
             }
         }
-        // if app.state.window != Window::MusicBoard {
-        //     match adc_rx.try_receive() {
-        //         Ok(sz) => {
-        //             // defmt::info!("recv ADC data: {}", sz);
-        //             let data = unsafe { core::slice::from_raw_parts(ADC_DATA.as_ptr(), sz) };
-        //             app.data_input(data, ProbeChannel::A).await.unwrap();
-        //             send_req = true;
-        //         }
-        //         Err(_) => {}
-        //     }
-        // }
+        if app.state.window != Window::MusicBoard {
+            match adc_rx.try_receive() {
+                Ok(sz) => {
+                    // defmt::info!("recv ADC data: {}", sz);
+                    let data = unsafe { core::slice::from_raw_parts(ADC_DATA.as_ptr(), sz) };
+                    app.data_input(data, ProbeChannel::A).await.unwrap();
+                    send_req = true;
+                }
+                Err(_) => {}
+            }
+        }
         if app.board.read_power_key() {
             app.board.set_power_on(false);
         }

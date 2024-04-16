@@ -67,8 +67,10 @@ pub const fn gui_color(r: u16) -> GuiColor {
 }
 pub const GUI_BG_COLOR: GuiColor = gui_color(1);
 
-#[cfg(not(feature = "waveform-16bit"))]
+#[cfg(not(any(feature = "waveform-16bit", feature = "waveform-1bit")))]
 pub type WaveformColorRaw = embedded_graphics_core::pixelcolor::raw::RawU2;
+#[cfg(feature = "waveform-1bit")]
+pub type WaveformColorRaw = embedded_graphics_core::pixelcolor::raw::RawU1;
 #[cfg(feature = "waveform-16bit")]
 pub type WaveformColorRaw = embedded_graphics_core::pixelcolor::raw::RawU16;
 #[cfg(feature = "waveform-16bit")]
@@ -227,8 +229,10 @@ mod combined_color {
 pub use combined_color::*;
 
 pub const fn waveform_color(r: u8) -> WaveformColor {
-    #[cfg(not(feature = "waveform-16bit"))]
+    #[cfg(not(any(feature = "waveform-16bit", feature = "waveform-1bit")))]
     let c = WaveformColor::new(r);
+    #[cfg(feature = "waveform-1bit")]
+    let c = WaveformColor::new(if r > 0 { 1 } else { 0 });
     #[cfg(feature = "waveform-16bit")]
     let c = GUI_COLOR_LUT_16[r as usize];
     c

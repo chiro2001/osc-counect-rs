@@ -1292,7 +1292,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e98f0f58453dd2ce08d99228fc8757fad39d05dfd26643665d1093b8844f42cc"
 dependencies = [
  "critical-section 1.1.2",
- "defmt",
 ]
 
 [[package]]

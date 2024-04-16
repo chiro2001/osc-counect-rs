@@ -227,6 +227,9 @@ impl ProbeChannel {
 pub const WAVEFORM_LEN: usize = 64;
 #[cfg(not(feature = "embedded"))]
 pub const WAVEFORM_LEN: usize = 128;
+#[cfg(feature = "history-1")]
+pub const WAVEFORM_HISTORY_LEN: usize = 1;
+#[cfg(feature = "history-5")]
 pub const WAVEFORM_HISTORY_LEN: usize = 5;
 #[derive(Debug)]
 pub struct WaveformStorage {

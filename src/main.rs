@@ -369,7 +369,8 @@ async fn main(spawner: Spawner) {
             80
         ));
         display.init(delay).unwrap();
-        display.set_orientation(st7789::Orientation::LandscapeSwapped)
+        display
+            .set_orientation(st7789::Orientation::LandscapeSwapped)
             .unwrap();
         display.translated(Point::new(1, 26))
     };
@@ -451,8 +452,10 @@ async fn main(spawner: Spawner) {
     #[cfg(feature = "stm32h743vi")]
     let kbd_drv = app::devices::DummyKeyboardDevice {};
 
-    let adc_device = app::devices::DummyAdcDevice {};
+    // let adc_device = app::devices::DummyAdcDevice {};
     // let adc_device = SimpleAdcDevice::new(PeripheralRef::new(p.ADC1), p.PA1, p.PA2);
+    let adc = embassy_stm32::adc::Adc::new(p.ADC1, &mut Delay);
+    let adc_device = SimpleAdcDevice::new(adc, p.PA1, p.PA2);
     let mut power_key_test = Flex::new(p.PE1);
     power_key_test.set_as_input(Pull::Down);
     #[cfg(feature = "stm32f103vc")]
@@ -503,6 +506,54 @@ impl<ADC, A, B> SimpleAdcDevice<ADC, A, B> {
     }
 }
 
+#[cfg(feature = "stm32h743vi")]
+impl<'d, T, A, B> app::devices::AdcDevice for SimpleAdcDevice<embassy_stm32::adc::Adc<'d, T>, A, B>
+where
+    A: embassy_stm32::adc::AdcPin<T> + embassy_stm32::gpio::low_level::Pin,
+    B: embassy_stm32::adc::AdcPin<T> + embassy_stm32::gpio::low_level::Pin,
+    T: embassy_stm32::adc::Instance,
+{
+    async fn read(
+        &mut self,
+        options: app::devices::AdcReadOptions,
+        buf: &mut [f32],
+    ) -> app::Result<usize> {
+        // self.adc
+        //     .set_sample_time(pac::adc::vals::SampleTime::CYCLES32_5);
+        // let mut adc = embassy_stm32::adc::Adc::new(&mut self.adc, &mut Delay);
+        let adc = &mut self.adc;
+        let mut vrefint_channel = adc.enable_vrefint();
+        let vrefint = adc.read_internal(&mut vrefint_channel);
+        let mut delay = Delay {};
+        delay.delay_us(10);
+        let vrefint_sample = adc.read(&mut self.channels.0);
+        let convert_to_millivolts = |sample| {
+            // From http://www.st.com/resource/en/datasheet/DM00071990.pdf
+            // 6.3.24 Reference voltage
+            const VREFINT_MV: u32 = 1210; // mV
+
+            (u32::from(sample) * VREFINT_MV / u32::from(vrefint_sample)) as u16
+        };
+        let mut it = buf.iter_mut();
+        let mut count = 0usize;
+        while let Some(data) = it.next() {
+            let v = if options.channel == app::ProbeChannel::A {
+                adc.read(&mut self.channels.0)
+            } else {
+                adc.read(&mut self.channels.1)
+            };
+            let v = convert_to_millivolts(v);
+            *data = v as f32 / 1000.0;
+            // Timer::after_micros(1).await;
+            count += 1;
+        }
+        // info!(
+        //     "ADC read done, data[0] = {}, vrefint = {}, vrefint_sample = {}",
+        //     buf[0], vrefint, vrefint_sample
+        // );
+        Ok(count)
+    }
+}
 #[cfg(feature = "stm32f103vc")]
 impl<ADC, A, B> app::devices::AdcDevice for SimpleAdcDevice<ADC, A, B>
 where

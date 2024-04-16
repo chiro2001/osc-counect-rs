@@ -11,22 +11,22 @@
     // "rust-analyzer.check.features": [
     //     "simulator"
     // ],
-    "rust-analyzer.cargo.target": "thumbv7m-none-eabi",
-    "rust-analyzer.cargo.features": [
-        "stm32f103vc", "defmt"
-    ],
-    "rust-analyzer.check.features": [
-        "stm32f103vc", "defmt"
-    ],
-    // "rust-analyzer.cargo.target": "thumbv7em-none-eabi",
+    // "rust-analyzer.cargo.target": "thumbv7m-none-eabi",
     // "rust-analyzer.cargo.features": [
-    //     "stm32h743vi",
-    //     "defmt"
+    //     "stm32f103vc", "defmt"
     // ],
     // "rust-analyzer.check.features": [
-    //     "stm32h743vi",
-    //     "defmt"
+    //     "stm32f103vc", "defmt"
     // ],
+    "rust-analyzer.cargo.target": "thumbv7em-none-eabi",
+    "rust-analyzer.cargo.features": [
+        "stm32h743vi",
+        "defmt"
+    ],
+    "rust-analyzer.check.features": [
+        "stm32h743vi",
+        "defmt"
+    ],
     // "rust-analyzer.cargo.target": "riscv32imc-unknown-none-elf",
     // "rust-analyzer.cargo.features": [
     //     "esp32c3",

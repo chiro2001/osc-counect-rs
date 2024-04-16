@@ -113,6 +113,7 @@ stm32f103vc = [
     "stm32",
     "display-ili9327",
     "embassy-executor/task-arena-size-10240",
+    "history-5",
 ]
 stm32h743vi = [
     "embassy-stm32/stm32h743vi",
@@ -122,6 +123,9 @@ stm32h743vi = [
     # "waveform-16bit",
     "display-gu256x128c",
     "embassy-executor/task-arena-size-163840",
+    # "waveform-nobuffer",
+    "waveform-1bit",
+    "history-1",
 ]
 esp32c3 = [
     "esp-hal/esp32c3",
@@ -130,6 +134,7 @@ esp32c3 = [
     "embedded",
     "esp",
     "display-st7789-1",
+    "history-5",
 ]
 stm32 = [
     "embassy-time/tick-hz-1_000_000",
@@ -162,13 +167,18 @@ defmt = [
     "embassy-time/defmt-timestamp-uptime",
     "embassy-stm32/defmt",
     "esp-hal/defmt",
-    "esp-println/defmt-espflash",
+    # "esp-println/defmt-espflash",
     "embassy-embedded-hal/defmt",
     "embedded-graphics-core/defmt",
 ]
+
+# overclocking = ["embassy-stm32/overclocking"]
+
+waveform-1bit = []
 waveform-3bit = []
 waveform-16bit = []
-# overclocking = ["embassy-stm32/overclocking"]
+waveform-nobuffer = []
+
 screen-320x240 = []
 screen-160x80 = []
 screen-256x128 = []
@@ -177,6 +187,9 @@ display-ili9327 = ["color-rgb565", "screen-320x240"]
 display-st7789-1 = ["color-bgr565", "screen-160x80"]
 display-st7789-2 = ["color-rgb565", "screen-160x80"]
 display-gu256x128c = ["color-binary", "screen-256x128"]
+
+history-1 = []
+history-5 = []
 
 color-rgb565 = []
 color-bgr565 = []

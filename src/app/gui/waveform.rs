@@ -42,6 +42,7 @@ impl Default for Waveform {
     }
 }
 
+#[cfg(not(feature = "waveform-nobuffer"))]
 static mut WF_FRAME_BUFFER: Framebuffer<
     WaveformColor,
     WaveformColorRaw,
@@ -102,16 +103,25 @@ where
         &[StateMarker::Waveform, StateMarker::WaveformData]
     }
     fn draw_state_vec(&self, display: &mut D, state: &mut State, vec: &StateVec) -> StateResult {
+        #[cfg(not(feature = "waveform-nobuffer"))]
         let fb = unsafe { &mut WF_FRAME_BUFFER };
+        #[cfg(not(feature = "waveform-nobuffer"))]
         let display_target = display;
+        #[cfg(not(feature = "waveform-nobuffer"))]
         let display = fb;
         #[cfg(feature = "waveform-3bit")]
         let fb_ex = unsafe { &mut WF_FRAME_BUFFER_EX };
         #[cfg(feature = "waveform-3bit")]
         let display_ex = fb_ex;
-        #[cfg(not(feature = "waveform-3bit"))]
+        #[cfg(not(any(feature = "waveform-3bit", feature = "waveform-nobuffer")))]
         let display_ex = display;
-        let update_full = !vec.at(StateMarker::Waveform);
+        #[cfg(feature = "waveform-nobuffer")]
+        let mut display = display.translated(self.info.position);
+        #[cfg(feature = "waveform-nobuffer")]
+        let mut display_ex = display.color_converted();
+        #[cfg(feature = "waveform-nobuffer")]
+        let display_ex = &mut display_ex;
+        let update_full = !vec.at(StateMarker::Waveform) || crate::app::WAVEFORM_HISTORY_LEN < 3;
         let update_data = update_full || !vec.at(StateMarker::WaveformData);
         let style = PrimitiveStyleBuilder::new()
             .stroke_color(waveform_color_ex(1))
@@ -264,9 +274,17 @@ where
                 TimebaseMode::XY => {}
             }
         }
+        // #[cfg(feature = "waveform-nobuffer")]
+        // let display_target = display_ex;
+        #[cfg(not(feature = "waveform-nobuffer"))]
         let mut display_translated = display_target.translated(self.info.position);
+        #[cfg(not(feature = "waveform-nobuffer"))]
         let mut display_converted = display_translated.color_converted();
-        #[cfg(not(feature = "waveform-16bit"))]
+        #[cfg(not(any(
+            feature = "waveform-16bit",
+            feature = "waveform-1bit",
+            feature = "waveform-nobuffer"
+        )))]
         let data = display.data();
         #[cfg(feature = "waveform-3bit")]
         let data_ex = display_ex.data();
@@ -298,7 +316,12 @@ where
                             })
                     })
             });
-        #[cfg(not(any(feature = "waveform-3bit", feature = "waveform-16bit")))]
+        #[cfg(not(any(
+            feature = "waveform-3bit",
+            feature = "waveform-16bit",
+            feature = "waveform-1bit",
+            feature = "waveform-nobuffer"
+        )))]
         let contiguous = {
             use embedded_graphics_core::prelude::RawData;
             data.chunks(WF_WIDTH_WIDTH as usize / (8 / WaveformColorRaw::BITS_PER_PIXEL))
@@ -318,7 +341,7 @@ where
                     })
                 })
         };
-        #[cfg(feature = "waveform-16bit")]
+        #[cfg(any(feature = "waveform-16bit", feature = "waveform-1bit"))]
         {
             let im = display.as_image();
             let image = embedded_graphics::image::Image::new(&im, Point::zero());
@@ -326,7 +349,11 @@ where
                 .draw(&mut display_converted)
                 .map_err(|_| AppError::DisplayError)?;
         }
-        #[cfg(not(feature = "waveform-16bit"))]
+        #[cfg(not(any(
+            feature = "waveform-16bit",
+            feature = "waveform-1bit",
+            feature = "waveform-nobuffer"
+        )))]
         display_converted
             .fill_contiguous(
                 &Rectangle::new(
