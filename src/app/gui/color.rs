@@ -5,9 +5,9 @@ use embedded_graphics::pixelcolor::{
 use embedded_graphics::prelude::RgbColor;
 
 // pub type GuiColor = Gray4;
-#[cfg(feature = "esp")]
+#[cfg(feature = "color-bgr565")]
 pub type GuiColor = embedded_graphics::pixelcolor::Bgr565;
-#[cfg(not(feature = "esp"))]
+#[cfg(feature = "color-rgb565")]
 pub type GuiColor = embedded_graphics::pixelcolor::Rgb565;
 
 pub const COLOR_HALF_YELLOW: GuiColor = GuiColor::new(GuiColor::MAX_R / 2, GuiColor::MAX_G / 2, 0);

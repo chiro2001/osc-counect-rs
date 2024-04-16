@@ -3,6 +3,8 @@
 #![no_main]
 #![no_std]
 #![feature(type_alias_impl_trait)]
+#![allow(unused_imports)]
+#![allow(dead_code)]
 
 extern crate alloc;
 
@@ -10,11 +12,13 @@ use core::convert::Infallible;
 
 use app::devices::{BoardDevice, BuzzerDevice, NvmDevice};
 use defmt::*;
+use embedded_graphics::{draw_target::DrawTargetExt, geometry::Point};
 use embedded_hal::{
     delay::DelayNs,
     digital::{InputPin, OutputPin},
 };
 use embedded_storage::nor_flash::{NorFlash, ReadNorFlash};
+use static_cell::make_static;
 
 use {defmt_rtt as _, panic_probe as _};
 
@@ -23,8 +27,10 @@ use ili9341::{DisplaySize240x320, Ili9341 as Ili9327, Orientation};
 use embassy_executor::Spawner;
 use embassy_stm32::{
     bind_interrupts,
+    dma::NoDma,
     gpio::{Flex, OutputType, Pull},
     peripherals::ADC1,
+    spi::Spi,
     time::Hertz,
     timer::{CaptureCompare16bitInstance, Channel},
     Peripheral, PeripheralRef,
@@ -42,6 +48,7 @@ use tm1668::InoutPin;
 
 mod app;
 
+#[cfg(feature = "stm32f103vc")]
 bind_interrupts!(struct Irqs {
     ADC1_2 => embassy_stm32::adc::InterruptHandler<ADC1>;
 });
@@ -143,13 +150,33 @@ where
     }
 }
 
+pub struct OutputInversePin<T> {
+    pin: T,
+}
+impl<T: embedded_hal::digital::OutputPin> OutputInversePin<T> {
+    pub fn new(pin: T) -> Self {
+        Self { pin }
+    }
+}
+impl<T: embedded_hal::digital::OutputPin> embedded_hal::digital::ErrorType for OutputInversePin<T> {
+    type Error = T::Error;
+}
+impl<T: embedded_hal::digital::OutputPin> embedded_hal::digital::OutputPin for OutputInversePin<T> {
+    fn set_low(&mut self) -> Result<(), Self::Error> {
+        self.pin.set_high()
+    }
+    fn set_high(&mut self) -> Result<(), Self::Error> {
+        self.pin.set_low()
+    }
+}
+
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     // #[cfg(feature = "custom-alloc")]
     // heap_init!(32 * 1024);
     let mut config = Config::default();
     {
-        // use embassy_stm32::rcc::*;
+        use embassy_stm32::rcc::*;
         #[cfg(feature = "stm32h743vi")]
         {
             config.rcc.hse = Some(Hse {
@@ -157,13 +184,14 @@ async fn main(spawner: Spawner) {
                 mode: HseMode::Oscillator,
             });
             config.rcc.pll1 = Some(Pll {
-                source: PllSource::HSI,
-                prediv: PllPreDiv::DIV4,
-                mul: PllMul::MUL60,
+                source: PllSource::HSE,
+                prediv: PllPreDiv::DIV5,
+                mul: PllMul::MUL192,
                 divp: Some(PllDiv::DIV2),
                 divq: None,
                 divr: None,
             });
+            config.rcc.sys = Sysclk::PLL1_P;
         }
         // #[cfg(feature = "stm32f103vc")]
         // {
@@ -208,12 +236,15 @@ async fn main(spawner: Spawner) {
         //         config.rcc.adc_pre = ADCPrescaler::DIV6;
         //     }
         // }
-        config.rcc.hse = Some(Hertz(8_000_000));
-        config.rcc.sys_ck = Some(Hertz(72_000_000));
-        config.rcc.hclk = Some(Hertz(72_000_000));
-        config.rcc.pclk1 = Some(Hertz(36_000_000));
-        config.rcc.pclk2 = Some(Hertz(72_000_000));
-        config.rcc.adcclk = Some(Hertz(12_000_000));
+        #[cfg(feature = "stm32f103vc")]
+        {
+            config.rcc.hse = Some(Hertz(8_000_000));
+            config.rcc.sys_ck = Some(Hertz(72_000_000));
+            config.rcc.hclk = Some(Hertz(72_000_000));
+            config.rcc.pclk1 = Some(Hertz(36_000_000));
+            config.rcc.pclk2 = Some(Hertz(72_000_000));
+            config.rcc.adcclk = Some(Hertz(12_000_000));
+        }
 
         #[cfg(feature = "stm32h743vi")]
         {
@@ -228,8 +259,8 @@ async fn main(spawner: Spawner) {
     let p = embassy_stm32::init(config);
     // let p = embassy_stm32::init(Default::default());
 
-    // let mut delay = Delay {};
-    static mut DELAY: Delay = Delay {};
+    let delay = make_static!(Delay {});
+    // static mut DELAY: Delay = Delay {};
 
     info!("System launched!");
 
@@ -240,67 +271,98 @@ async fn main(spawner: Spawner) {
         unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
     }
 
-    let init = fsmc::FsmcNorsramInitTypeDef {
-        ns_bank: 0,
-        data_address_mux: 0,
-        memory_type: 0,
-        memory_data_width: 0x10,
-        burst_access_mode: 0,
-        wait_signal_polarity: 0,
-        wrap_mode: 0,
-        wait_signal_active: 0,
-        write_operation: 0x1000,
-        wait_signal: 0,
-        extended_mode: 0x4000,
-        asynchronous_wait: 0,
-        write_burst: 0,
-        page_size: 0,
+    #[cfg(feature = "display-ili9327")]
+    let mut lcd = {
+        let init = fsmc::FsmcNorsramInitTypeDef {
+            ns_bank: 0,
+            data_address_mux: 0,
+            memory_type: 0,
+            memory_data_width: 0x10,
+            burst_access_mode: 0,
+            wait_signal_polarity: 0,
+            wrap_mode: 0,
+            wait_signal_active: 0,
+            write_operation: 0x1000,
+            wait_signal: 0,
+            extended_mode: 0x4000,
+            asynchronous_wait: 0,
+            write_burst: 0,
+            page_size: 0,
+        };
+        let timing = fsmc::FsmcNorsramTimingTypeDef {
+            address_setup_time: 0,
+            address_hold_time: 1,
+            data_setup_time: 1,
+            bus_turn_around_duration: 0,
+            clk_division: 1,
+            data_latency: 2,
+            access_mode: 0,
+        };
+        let ext_timing = fsmc::FsmcNorsramTimingTypeDef {
+            address_setup_time: 0,
+            address_hold_time: 1,
+            data_setup_time: 1,
+            bus_turn_around_duration: 0,
+            clk_division: 1,
+            data_latency: 2,
+            access_mode: 0,
+        };
+        let hsram = fsmc::SramHandleTypeDef::new(init, timing, ext_timing);
+        pac::GPIOD
+            .cr(0)
+            .write_value(pac::gpio::regs::Cr(0xB4BB44BB));
+        pac::GPIOD
+            .cr(1)
+            .write_value(pac::gpio::regs::Cr(0xBB44BBBB));
+        pac::GPIOE
+            .cr(0)
+            .write_value(pac::gpio::regs::Cr(0xB4444444));
+        pac::GPIOE
+            .cr(1)
+            .write_value(pac::gpio::regs::Cr(0xBBBBBBBB));
+        pac::RCC.ahbenr().modify(|w| w.set_fsmcen(true));
+        let interface = fsmc::FsmcInterface::new(hsram, PeripheralRef::new(p.DMA1_CH4));
+        let rst = Output::new(p.PC9, Level::Low, Speed::Low);
+        let mut lcd = Ili9327::new(
+            interface,
+            rst,
+            delay,
+            Orientation::LandscapeFlipped,
+            // Orientation::PortraitFlipped,
+            DisplaySize240x320,
+        )
+        // .await
+        .unwrap();
+        lcd.clear_screen(0).unwrap();
+        lcd
     };
-    let timing = fsmc::FsmcNorsramTimingTypeDef {
-        address_setup_time: 0,
-        address_hold_time: 1,
-        data_setup_time: 1,
-        bus_turn_around_duration: 0,
-        clk_division: 1,
-        data_latency: 2,
-        access_mode: 0,
+    #[cfg(any(feature = "display-st7789-1", feature = "display-st7789-2"))]
+    let lcd = {
+        let dc = Output::new(p.PE13, Level::Low, Speed::Low);
+        let bl = OutputInversePin::new(Output::new(p.PE10, Level::Low, Speed::Low));
+        let cs = Output::new(p.PE11, Level::High, Speed::Low);
+        let reset = Output::new(p.PE6, Level::High, Speed::Low);
+        let mut spi_config = embassy_stm32::spi::Config::default();
+        spi_config.frequency = Hertz(60_000_000);
+        let spi = Spi::new(p.SPI4, p.PE12, p.PE14, p.PE5, NoDma, NoDma, spi_config);
+        let spi_mutex = &*static_cell::make_static!(embassy_sync::blocking_mutex::NoopMutex::new(
+            core::cell::RefCell::new(spi)
+        ));
+        let spi_device =
+            embassy_embedded_hal::shared_bus::blocking::spi::SpiDevice::new(spi_mutex, cs);
+        let interface = display_interface_spi::SPIInterface::new(spi_device, dc);
+        let lcd = make_static!(st7789::ST7789::new(
+            interface,
+            Some(reset),
+            Some(bl),
+            160,
+            80
+        ));
+        lcd.init(delay).unwrap();
+        lcd.set_orientation(st7789::Orientation::LandscapeSwapped)
+            .unwrap();
+        lcd.translated(Point::new(1, 26))
     };
-    let ext_timing = fsmc::FsmcNorsramTimingTypeDef {
-        address_setup_time: 0,
-        address_hold_time: 1,
-        data_setup_time: 1,
-        bus_turn_around_duration: 0,
-        clk_division: 1,
-        data_latency: 2,
-        access_mode: 0,
-    };
-    let hsram = fsmc::SramHandleTypeDef::new(init, timing, ext_timing);
-    pac::GPIOD
-        .cr(0)
-        .write_value(pac::gpio::regs::Cr(0xB4BB44BB));
-    pac::GPIOD
-        .cr(1)
-        .write_value(pac::gpio::regs::Cr(0xBB44BBBB));
-    pac::GPIOE
-        .cr(0)
-        .write_value(pac::gpio::regs::Cr(0xB4444444));
-    pac::GPIOE
-        .cr(1)
-        .write_value(pac::gpio::regs::Cr(0xBBBBBBBB));
-    pac::RCC.ahbenr().modify(|w| w.set_fsmcen(true));
-    let interface = fsmc::FsmcInterface::new(hsram, PeripheralRef::new(p.DMA1_CH4));
-    let rst = Output::new(p.PC9, Level::Low, Speed::Low);
-    let mut lcd = Ili9327::new(
-        interface,
-        rst,
-        unsafe { &mut DELAY },
-        Orientation::LandscapeFlipped,
-        // Orientation::PortraitFlipped,
-        DisplaySize240x320,
-    )
-    // .await
-    .unwrap();
-    lcd.clear_screen(0).unwrap();
     info!("OK!");
 
     let mut bl = SimplePwm::new(
@@ -328,14 +390,19 @@ async fn main(spawner: Spawner) {
     // buzzer.beep().await;
 
     // init keyboard
-    let stb = Output::new(p.PE2, Level::Low, Speed::Low);
-    let dio = DioPin {
-        pin: Flex::new(p.PE4),
+    #[cfg(feature = "stm32f103vc")]
+    let kbd_drv = {
+        let stb = Output::new(p.PE2, Level::Low, Speed::Low);
+        let dio = DioPin {
+            pin: Flex::new(p.PE4),
+        };
+        let clk = Output::new(p.PE3, Level::Low, Speed::Low);
+        let kbd = tm1668::TM1668::new(stb, clk, dio, delay);
+        let kbd_drv = KeyboardDriver::new(kbd);
+        kbd_drv
     };
-    let clk = Output::new(p.PE3, Level::Low, Speed::Low);
-
-    let kbd = tm1668::TM1668::new(stb, clk, dio, unsafe { &mut DELAY });
-    let kbd_drv = KeyboardDriver::new(kbd);
+    #[cfg(feature = "stm32h743vi")]
+    let kbd_drv = app::devices::DummyKeyboardDevice {};
 
     // spawner.spawn(app::main_loop(lcd, kbd_drv)).unwrap();
 
@@ -477,12 +544,11 @@ async fn main(spawner: Spawner) {
         .into_blocking_regions()
         .bank1_region;
 
-    // let adc_device = DummyAdcDevice {};
-    let adc_device = SimpleAdcDevice::new(PeripheralRef::new(p.ADC1), p.PA1, p.PA2);
+    let adc_device = app::devices::DummyAdcDevice {};
+    // let adc_device = SimpleAdcDevice::new(PeripheralRef::new(p.ADC1), p.PA1, p.PA2);
     let mut power_key_test = Flex::new(p.PE1);
     power_key_test.set_as_input(Pull::Down);
     let power_on = Output::new(p.PE0, Level::High, Speed::Low);
-    // let adc_device = app::input::DummyAdcDevice {};
     let board_device = BoardDriver::new(bl, flash, offset, power_key_test, power_on);
     let buzzer_device = BuzzerDriver::new(beep, Channel::Ch4);
     app::main_loop(
@@ -512,6 +578,7 @@ impl<ADC, A, B> SimpleAdcDevice<ADC, A, B> {
     }
 }
 
+#[cfg(feature = "stm32f103vc")]
 impl<ADC, A, B> app::devices::AdcDevice for SimpleAdcDevice<ADC, A, B>
 where
     ADC: Peripheral,
@@ -646,15 +713,19 @@ where
     fn read_power_key(&mut self) -> bool {
         self.power_key_test.is_high().unwrap()
     }
+    #[cfg(feature = "stm32f103vc")]
     fn has_battery(&self) -> bool {
         true
     }
+    #[cfg(feature = "stm32f103vc")]
     fn has_clock(&self) -> bool {
         true
     }
+    #[cfg(feature = "stm32f103vc")]
     fn has_keypad(&self) -> bool {
         true
     }
+    #[cfg(feature = "stm32f103vc")]
     fn get_battery_percentage(&self) -> u8 {
         50
     }

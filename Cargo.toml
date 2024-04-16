@@ -65,14 +65,14 @@ esp-hal = { version = "0.16.0", path = "./esp-hal/esp-hal", features = [
     "async",
 ] }
 esp-println = { version = "0.9.1" }
-st7789 = { version = "0.7.0", path = "./st7789" }
-display-interface-spi = "0.5.0"
-embassy-embedded-hal = "0.1.0"
 rtt-target = "0.5.0"
 
 [target.'cfg(not(target_arch = "x86_64"))'.dependencies]
 defmt = { version = "0.3", optional = true }
 defmt-rtt = { version = "0.4", optional = true }
+st7789 = { version = "0.7.0", path = "./st7789" }
+display-interface-spi = "0.5.0"
+embassy-embedded-hal = "0.1.0"
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 embedded-graphics-simulator = "0.6.0"
@@ -110,8 +110,16 @@ stm32f103vc = [
     "embedded",
     "stm32",
     "screen-320x240",
+    "display-ili9327",
 ]
-stm32h743vi = ["embassy-stm32/stm32h743vi", "embedded", "stm32"]
+stm32h743vi = [
+    "embassy-stm32/stm32h743vi",
+    "embedded",
+    "stm32",
+    "screen-160x80",
+    "display-st7789-1",
+    "waveform_16bit",
+]
 esp32c3 = [
     "esp-hal/esp32c3",
     "esp-backtrace/esp32c3",
@@ -119,6 +127,7 @@ esp32c3 = [
     "embedded",
     "esp",
     "screen-160x80",
+    "display-st7789-1",
 ]
 stm32 = [
     "embassy-time/tick-hz-1_000_000",
@@ -135,7 +144,7 @@ simulator = [
     "embassy-executor/executor-thread",
     "embassy-executor/integrated-timers",
     "embassy-sync/std",
-    "screen-320x240"
+    "screen-320x240",
 ]
 defmt = [
     "dep:defmt",
@@ -156,6 +165,13 @@ waveform_16bit = []
 # overclocking = ["embassy-stm32/overclocking"]
 screen-320x240 = []
 screen-160x80 = []
+
+display-ili9327 = ["color-rgb565"]
+display-st7789-1 = ["color-bgr565"]
+display-st7789-2 = ["color-rgb565"]
+
+color-rgb565 = []
+color-bgr565 = []
 
 [[bin]]
 name = "osc-counect"
