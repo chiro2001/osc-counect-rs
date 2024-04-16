@@ -143,43 +143,91 @@ where
 
         let dl = 1;
         // Draw point grid
-        for i in 0..(self.info.size.height as i32 / 40 + 1) {
-            for j in 0..(self.info.size.width as i32 / 8) {
-                let x = j * 8 + 4;
-                let y = i * 40 + 28;
-                if x == center.x as i32 {
-                    continue;
-                }
-                if y == center.y as i32 {
-                    Line::new(Point::new(x, y - dl), Point::new(x, y + dl))
-                        .translate(trans)
-                        .draw_styled(&style, display_ex)
-                        .map_err(|_| AppError::DisplayError)?;
+        // for i in 0..(self.info.size.height as i32 / 40 + 1) {
+        //     for j in 0..(self.info.size.width as i32 / 8) {
+        //         let x = j * 8 + 4;
+        //         let y = i * 40 + 28;
+        //         if x == center.x as i32 {
+        //             continue;
+        //         }
+        //         if y == center.y as i32 {
+        //             Line::new(Point::new(x, y - dl), Point::new(x, y + dl))
+        //                 .translate(trans)
+        //                 .draw_styled(&style, display_ex)
+        //                 .map_err(|_| AppError::DisplayError)?;
+        //         } else {
+        //             let p = Point::new(x, y) + trans;
+        //             Pixel(p, waveform_color_ex(1))
+        //                 .draw(display_ex)
+        //                 .map_err(|_| AppError::DisplayError)?;
+        //         }
+        //     }
+        // }
+        // for i in 0..(self.info.size.width as i32 / 40 + 1) {
+        //     for j in 0..(self.info.size.height as i32 / 8 + 1) {
+        //         let x = i * 40 + 12;
+        //         let y = j * 8 + 4;
+        //         if y == center.y as i32 {
+        //             continue;
+        //         }
+        //         if x == center.x as i32 {
+        //             Line::new(Point::new(x - dl, y), Point::new(x + dl, y))
+        //                 .translate(trans)
+        //                 .draw_styled(&style, display_ex)
+        //                 .map_err(|_| AppError::DisplayError)?;
+        //         } else {
+        //             let p = Point::new(x, y) + trans;
+        //             Pixel(p, waveform_color_ex(1))
+        //                 .draw(display_ex)
+        //                 .map_err(|_| AppError::DisplayError)?;
+        //         }
+        //     }
+        // }
+        let dd = self.info.size.height as i32 / 8;
+        for k in 0..2 {
+            let dir_x = k == 0;
+            let mut x = center.x as i32;
+            while x > 0 && x < self.info.width() as i32 {
+                if dir_x {
+                    x += dd;
                 } else {
-                    let p = Point::new(x, y) + trans;
-                    Pixel(p, waveform_color_ex(1))
-                        .draw(display_ex)
-                        .map_err(|_| AppError::DisplayError)?;
+                    x -= dd;
+                }
+                for l in 0..2 {
+                    let dir_y = l == 0;
+                    let mut y = center.y as i32;
+                    while y > 0 && y < self.info.height() as i32 {
+                        if y == center.y as i32 && dir_y {
+                            let (p1, p2) = (Point::new(x, y - dl), Point::new(x, y + dl));
+                            Line::new(p1, p2)
+                                .translate(trans)
+                                .draw_styled(&style, display_ex)
+                                .map_err(|_| AppError::DisplayError)?;
+                        } else {
+                            Pixel(Point::new(x, y), waveform_color_ex(1))
+                                .draw(display_ex)
+                                .map_err(|_| AppError::DisplayError)?;
+                        }
+                        if dir_y {
+                            y += dd;
+                        } else {
+                            y -= dd;
+                        }
+                    }
                 }
             }
-        }
-        for i in 0..(self.info.size.width as i32 / 40 + 1) {
-            for j in 0..(self.info.size.height as i32 / 8 + 1) {
-                let x = i * 40 + 12;
-                let y = j * 8 + 4;
-                if y == center.y as i32 {
-                    continue;
-                }
-                if x == center.x as i32 {
-                    Line::new(Point::new(x - dl, y), Point::new(x + dl, y))
-                        .translate(trans)
-                        .draw_styled(&style, display_ex)
-                        .map_err(|_| AppError::DisplayError)?;
+            let x = center.x as i32;
+            let mut y = center.y as i32;
+            while y > 0 && y < self.info.height() as i32 {
+                let (p1, p2) = (Point::new(x - dl, y), Point::new(x + dl, y));
+                Line::new(p1, p2)
+                    .translate(trans)
+                    .draw_styled(&style, display_ex)
+                    .map_err(|_| AppError::DisplayError)?;
+                if dir_x {
+                    y += dd;
                 } else {
-                    let p = Point::new(x, y) + trans;
-                    Pixel(p, waveform_color_ex(1))
-                        .draw(display_ex)
-                        .map_err(|_| AppError::DisplayError)?;
+                    y -= dd;
                 }
             }
         }

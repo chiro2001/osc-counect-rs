@@ -373,7 +373,7 @@ async fn main(spawner: Spawner) {
         lcd.translated(Point::new(1, 26))
     };
     #[cfg(feature = "display-gu256x128c")]
-    let mut display = {
+    let display = {
         let cs = Output::new(p.PE0, Level::High, Speed::VeryHigh);
         let latch = Output::new(p.PB6, Level::Low, Speed::VeryHigh);
         let ready = Input::new(p.PB4, Pull::None);
@@ -387,45 +387,6 @@ async fn main(spawner: Spawner) {
         vfd
     };
     info!("Display OK!");
-
-    // let mut delay = Delay {};
-    // loop {
-    //     // let s = "TEST...\r\n";
-    //     // display.write_str(s).unwrap();
-    //     // delay.delay_ms(100);
-
-    //     // let mut bounding_box = display.bounding_box();
-    //     // bounding_box.size.width /= 2;
-    //     // bounding_box
-    //     //     .clone()
-    //     //     .into_styled(embedded_graphics::primitives::PrimitiveStyle::with_fill(
-    //     //         embedded_graphics::pixelcolor::BinaryColor::On,
-    //     //     ))
-    //     //     .draw(&mut display)
-    //     //     .unwrap();
-
-    //     Line::new(
-    //         Point::zero(),
-    //         Point::new(255, 127)
-    //         // Point::new(255, 0),
-    //     )
-    //     .draw_styled(
-    //         &PrimitiveStyle::with_stroke(BinaryColor::On, 1),
-    //         &mut display,
-    //     )
-    //     .unwrap();
-
-    //     delay.delay_ms(5000);
-    //     let bounding_box = display.bounding_box();
-    //     bounding_box
-    //         .clone()
-    //         .into_styled(embedded_graphics::primitives::PrimitiveStyle::with_fill(
-    //             embedded_graphics::pixelcolor::BinaryColor::Off,
-    //         ))
-    //         .draw(&mut display)
-    //         .unwrap();
-    //     delay.delay_ms(100);
-    // }
 
     #[cfg(feature = "stm32f103vc")]
     let (bl, bl_channel) = {
