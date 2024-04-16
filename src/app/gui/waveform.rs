@@ -397,8 +397,8 @@ impl Waveform {
             // defmt::info!("drawing: {} {}", i, v);
             let idx = i + fill;
             let clamp = |x: i32| {
-                x.min(self.info.height() / 2 as i32)
-                    .max(-self.info.height() / 2)
+                x.min(self.info.height() / 2 as i32 - 1)
+                    .max(-self.info.height() / 2 + 1)
             };
             let pt = Point::new(
                 (idx * (self.info.width() as usize) * width_caling / data.len()) as i32,
