@@ -67,23 +67,23 @@ pub const fn gui_color(r: u16) -> GuiColor {
 }
 pub const GUI_BG_COLOR: GuiColor = gui_color(1);
 
-#[cfg(not(feature = "waveform_16bit"))]
+#[cfg(not(feature = "waveform-16bit"))]
 pub type WaveformColorRaw = embedded_graphics_core::pixelcolor::raw::RawU2;
-#[cfg(feature = "waveform_16bit")]
+#[cfg(feature = "waveform-16bit")]
 pub type WaveformColorRaw = embedded_graphics_core::pixelcolor::raw::RawU16;
-#[cfg(feature = "waveform_16bit")]
+#[cfg(feature = "waveform-16bit")]
 pub type WaveformColor = GuiColor;
-#[cfg(not(feature = "waveform_16bit"))]
+#[cfg(not(feature = "waveform-16bit"))]
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
 pub struct WaveformColor(WaveformColorRaw);
 pub type WaveformColorExRaw = RawU1;
-#[cfg(not(feature = "waveform_3bit"))]
+#[cfg(not(feature = "waveform-3bit"))]
 pub type WaveformColorEx = WaveformColor;
-#[cfg(feature = "waveform_3bit")]
+#[cfg(feature = "waveform-3bit")]
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
 pub struct WaveformColorEx(embedded_graphics::pixelcolor::BinaryColor);
 
-#[cfg(feature = "waveform_16bit")]
+#[cfg(feature = "waveform-16bit")]
 pub fn waveform_color_ex(r: u8) -> WaveformColorEx {
     let r = match r {
         1 => 7,
@@ -91,12 +91,12 @@ pub fn waveform_color_ex(r: u8) -> WaveformColorEx {
     } as usize;
     GUI_COLOR_LUT_16[r].into()
 }
-#[cfg(not(feature = "waveform_16bit"))]
+#[cfg(not(feature = "waveform-16bit"))]
 pub fn waveform_color_ex(r: u8) -> WaveformColorEx {
     WaveformColorEx::new(r)
 }
 
-#[cfg(feature = "waveform_3bit")]
+#[cfg(feature = "waveform-3bit")]
 impl WaveformColorEx {
     pub const fn new(luma: u8) -> Self {
         Self(if luma != 0 {
@@ -106,23 +106,23 @@ impl WaveformColorEx {
         })
     }
 }
-#[cfg(feature = "waveform_3bit")]
+#[cfg(feature = "waveform-3bit")]
 impl embedded_graphics::pixelcolor::PixelColor for WaveformColorEx {
     type Raw = WaveformColorExRaw;
 }
-#[cfg(feature = "waveform_3bit")]
+#[cfg(feature = "waveform-3bit")]
 impl From<u8> for WaveformColorEx {
     fn from(data: u8) -> Self {
         Self::new(data)
     }
 }
-#[cfg(feature = "waveform_3bit")]
+#[cfg(feature = "waveform-3bit")]
 impl From<RawU1> for WaveformColorEx {
     fn from(data: RawU1) -> Self {
         Self::new(data.into_inner())
     }
 }
-#[cfg(feature = "waveform_3bit")]
+#[cfg(feature = "waveform-3bit")]
 impl From<WaveformColorEx> for RawU1 {
     fn from(color: WaveformColorEx) -> Self {
         use embedded_graphics::pixelcolor::IntoStorage;
@@ -130,17 +130,17 @@ impl From<WaveformColorEx> for RawU1 {
     }
 }
 
-#[cfg(not(feature = "waveform_16bit"))]
+#[cfg(not(feature = "waveform-16bit"))]
 impl WaveformColor {
     pub const fn new(luma: u8) -> Self {
         Self(WaveformColorRaw::new(luma))
     }
 }
-#[cfg(not(feature = "waveform_16bit"))]
+#[cfg(not(feature = "waveform-16bit"))]
 impl embedded_graphics::pixelcolor::PixelColor for WaveformColor {
     type Raw = WaveformColorRaw;
 }
-#[cfg(not(feature = "waveform_16bit"))]
+#[cfg(not(feature = "waveform-16bit"))]
 impl embedded_graphics::pixelcolor::GrayColor for WaveformColor {
     fn luma(&self) -> u8 {
         use embedded_graphics_core::prelude::RawData;
@@ -149,25 +149,25 @@ impl embedded_graphics::pixelcolor::GrayColor for WaveformColor {
     const BLACK: Self = Self::new(0);
     const WHITE: Self = Self::new(1);
 }
-#[cfg(not(feature = "waveform_16bit"))]
+#[cfg(not(feature = "waveform-16bit"))]
 impl From<WaveformColorRaw> for WaveformColor {
     fn from(data: WaveformColorRaw) -> Self {
         Self(data)
     }
 }
-#[cfg(not(feature = "waveform_16bit"))]
+#[cfg(not(feature = "waveform-16bit"))]
 impl From<WaveformColor> for WaveformColorRaw {
     fn from(color: WaveformColor) -> Self {
         color.0
     }
 }
-#[cfg(not(feature = "waveform_16bit"))]
+#[cfg(not(feature = "waveform-16bit"))]
 impl From<u8> for WaveformColor {
     fn from(data: u8) -> Self {
         Self::new(data)
     }
 }
-#[cfg(not(any(feature = "waveform_16bit", feature = "color-binary")))]
+#[cfg(not(any(feature = "waveform-16bit", feature = "color-binary")))]
 impl From<WaveformColor> for GuiColor {
     fn from(color: WaveformColor) -> Self {
         use embedded_graphics_core::pixelcolor::GrayColor;
@@ -186,7 +186,7 @@ impl From<WaveformColor> for GuiColor {
     }
 }
 
-#[cfg(feature = "waveform_3bit")]
+#[cfg(feature = "waveform-3bit")]
 mod combined_color {
     type WaveformCombinedColorRaw = RawU16;
     #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
@@ -223,13 +223,13 @@ mod combined_color {
         }
     }
 }
-#[cfg(feature = "waveform_3bit")]
+#[cfg(feature = "waveform-3bit")]
 pub use combined_color::*;
 
 pub const fn waveform_color(r: u8) -> WaveformColor {
-    #[cfg(not(feature = "waveform_16bit"))]
+    #[cfg(not(feature = "waveform-16bit"))]
     let c = WaveformColor::new(r);
-    #[cfg(feature = "waveform_16bit")]
+    #[cfg(feature = "waveform-16bit")]
     let c = GUI_COLOR_LUT_16[r as usize];
     c
 }

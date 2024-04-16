@@ -19,7 +19,7 @@ use super::{
     WaveformColorRaw, SCREEN_HEIGHT, SCREEN_WIDTH,
 };
 
-#[cfg(feature = "waveform_3bit")]
+#[cfg(feature = "waveform-3bit")]
 use super::WaveformColorEx;
 
 pub struct Waveform {
@@ -67,7 +67,7 @@ static mut WF_FRAME_BUFFER: Framebuffer<
         )
     },
 >::new();
-#[cfg(feature = "waveform_3bit")]
+#[cfg(feature = "waveform-3bit")]
 static mut WF_FRAME_BUFFER_EX: Framebuffer<
     WaveformColorEx,
     WaveformColorExRaw,
@@ -105,11 +105,11 @@ where
         let fb = unsafe { &mut WF_FRAME_BUFFER };
         let display_target = display;
         let display = fb;
-        #[cfg(feature = "waveform_3bit")]
+        #[cfg(feature = "waveform-3bit")]
         let fb_ex = unsafe { &mut WF_FRAME_BUFFER_EX };
-        #[cfg(feature = "waveform_3bit")]
+        #[cfg(feature = "waveform-3bit")]
         let display_ex = fb_ex;
-        #[cfg(not(feature = "waveform_3bit"))]
+        #[cfg(not(feature = "waveform-3bit"))]
         let display_ex = display;
         let update_full = !vec.at(StateMarker::Waveform);
         let update_data = update_full || !vec.at(StateMarker::WaveformData);
@@ -231,7 +231,7 @@ where
                 }
             }
         }
-        #[cfg(not(feature = "waveform_3bit"))]
+        #[cfg(not(feature = "waveform-3bit"))]
         let display = display_ex;
 
         // draw trigger level
@@ -266,11 +266,11 @@ where
         }
         let mut display_translated = display_target.translated(self.info.position);
         let mut display_converted = display_translated.color_converted();
-        #[cfg(not(feature = "waveform_16bit"))]
+        #[cfg(not(feature = "waveform-16bit"))]
         let data = display.data();
-        #[cfg(feature = "waveform_3bit")]
+        #[cfg(feature = "waveform-3bit")]
         let data_ex = display_ex.data();
-        #[cfg(feature = "waveform_3bit")]
+        #[cfg(feature = "waveform-3bit")]
         let contiguous = data
             .chunks(WF_WIDTH_WIDTH as usize / (8 / WaveformColorRaw::BITS_PER_PIXEL))
             .zip(data_ex.chunks(WF_WIDTH_WIDTH as usize / (8 / WaveformColorExRaw::BITS_PER_PIXEL)))
@@ -298,7 +298,7 @@ where
                             })
                     })
             });
-        #[cfg(not(any(feature = "waveform_3bit", feature = "waveform_16bit")))]
+        #[cfg(not(any(feature = "waveform-3bit", feature = "waveform-16bit")))]
         let contiguous = {
             use embedded_graphics_core::prelude::RawData;
             data.chunks(WF_WIDTH_WIDTH as usize / (8 / WaveformColorRaw::BITS_PER_PIXEL))
@@ -318,7 +318,7 @@ where
                     })
                 })
         };
-        #[cfg(feature = "waveform_16bit")]
+        #[cfg(feature = "waveform-16bit")]
         {
             let im = display.as_image();
             let image = embedded_graphics::image::Image::new(&im, Point::zero());
@@ -326,7 +326,7 @@ where
                 .draw(&mut display_converted)
                 .map_err(|_| AppError::DisplayError)?;
         }
-        #[cfg(not(feature = "waveform_16bit"))]
+        #[cfg(not(feature = "waveform-16bit"))]
         display_converted
             .fill_contiguous(
                 &Rectangle::new(

@@ -119,7 +119,7 @@ stm32h743vi = [
     "embedded",
     "stm32",
     # "display-st7789-1",
-    # "waveform_16bit",
+    # "waveform-16bit",
     "display-gu256x128c",
     "embassy-executor/task-arena-size-163840",
 ]
@@ -139,7 +139,7 @@ stm32 = [
 ]
 esp = [
     "embassy-time/generic-queue-8",
-    "waveform_16bit",
+    "waveform-16bit",
     "embassy-executor/task-arena-size-10240",
 ]
 embedded = []
@@ -166,8 +166,8 @@ defmt = [
     "embassy-embedded-hal/defmt",
     "embedded-graphics-core/defmt",
 ]
-waveform_3bit = []
-waveform_16bit = []
+waveform-3bit = []
+waveform-16bit = []
 # overclocking = ["embassy-stm32/overclocking"]
 screen-320x240 = []
 screen-160x80 = []
