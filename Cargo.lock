@@ -1558,6 +1558,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 
 [[package]]
+name = "gu256x128c"
+version = "0.1.0"
+dependencies = [
+ "defmt",
+ "display-interface",
+ "embedded-hal 1.0.0",
+]
+
+[[package]]
 name = "hash32"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2180,6 +2189,7 @@ dependencies = [
  "format_no_std",
  "fugit",
  "futures",
+ "gu256x128c",
  "heapless 0.8.0",
  "ili9341",
  "itertools",

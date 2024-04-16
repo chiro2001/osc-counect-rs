@@ -36,6 +36,11 @@ mod screen_size {
     pub const SCREEN_WIDTH: u32 = 160;
     pub const SCREEN_HEIGHT: u32 = 80;
 }
+#[cfg(feature = "screen-256x128")]
+mod screen_size {
+    pub const SCREEN_WIDTH: u32 = 256;
+    pub const SCREEN_HEIGHT: u32 = 128;
+}
 pub use screen_size::*;
 
 type StateResult = Result<Option<&'static [StateMarker]>>;

@@ -1,5 +1,5 @@
 use embedded_graphics::pixelcolor::{
-    raw::{RawU1, RawU16},
+    raw::{RawData, RawU1, RawU16},
     WebColors,
 };
 use embedded_graphics::prelude::RgbColor;
@@ -9,39 +9,56 @@ use embedded_graphics::prelude::RgbColor;
 pub type GuiColor = embedded_graphics::pixelcolor::Bgr565;
 #[cfg(feature = "color-rgb565")]
 pub type GuiColor = embedded_graphics::pixelcolor::Rgb565;
+#[cfg(feature = "color-binary")]
+pub type GuiColor = embedded_graphics::pixelcolor::BinaryColor;
 
-pub const COLOR_HALF_YELLOW: GuiColor = GuiColor::new(GuiColor::MAX_R / 2, GuiColor::MAX_G / 2, 0);
-pub const COLOR_HALF_GREEN: GuiColor = GuiColor::new(0, GuiColor::MAX_G / 2, 0);
-pub const GUI_COLOR_LUT_16: [GuiColor; 16] = [
-    GuiColor::BLACK,               // 0
-    GuiColor::CSS_DARK_SLATE_GRAY, // 1
-    GuiColor::YELLOW,              // 2
-    GuiColor::GREEN,               // 3
-    GuiColor::RED,                 // 4
-    GuiColor::MAGENTA,             // 5
-    GuiColor::CYAN,                // 6
-    GuiColor::CSS_LIGHT_GRAY,      // 7
-    GuiColor::CSS_PURPLE,          // 8
-    GuiColor::CSS_ORANGE_RED,      // 9
-    GuiColor::CSS_DARK_RED,        // 10
-    COLOR_HALF_YELLOW,             // 11
-    COLOR_HALF_GREEN,              // 12
-    GuiColor::WHITE,               // 13
-    GuiColor::WHITE,               // 14
-    GuiColor::WHITE,               // 15
-];
-pub const GUI_COLOR_LUT_4: [GuiColor; 4] = [
-    GuiColor::BLACK,          // 0
-    GuiColor::CSS_LIGHT_GRAY, // 1
-    GuiColor::YELLOW,         // 2
-    GuiColor::GREEN,          // 3
-];
+#[cfg(any(feature = "color-rgb565", feature = "color-bgr565"))]
+mod colors {
+    pub const COLOR_HALF_YELLOW: GuiColor =
+        GuiColor::new(GuiColor::MAX_R / 2, GuiColor::MAX_G / 2, 0);
+    pub const COLOR_HALF_GREEN: GuiColor = GuiColor::new(0, GuiColor::MAX_G / 2, 0);
+    pub const GUI_COLOR_LUT_16: [GuiColor; 16] = [
+        GuiColor::BLACK,               // 0
+        GuiColor::CSS_DARK_SLATE_GRAY, // 1
+        GuiColor::YELLOW,              // 2
+        GuiColor::GREEN,               // 3
+        GuiColor::RED,                 // 4
+        GuiColor::MAGENTA,             // 5
+        GuiColor::CYAN,                // 6
+        GuiColor::CSS_LIGHT_GRAY,      // 7
+        GuiColor::CSS_PURPLE,          // 8
+        GuiColor::CSS_ORANGE_RED,      // 9
+        GuiColor::CSS_DARK_RED,        // 10
+        COLOR_HALF_YELLOW,             // 11
+        COLOR_HALF_GREEN,              // 12
+        GuiColor::WHITE,               // 13
+        GuiColor::WHITE,               // 14
+        GuiColor::WHITE,               // 15
+    ];
+    pub const GUI_COLOR_LUT_4: [GuiColor; 4] = [
+        GuiColor::BLACK,          // 0
+        GuiColor::CSS_LIGHT_GRAY, // 1
+        GuiColor::YELLOW,         // 2
+        GuiColor::GREEN,          // 3
+    ];
+}
+#[cfg(not(feature = "color-binary"))]
+pub use colors::*;
 // pub const fn gui_color(r: u8) -> GuiColor {
 //     Gray4::new(r)
 // }
 pub type GuiColorRaw = RawU16;
+#[cfg(not(feature = "color-binary"))]
 pub const fn gui_color(r: u16) -> GuiColor {
     GUI_COLOR_LUT_16[r as usize]
+}
+#[cfg(feature = "color-binary")]
+pub const fn gui_color(r: u16) -> GuiColor {
+    if r == 0 {
+        GuiColor::Off
+    } else {
+        GuiColor::On
+    }
 }
 pub const GUI_BG_COLOR: GuiColor = gui_color(1);
 
@@ -145,12 +162,22 @@ impl From<u8> for WaveformColor {
         Self::new(data)
     }
 }
-#[cfg(not(feature = "waveform_16bit"))]
+#[cfg(not(any(feature = "waveform_16bit", feature = "color-binary")))]
 impl From<WaveformColor> for GuiColor {
     fn from(color: WaveformColor) -> Self {
         use embedded_graphics_core::pixelcolor::GrayColor;
         let luma = color.luma();
         GUI_COLOR_LUT_4[luma as usize]
+    }
+}
+#[cfg(feature = "color-binary")]
+impl From<WaveformColor> for GuiColor {
+    fn from(color: WaveformColor) -> Self {
+        if color.0.into_inner() == 0 {
+            GuiColor::Off
+        } else {
+            GuiColor::On
+        }
     }
 }
 

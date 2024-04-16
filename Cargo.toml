@@ -74,6 +74,7 @@ defmt-rtt = { version = "0.4", optional = true }
 st7789 = { version = "0.7.0", path = "./st7789" }
 display-interface-spi = "0.5.0"
 embassy-embedded-hal = "0.1.0"
+gu256x128c = { path = "./gu256x128c" }
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 embedded-graphics-simulator = "0.6.0"
@@ -85,7 +86,7 @@ package = "log"
 version = "0.4.21"
 
 [workspace]
-members = ["tm1668", "display-interface-fsmc", "ili9327"]
+members = ["tm1668", "display-interface-fsmc", "ili9327", "gu256x128c"]
 
 [profile.dev]
 opt-level = 1
@@ -110,16 +111,15 @@ stm32f103vc = [
     "embassy-stm32/stm32f103vc",
     "embedded",
     "stm32",
-    "screen-320x240",
     "display-ili9327",
 ]
 stm32h743vi = [
     "embassy-stm32/stm32h743vi",
     "embedded",
     "stm32",
-    "screen-160x80",
-    "display-st7789-1",
-    "waveform_16bit",
+    # "display-st7789-1",
+    # "waveform_16bit",
+    "display-gu256x128c",
 ]
 esp32c3 = [
     "esp-hal/esp32c3",
@@ -127,7 +127,6 @@ esp32c3 = [
     "esp-println/esp32c3",
     "embedded",
     "esp",
-    "screen-160x80",
     "display-st7789-1",
 ]
 stm32 = [
@@ -166,13 +165,16 @@ waveform_16bit = []
 # overclocking = ["embassy-stm32/overclocking"]
 screen-320x240 = []
 screen-160x80 = []
+screen-256x128 = []
 
-display-ili9327 = ["color-rgb565"]
-display-st7789-1 = ["color-bgr565"]
-display-st7789-2 = ["color-rgb565"]
+display-ili9327 = ["color-rgb565", "screen-320x240"]
+display-st7789-1 = ["color-bgr565", "screen-160x80"]
+display-st7789-2 = ["color-rgb565", "screen-160x80"]
+display-gu256x128c = ["color-binary", "screen-256x128"]
 
 color-rgb565 = []
 color-bgr565 = []
+color-binary = []
 
 [[bin]]
 name = "osc-counect"
