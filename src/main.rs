@@ -518,20 +518,11 @@ where
         options: app::devices::AdcReadOptions,
         buf: &mut [f32],
     ) -> app::Result<usize> {
-        // self.adc
-        //     .set_sample_time(pac::adc::vals::SampleTime::CYCLES32_5);
-        // let mut adc = embassy_stm32::adc::Adc::new(&mut self.adc, &mut Delay);
         let adc = &mut self.adc;
         let mut vrefint_channel = adc.enable_vrefint();
-        let vrefint = adc.read_internal(&mut vrefint_channel);
-        let mut delay = Delay {};
-        delay.delay_us(10);
-        let vrefint_sample = adc.read(&mut self.channels.0);
+        let vrefint_sample = adc.read_internal(&mut vrefint_channel);
         let convert_to_millivolts = |sample| {
-            // From http://www.st.com/resource/en/datasheet/DM00071990.pdf
-            // 6.3.24 Reference voltage
-            const VREFINT_MV: u32 = 1210; // mV
-
+            const VREFINT_MV: u32 = 400; // mV
             (u32::from(sample) * VREFINT_MV / u32::from(vrefint_sample)) as u16
         };
         let mut it = buf.iter_mut();
