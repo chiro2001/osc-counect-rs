@@ -229,6 +229,10 @@ pub const WAVEFORM_LEN: usize = 64;
 pub const WAVEFORM_LEN: usize = 128;
 #[cfg(feature = "history-1")]
 pub const WAVEFORM_HISTORY_LEN: usize = 1;
+#[cfg(feature = "history-2")]
+pub const WAVEFORM_HISTORY_LEN: usize = 2;
+#[cfg(feature = "history-3")]
+pub const WAVEFORM_HISTORY_LEN: usize = 3;
 #[cfg(feature = "history-5")]
 pub const WAVEFORM_HISTORY_LEN: usize = 5;
 #[derive(Debug)]

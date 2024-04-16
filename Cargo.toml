@@ -125,7 +125,8 @@ stm32h743vi = [
     "embassy-executor/task-arena-size-163840",
     # "waveform-nobuffer",
     "waveform-1bit",
-    "history-1",
+    # "history-1",
+    "history-5",
 ]
 esp32c3 = [
     "esp-hal/esp32c3",
@@ -189,6 +190,8 @@ display-st7789-2 = ["color-rgb565", "screen-160x80"]
 display-gu256x128c = ["color-binary", "screen-256x128"]
 
 history-1 = []
+history-2 = []
+history-3 = []
 history-5 = []
 
 color-rgb565 = []

@@ -121,7 +121,7 @@ where
         let mut display_ex = display.color_converted();
         #[cfg(feature = "waveform-nobuffer")]
         let display_ex = &mut display_ex;
-        let update_full = !vec.at(StateMarker::Waveform) || crate::app::WAVEFORM_HISTORY_LEN < 3;
+        let update_full = !vec.at(StateMarker::Waveform) || crate::app::WAVEFORM_HISTORY_LEN <= 3;
         let update_data = update_full || !vec.at(StateMarker::WaveformData);
         let style = PrimitiveStyleBuilder::new()
             .stroke_color(waveform_color_ex(1))
@@ -506,7 +506,15 @@ impl Waveform {
                         continue;
                     }
                     let data = &storage.data[it.1][..storage.len];
-                    let color = if idx == 0 { color } else { color_secondary };
+                    let color = if crate::app::WAVEFORM_HISTORY_LEN <= 3 {
+                        color
+                    } else {
+                        if idx == 0 {
+                            color
+                        } else {
+                            color_secondary
+                        }
+                    };
                     self.draw_list_values_color(
                         display,
                         data,

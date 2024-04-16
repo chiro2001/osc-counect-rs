@@ -521,8 +521,15 @@ where
         let adc = &mut self.adc;
         let mut vrefint_channel = adc.enable_vrefint();
         let vrefint_sample = adc.read_internal(&mut vrefint_channel);
+        // static mut VREFINT_SAMPLE: u16 = 0;
+        // let vrefint_sample = unsafe {
+        //     if VREFINT_SAMPLE == 0 {
+        //         VREFINT_SAMPLE = adc.read_internal(&mut vrefint_channel);
+        //     }
+        //     VREFINT_SAMPLE
+        // };
         let convert_to_millivolts = |sample| {
-            const VREFINT_MV: u32 = 400; // mV
+            const VREFINT_MV: u32 = 470; // FIXME: not accurate
             (u32::from(sample) * VREFINT_MV / u32::from(vrefint_sample)) as u16
         };
         let mut it = buf.iter_mut();
