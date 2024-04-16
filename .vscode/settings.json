@@ -2,6 +2,8 @@
     "rust-analyzer.cargo.noDefaultFeatures": true,
     "rust-analyzer.check.noDefaultFeatures": true,
     "rust-analyzer.showUnlinkedFileNotification": false,
+    "rust-analyzer.check.allTargets": false,
+    "rust-analyzer.cargo.allTargets": false,
     // "rust-analyzer.cargo.target": "x86_64-unknown-linux-gnu",
     // "rust-analyzer.cargo.features": [
     //     "simulator"

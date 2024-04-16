@@ -103,9 +103,9 @@ lto = true
 
 # [target.'cfg(all(target_arch = "arm", target_os = "none"))'.features]
 [features]
-# default = ["stm32h743vi"]
+default = ["stm32h743vi"]
 # default = ["stm32f103vc"]
-default = ["esp32c3"]
+# default = ["esp32c3"]
 # default = ["simulator"]
 stm32f103vc = [
     "embassy-stm32/stm32f103vc",
@@ -178,7 +178,7 @@ display-st7789-1 = ["color-bgr565", "screen-160x80"]
 display-st7789-2 = ["color-rgb565", "screen-160x80"]
 display-gu256x128c = [
     "color-binary",
-    "screen-256x128"
+    "screen-256x128",
     # "screen-160x80",
 ]
 

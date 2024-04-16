@@ -479,6 +479,7 @@ impl PanelItem {
     }
 }
 
+pub const DRAW_BOARDER_ONLY: bool = cfg!(feature = "color-binary");
 impl<D> Draw<D> for PanelItem
 where
     D: DrawTarget<Color = GuiColor>,
@@ -490,7 +491,11 @@ where
         let color_main = if self.style == PanelStyle::ChannelColor {
             state.channel_current.color()
         } else {
-            self.info.color_primary
+            if DRAW_BOARDER_ONLY {
+                gui_color(15)
+            } else {
+                self.info.color_primary
+            }
         };
         let size_half = Size::new(self.info.size.width, self.info.size.height / 2);
         let color_bg = if let Some(focused) = state.panel_focused {
@@ -515,10 +520,22 @@ where
         )
         .draw(display)
         .map_err(|_| AppError::DisplayError)?;
-        Rectangle::new(self.info.position, size_half)
-            .into_styled(PrimitiveStyleBuilder::new().fill_color(color_main).build())
-            .draw(display)
-            .map_err(|_| AppError::DisplayError)?;
+        if self.style == PanelStyle::ChannelColor {
+            Rectangle::new(self.info.position, size_half)
+                .into_styled(PrimitiveStyleBuilder::new().fill_color(color_main).build())
+                .draw(display)
+                .map_err(|_| AppError::DisplayError)?;
+        } else if DRAW_BOARDER_ONLY {
+            Rectangle::new(self.info.position, size_half)
+                .into_styled(
+                    PrimitiveStyleBuilder::new()
+                        .stroke_color(color_main)
+                        .stroke_width(1)
+                        .build(),
+                )
+                .draw(display)
+                .map_err(|_| AppError::DisplayError)?;
+        }
         let mut buf = [0u8; 2];
         let index: usize = self.panel.into();
         let index_disp = (index % 8) + 1;
@@ -821,7 +838,7 @@ where
         let trigger_level_pixel_offset =
             -((state.trigger_level_mv as i32) * (WF_WIDTH_HEIGHT as i32) / 2 / 3000);
         let center = center + Point::new(0, trigger_level_pixel_offset);
-        Rectangle::with_center(center, Size::new(6, 8))
+        Rectangle::with_center(center, Size::new(5, 8))
             .into_styled(
                 PrimitiveStyleBuilder::new()
                     .fill_color(state.trigger_channel.color())
