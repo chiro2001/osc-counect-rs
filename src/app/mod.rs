@@ -36,8 +36,11 @@ use embedded_graphics::{
 };
 use static_cell::make_static;
 
-fn is_small_screen() -> bool {
+const fn is_small_screen() -> bool {
     SCREEN_WIDTH < 200
+}
+const fn is_flexible_bottom() -> bool {
+    SCREEN_WIDTH < 300
 }
 
 pub struct App<D, B, Z> {
@@ -195,11 +198,12 @@ where
             overview.info.width()
         };
         let waveform: Waveform = Default::default();
+        let flexible_bottom = is_flexible_bottom();
         let measure_items = [
-            MeasureItem::new(0, ProbeChannel::A, "", "34kHz", true, small_screen),
-            MeasureItem::new(1, ProbeChannel::A, "Vpp", "2.3mV", false, small_screen),
-            MeasureItem::new(2, ProbeChannel::B, "", "--", true, small_screen),
-            MeasureItem::new(3, ProbeChannel::B, "Vrms", "430uV", true, small_screen),
+            MeasureItem::new(0, ProbeChannel::A, "", "34kHz", true, flexible_bottom),
+            MeasureItem::new(1, ProbeChannel::A, "Vpp", "2.3mV", false, flexible_bottom),
+            MeasureItem::new(2, ProbeChannel::B, "", "--", true, flexible_bottom),
+            MeasureItem::new(3, ProbeChannel::B, "Vrms", "430uV", true, flexible_bottom),
         ];
         let mut generator = Generator::new("Sin 10k");
         if small_screen {
@@ -260,7 +264,7 @@ where
     }
 
     fn update_buttom_layout(&mut self) {
-        if is_small_screen() {
+        if is_small_screen() || is_flexible_bottom() {
             let mut last_x =
                 self.measure_items[0].info.width() + self.measure_items[0].info.position.x + 1;
             for it in self.measure_items.iter_mut().skip(1) {
@@ -274,10 +278,11 @@ where
                     it.info.disable();
                 }
             }
-
-            for it in self.measure_items.iter_mut() {
-                if !it.enabled {
-                    it.info.disable();
+            if is_small_screen() {
+                for it in self.measure_items.iter_mut() {
+                    if !it.enabled {
+                        it.info.disable();
+                    }
                 }
             }
             let last_enabled_x = self
@@ -287,16 +292,18 @@ where
                 .last()
                 .map(|x| x.info.position.x + x.info.size.width as i32 + 1)
                 .unwrap_or(4);
-            self.overview.info.position.x = last_enabled_x;
-            self.overview.info.position.y = SCREEN_HEIGHT as i32 - 11;
-            let right_margin = if self.generator.info.enabled() {
-                self.generator.info.width()
-            } else {
-                0
-            } as u32;
-            self.overview.info.size =
-                Size::new(SCREEN_WIDTH - right_margin - last_enabled_x as u32, 10);
-            self.overview.info.disabled = false;
+            if is_small_screen() {
+                self.overview.info.position.x = last_enabled_x;
+                self.overview.info.position.y = SCREEN_HEIGHT as i32 - 11;
+                let right_margin = if self.generator.info.enabled() {
+                    self.generator.info.width()
+                } else {
+                    0
+                } as u32;
+                self.overview.info.size =
+                    Size::new(SCREEN_WIDTH - right_margin - last_enabled_x as u32, 10);
+                self.overview.info.disabled = false;
+            }
         }
     }
 

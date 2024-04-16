@@ -29,9 +29,6 @@ where
         }
     }
     pub fn write_u8(&mut self, data: u8) -> Result<(), DisplayError> {
-        // if data != 0 {
-        //     defmt::info!("write_u8({:02x})", data);
-        // }
         while self.ready.is_low().map_err(|_| DisplayError::DCError)? {
             self.delay.delay_ns(100);
         }
@@ -102,38 +99,16 @@ impl<I: display_interface::WriteOnlyDataCommand> Gu256x128c<I> {
             .send_data(display_interface::DataFormat::U8Iter(&mut s.bytes()))
     }
     pub fn set_pixel(&mut self, x: u16, y: u16, color: bool) -> Result<(), DisplayError> {
-        // defmt::info!("set_pixel(x={}, y={}, color={})", x, y, color);
         if x >= 256 || y >= 128 {
-            defmt::warn!(
-                "set_pixel(x={}, y={}, color={}) out of boundary",
-                x,
-                y,
-                color
-            );
-            return Err(DisplayError::OutOfBoundsError);
-            // return Ok(());
+            return Ok(());
         }
-        // let idx = (y as usize) / 8 * self.bounding_box().size.width as usize + x as usize;
-        // let bit = 7 - (y % 8) as u8;
-        // let idx = (x as usize) / 8 * self.bounding_box().size.height as usize + y as usize;
-        // let bit = 7 - (x % 8) as u8;
         let idx = (x as usize) * self.bounding_box().size.height as usize / 8 + y as usize / 8;
         let bit = 7 - (y % 8) as u8;
         if idx >= self.buffer.len() {
-            defmt::warn!(
-                "set_pixel(x={}, y={}, color={}) out of buffer, idx={}",
-                x,
-                y,
-                color,
-                idx
-            );
             return Err(DisplayError::OutOfBoundsError);
         }
         let d = &mut self.buffer[idx];
         *d = *d & !(1 << bit) | ((color as u8) << bit);
-        // if *d != 0 {
-        //     defmt::info!("pixel({},{})={:08b}", x, y, *d);
-        // }
         Ok(())
     }
     pub fn flush(&mut self) -> Result<(), DisplayError> {
@@ -149,11 +124,6 @@ impl<I: display_interface::WriteOnlyDataCommand> Gu256x128c<I> {
             (s & 0xff) as u8,
             ((s >> 8) & 0xff) as u8,
         ];
-        // for (i, b) in self.buffer.iter().enumerate() {
-        //     if *b != 0 {
-        //         defmt::info!("flush: [{}] {:08b}", i, b);
-        //     }
-        // }
         self.interface
             .send_data(display_interface::DataFormat::U8Iter(
                 &mut sel.iter().cloned().chain(self.buffer.iter().cloned()),
@@ -182,22 +152,6 @@ impl<T: display_interface::WriteOnlyDataCommand> DrawTarget for Gu256x128c<T> {
     where
         I: IntoIterator<Item = embedded_graphics_core::prelude::Pixel<Self::Color>>,
     {
-        // for pixel in pixels.into_iter() {
-        //     let x = pixel.0.x as u16;
-        //     let y = pixel.0.y as u16;
-        //     let d = pixel.1.is_on() as u8;
-        //     self.interface
-        //         .send_data(display_interface::DataFormat::U8(&[
-        //             DAD,
-        //             0,
-        //             0,
-        //             (x & 0xff) as u8,
-        //             (x >> 8) as u8,
-        //             (y & 0xff) as u8,
-        //             (y >> 8) as u8,
-        //             d,
-        //         ]))?;
-        // }
         for pixel in pixels.into_iter() {
             let x = pixel.0.x as u16;
             let y = pixel.0.y as u16;
@@ -215,26 +169,6 @@ impl<T: display_interface::WriteOnlyDataCommand> DrawTarget for Gu256x128c<T> {
     where
         I: IntoIterator<Item = Self::Color>,
     {
-        // let al = 0;
-        // let ah = 0;
-        // let sx = area.size.width as u16;
-        // let sy = area.size.height as u16;
-        // let sel = [
-        //     DAD,
-        //     al,
-        //     ah,
-        //     (sx & 0xff) as u8,
-        //     (sx >> 8) as u8,
-        //     (sy & 0xff) as u8,
-        //     (sy >> 8) as u8,
-        // ];
-        // self.interface
-        //     .send_data(display_interface::DataFormat::U8Iter(
-        //         &mut sel
-        //             .iter()
-        //             .cloned()
-        //             .chain(colors.into_iter().array_chunks().map(|c| c.is_on() as u8)),
-        //     ))
         for (i, color) in colors
             .into_iter()
             .take((area.size.width * area.size.height) as usize)

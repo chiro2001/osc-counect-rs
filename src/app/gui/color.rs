@@ -54,10 +54,14 @@ pub const fn gui_color(r: u16) -> GuiColor {
 }
 #[cfg(feature = "color-binary")]
 pub const fn gui_color(r: u16) -> GuiColor {
-    if r == 0 {
-        GuiColor::Off
-    } else {
-        GuiColor::On
+    // if r == 0 {
+    //     GuiColor::Off
+    // } else {
+    //     GuiColor::On
+    // }
+    match r {
+        0 | 1 | 4 | 5 | 6 | 7 | 8 | 9 | 10 => GuiColor::Off,
+        _ => GuiColor::On,
     }
 }
 pub const GUI_BG_COLOR: GuiColor = gui_color(1);

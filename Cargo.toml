@@ -178,8 +178,8 @@ display-st7789-1 = ["color-bgr565", "screen-160x80"]
 display-st7789-2 = ["color-rgb565", "screen-160x80"]
 display-gu256x128c = [
     "color-binary",
-    # "screen-256x128"
-    "screen-160x80",
+    "screen-256x128"
+    # "screen-160x80",
 ]
 
 color-rgb565 = []
