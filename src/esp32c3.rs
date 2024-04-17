@@ -142,15 +142,15 @@ async fn main(spawner: Spawner) {
     // them. Note that only AdcCalLine returns readings in mV; the other two
     // return raw readings in some unspecified scale.
     //
-    // type AdcCal = ();
+    type AdcCal = ();
     // type AdcCal = esp_hal::analog::adc::AdcCalBasic<ADC1>;
-    type AdcCal = esp_hal::analog::adc::AdcCalLine<esp_hal::peripherals::ADC1>;
+    // type AdcCal = esp_hal::analog::adc::AdcCalLine<esp_hal::peripherals::ADC1>;
     // type AdcCal = esp_hal::analog::adc::AdcCalCurve<esp_hal::peripherals::ADC1>;
 
     let analog_pin = io.pins.gpio0.into_analog();
 
     let mut adc1_config = esp_hal::analog::adc::AdcConfig::new();
-    let _adc1_pin = adc1_config.enable_pin_with_cal::<_, AdcCal>(
+    let adc1_pin = adc1_config.enable_pin_with_cal::<_, AdcCal>(
         analog_pin,
         esp_hal::analog::adc::Attenuation::Attenuation11dB,
     );
@@ -173,7 +173,9 @@ async fn main(spawner: Spawner) {
 
     let mut adc1 = adc1.with_dma(dma_channel);
     for _ in 0..2 {
-        let mut transfer = adc1.dma_read(&mut rx_buffer).unwrap();
+        let mut transfer = adc1
+            .dma_read(&adc1_pin, 80.kHz(), &mut rx_buffer, clocks)
+            .unwrap();
 
         transfer.wait().unwrap();
 
