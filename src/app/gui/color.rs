@@ -1,5 +1,5 @@
 use embedded_graphics::pixelcolor::{
-    raw::{RawData, RawU1, RawU16},
+    raw::{RawU1, RawU16},
     WebColors,
 };
 use embedded_graphics::prelude::RgbColor;

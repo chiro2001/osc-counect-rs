@@ -4,7 +4,7 @@
 
 use core::cell::RefCell;
 
-use app::devices::{BoardDevice, KeyboardDevice, Keys, NvmDevice};
+use app::devices::{AdcDevice, BoardDevice, KeyboardDevice, Keys, NvmDevice};
 use defmt::*;
 use embassy_embedded_hal::shared_bus::blocking::spi::SpiDevice;
 use embassy_executor::Spawner;
@@ -16,7 +16,6 @@ use embedded_graphics::Drawable;
 use embedded_graphics::{geometry::Point, pixelcolor::RgbColor};
 use embedded_hal::digital::InputPin;
 use esp_backtrace as _;
-use esp_hal::clock::Clocks;
 use esp_hal::gpio::OutputPin;
 use esp_hal::ledc::channel::Channel;
 use esp_hal::ledc::timer::TimerSpeed;
@@ -39,7 +38,7 @@ use static_cell::make_static;
 
 use rtt_target::rtt_init_print;
 
-use crate::app::devices::{DummyAdcDevice, DummyBuzzerDevice};
+use crate::app::devices::DummyBuzzerDevice;
 use crate::app::Result;
 
 mod app;
@@ -69,7 +68,6 @@ async fn main(spawner: Spawner) {
     esp_println::println!("Init!");
     let peripherals = Peripherals::take();
     let system = peripherals.SYSTEM.split();
-    static mut CLOCKS: Option<Clocks<'static>> = None;
     let clocks = &*make_static!(ClockControl::max(system.clock_control).freeze());
 
     let timg0 = TimerGroup::new(peripherals.TIMG0, clocks);
@@ -85,7 +83,7 @@ async fn main(spawner: Spawner) {
     let cs = io.pins.gpio7.into_push_pull_output();
     // espefuse.py -p /dev/ttyACM0 burn_efuse VDD_SPI_AS_GPIO 1
     let bl = io.pins.gpio11.into_push_pull_output();
-    let bl2 = io.pins.gpio0.into_push_pull_output();
+    let bl2 = io.pins.gpio12.into_push_pull_output();
 
     let ledc = make_static!(LEDC::new(peripherals.LEDC, clocks));
     ledc.set_global_slow_clock(LSGlobalClkSource::APBClk);
@@ -134,6 +132,24 @@ async fn main(spawner: Spawner) {
     .draw(&mut display)
     .unwrap();
 
+    // Create ADC instances
+    // You can try any of the following calibration methods by uncommenting
+    // them. Note that only AdcCalLine returns readings in mV; the other two
+    // return raw readings in some unspecified scale.
+    //
+    // type AdcCal = ();
+    // type AdcCal = esp_hal::adc::AdcCalBasic<ADC1>;
+    // type AdcCal = esp_hal::adc::AdcCalLine<ADC1>;
+    type AdcCal = esp_hal::adc::AdcCalCurve<esp_hal::peripherals::ADC1>;
+
+    let analog_pin = io.pins.gpio0.into_analog();
+
+    let mut adc1_config = esp_hal::adc::AdcConfig::new();
+    let adc1_pin = adc1_config
+        .enable_pin_with_cal::<_, AdcCal>(analog_pin, esp_hal::adc::Attenuation::Attenuation11dB);
+    let adc1 = esp_hal::adc::ADC::<esp_hal::peripherals::ADC1>::new(peripherals.ADC1, adc1_config);
+    let adc_device = AdcDriver::new(adc1, adc1_pin);
+
     let left = io.pins.gpio5.into_pull_up_input();
     let right = io.pins.gpio9.into_pull_up_input();
     let up = io.pins.gpio8.into_pull_up_input();
@@ -141,7 +157,7 @@ async fn main(spawner: Spawner) {
     let enter = io.pins.gpio4.into_pull_up_input();
     let kbd_device = KeysInputDriver::new(left, right, up, down, enter);
 
-    let adc_device = DummyAdcDevice {};
+    // let adc_device = DummyAdcDevice {};
     let board = BoardDriver {
         backlight: channel0,
     };
@@ -157,6 +173,40 @@ async fn main(spawner: Spawner) {
     )
     .await;
     defmt::panic!("Simulator stopped");
+}
+
+struct AdcDriver<'d, A, P, C> {
+    adc: esp_hal::adc::ADC<'d, A>,
+    pin: esp_hal::adc::AdcPin<P, A, C>,
+}
+impl<'d, A, P, C> AdcDriver<'d, A, P, C> {
+    pub fn new(adc: esp_hal::adc::ADC<'d, A>, pin: esp_hal::adc::AdcPin<P, A, C>) -> Self {
+        Self { adc, pin }
+    }
+}
+impl<'d, A, P, C> AdcDevice for AdcDriver<'d, A, P, C>
+where
+    A: esp_hal::adc::RegisterAccess,
+    P: embedded_hal_02::adc::Channel<A, ID = u8>,
+    C: esp_hal::adc::AdcCalScheme<A>,
+    esp_hal::adc::ADC<'d, A>: embedded_hal_02::adc::OneShot<A, u16, esp_hal::adc::AdcPin<P, A, C>>,
+{
+    async fn read(
+        &mut self,
+        _options: app::devices::AdcReadOptions,
+        buf: &mut [f32],
+    ) -> Result<usize> {
+        let mut count = 0;
+        let mut it = buf.iter_mut();
+        while let Some(data) = it.next() {
+            let mv = nb::block!(self.adc.read(&mut self.pin))
+                .map_err(|_| app::AppError::AdcReadError)?;
+            // defmt::info!("ADC: {} mv", mv);
+            *data = mv as f32 / 1000.0;
+            count += 1;
+        }
+        Ok(count)
+    }
 }
 
 struct KeysInputDriver<L, R, U, D, E> {

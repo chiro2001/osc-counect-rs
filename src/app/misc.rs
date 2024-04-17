@@ -13,6 +13,7 @@ pub enum AppError {
     LimitExceeded,
     StorageIOError,
     StateFormatError,
+    AdcReadError,
 }
 impl AppError {
     pub fn str(&self) -> &'static str {
@@ -24,6 +25,7 @@ impl AppError {
             AppError::LimitExceeded => "Limit Exceeded",
             AppError::StorageIOError => "Storage IO Error",
             AppError::StateFormatError => "State Format Error",
+            AppError::AdcReadError => "ADC Read Error",
         }
     }
 }
