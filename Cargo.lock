@@ -1187,8 +1187,6 @@ dependencies = [
 [[package]]
 name = "esp-hal"
 version = "0.16.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc3e9b3333d2ae42f5c9b4890e162cb756fb1b067ab5f642b89fc9f29be424fa"
 dependencies = [
  "basic-toml",
  "bitfield 0.14.0",
@@ -1235,8 +1233,6 @@ dependencies = [
 [[package]]
 name = "esp-hal-procmacros"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05084ecf8446fe60e0aff6c3873c96dca56dc383a449324ca555edbb80ae60c0"
 dependencies = [
  "darling",
  "document-features",
@@ -1261,8 +1257,6 @@ dependencies = [
 [[package]]
 name = "esp-riscv-rt"
 version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e599762d31156fa2322db4d5a0784c13b6122b79c1fa7bed70953de2f7d731f1"
 dependencies = [
  "document-features",
  "riscv",

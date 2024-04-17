@@ -1,0 +1,2894 @@
+Chip type:         esp32c3 (revision v0.4)
+Crystal frequency: 40 MHz
+Flash size:        16MB
+Features:          WiFi, BLE
+MAC address:       ec:da:3b:d1:6d:d4
+App/part. size:    162,976/4,128,768 bytes, 3.95%
+Commands:
+    CTRL+R    Reset chip
+    CTRL+C    Exit
+
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0x15 (USB_UART_CHIP_RESET),boot:0xc (SPI_FAST_FLASH_BOOT)
+Saved PC:0x40380628
+[38;5;11m0x40380628 - __EXTERNAL_INTERRUPTS
+    at ??:??
+[39mSPIWP:0xee
+mode:DIO, clock div:2
+load:0x3fcd5820,len:0x1714
+load:0x403cc710,len:0x968
+load:0x403ce710,len:0x2f9c
+entry 0x403cc710
+[0;32mI (19) boot: ESP-IDF v5.1.2-342-gbcf1645e44 2nd stage bootloader[0m
+[0;32mI (20) boot: compile time Dec 12 2023 10:50:58[0m
+[0;32mI (20) boot: chip revision: v0.4[0m
+[0;32mI (24) boot.esp32c3: SPI Speed      : 40MHz[0m
+[0;32mI (29) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (33) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (38) boot: Enabling RNG early entropy source...[0m
+[0;32mI (44) boot: Partition Table:[0m
+[0;32mI (47) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (54) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (62) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (69) boot:  2 factory          factory app      00 00 00010000 003f0000[0m
+[0;32mI (77) boot: End of partition table[0m
+[0;32mI (81) esp_image: segment 0: paddr=00010020 vaddr=3c020020 size=05978h ( 22904) map[0m
+[0;32mI (95) esp_image: segment 1: paddr=000159a0 vaddr=40380000 size=01260h (  4704) load[0m
+[0;32mI (99) esp_image: segment 2: paddr=00016c08 vaddr=00000000 size=09410h ( 37904) [0m
+[0;32mI (114) esp_image: segment 3: paddr=00020020 vaddr=42000020 size=17c58h ( 97368) map[0m
+[0;32mI (137) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (137) boot: Disabling RNG early entropy source...[0m
+Init!
+[38;5;10m[INFO] - read tab ffffff
+[39m[38;5;10m[INFO] - set tab to fffff
+[39m[38;5;10m[INFO] - rx_descriptors at 0x3fccfe84
+[39mafter config, dma: RegisterBlock {
+    int_raw_ch: (),
+    _reserved1: [
+        0,
+        0,
+        0,
+        0,
+    ],
+    int_st_ch0: INT_ST_CH0 {
+        in_done: false,
+        in_suc_eof: false,
+        in_err_eof: false,
+        out_done: false,
+        out_eof: false,
+        in_dscr_err: false,
+        out_dscr_err: false,
+        in_dscr_empty: false,
+        out_total_eof: false,
+        infifo_ovf: false,
+        infifo_udf: false,
+        outfifo_ovf: false,
+        outfifo_udf: false,
+    },
+    int_ena_ch: (),
+    _reserved3: [
+        2,
+        0,
+        0,
+        0,
+    ],
+    int_clr_ch: (),
+    _reserved4: [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    int_st_ch1: INT_ST_CH1 {
+        in_done: false,
+        in_suc_eof: false,
+        in_err_eof: false,
+        out_done: false,
+        out_eof: false,
+        in_dscr_err: false,
+        out_dscr_err: false,
+        in_dscr_empty: false,
+        out_total_eof: false,
+        infifo_ovf: false,
+        infifo_udf: false,
+        outfifo_ovf: false,
+        outfifo_udf: false,
+    },
+    _reserved5: [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    int_st_ch2: INT_ST_CH2 {
+        in_done: false,
+        in_suc_eof: false,
+        in_err_eof: false,
+        out_done: false,
+        out_eof: false,
+        in_dscr_err: false,
+        out_dscr_err: false,
+        in_dscr_empty: false,
+        out_total_eof: false,
+        infifo_ovf: false,
+        infifo_udf: false,
+        outfifo_ovf: false,
+        outfifo_udf: false,
+    },
+    _reserved6: [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    ahb_test: AHB_TEST {
+        ahb_testmode: 0,
+        ahb_testaddr: 0,
+    },
+    misc_conf: MISC_CONF {
+        ahbm_rst_inter: false,
+        arb_pri_dis: false,
+        clk_en: true,
+    },
+    date: DATE {
+        date: 33587792,
+    },
+    _reserved9: [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    in_conf0_ch: (),
+    _reserved10: [
+        0,
+        0,
+        0,
+        0,
+    ],
+    in_conf1_ch0: IN_CONF1_CH0 {
+        in_check_owner: false,
+    },
+    infifo_status_ch0: INFIFO_STATUS_CH0 {
+        infifo_full: true,
+        infifo_empty: true,
+        infifo_cnt: 0,
+        in_remain_under_1b: true,
+        in_remain_under_2b: true,
+        in_remain_under_3b: true,
+        in_remain_under_4b: true,
+        in_buf_hungry: false,
+    },
+    in_pop_ch0: IN_POP_CH0 {
+        infifo_rdata: 2048,
+        infifo_pop: false,
+    },
+    in_link_ch: (),
+    _reserved14: [
+        132,
+        254,
+        28,
+        1,
+    ],
+    in_state_ch0: IN_STATE_CH0 {
+        inlink_dscr_addr: 65156,
+        in_dscr_state: 0,
+        in_state: 0,
+    },
+    in_suc_eof_des_addr_ch0: IN_SUC_EOF_DES_ADDR_CH0 {
+        in_suc_eof_des_addr: 1070399108,
+    },
+    in_err_eof_des_addr_ch0: IN_ERR_EOF_DES_ADDR_CH0 {
+        in_err_eof_des_addr: 0,
+    },
+    in_dscr_ch0: IN_DSCR_CH0 {
+        inlink_dscr: 0,
+    },
+    in_dscr_bf0_ch: (),
+    _reserved19: [
+        0,
+        0,
+        0,
+        0,
+    ],
+    in_dscr_bf1_ch0: IN_DSCR_BF1_CH0 {
+        inlink_dscr_bf1: 0,
+    },
+    in_pri_ch: (),
+    _reserved21: [
+        0,
+        0,
+        0,
+        0,
+    ],
+    in_peri_sel_ch: (),
+    _reserved22: [
+        8,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    out_conf0_ch: (),
+    _reserved23: [
+        8,
+        0,
+        0,
+        0,
+    ],
+    out_conf1_ch: (),
+    _reserved24: [
+        0,
+        0,
+        0,
+        0,
+    ],
+    outfifo_status_ch0: OUTFIFO_STATUS_CH0 {
+        outfifo_full: false,
+        outfifo_empty: true,
+        outfifo_cnt: 0,
+        out_remain_under_1b: true,
+        out_remain_under_2b: true,
+        out_remain_under_3b: true,
+        out_remain_under_4b: true,
+    },
+    out_push_ch0: OUT_PUSH_CH0 {
+        outfifo_wdata: 0,
+        outfifo_push: false,
+    },
+    out_link_ch: (),
+    _reserved27: [
+        0,
+        0,
+        128,
+        0,
+    ],
+    out_state_ch0: OUT_STATE_CH0 {
+        outlink_dscr_addr: 0,
+        out_dscr_state: 0,
+        out_state: 0,
+    },
+    out_eof_des_addr_ch: (),
+    _reserved29: [
+        0,
+        0,
+        0,
+        0,
+    ],
+    out_eof_bfr_des_addr_ch0: OUT_EOF_BFR_DES_ADDR_CH0 {
+        out_eof_bfr_des_addr: 0,
+    },
+    out_dscr_ch0: OUT_DSCR_CH0 {
+        outlink_dscr: 0,
+    },
+    out_dscr_bf0_ch0: OUT_DSCR_BF0_CH0 {
+        outlink_dscr_bf0: 0,
+    },
+    out_dscr_bf1_ch0: OUT_DSCR_BF1_CH0 {
+        outlink_dscr_bf1: 0,
+    },
+    out_pri_ch: (),
+    _reserved34: [
+        0,
+        0,
+        0,
+        0,
+    ],
+    out_peri_sel_ch: (),
+    _reserved35: [
+        63,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    in_conf1_ch1: IN_CONF1_CH1 {
+        in_check_owner: false,
+    },
+    infifo_status_ch1: INFIFO_STATUS_CH1 {
+        infifo_full: true,
+        infifo_empty: true,
+        infifo_cnt: 0,
+        in_remain_under_1b: true,
+        in_remain_under_2b: true,
+        in_remain_under_3b: true,
+        in_remain_under_4b: true,
+        in_buf_hungry: false,
+    },
+    in_pop_ch1: IN_POP_CH1 {
+        infifo_rdata: 2048,
+        infifo_pop: false,
+    },
+    _reserved38: [
+        0,
+        0,
+        16,
+        1,
+    ],
+    in_state_ch1: IN_STATE_CH1 {
+        inlink_dscr_addr: 0,
+        in_dscr_state: 0,
+        in_state: 0,
+    },
+    in_suc_eof_des_addr_ch1: IN_SUC_EOF_DES_ADDR_CH1 {
+        in_suc_eof_des_addr: 0,
+    },
+    in_err_eof_des_addr_ch1: IN_ERR_EOF_DES_ADDR_CH1 {
+        in_err_eof_des_addr: 0,
+    },
+    in_dscr_ch1: IN_DSCR_CH1 {
+        inlink_dscr: 0,
+    },
+    _reserved42: [
+        0,
+        0,
+        0,
+        0,
+    ],
+    in_dscr_bf1_ch1: IN_DSCR_BF1_CH1 {
+        inlink_dscr_bf1: 0,
+    },
+    _reserved43: [
+        0,
+        0,
+        0,
+        0,
+        63,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        8,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    outfifo_status_ch1: OUTFIFO_STATUS_CH1 {
+        outfifo_full: false,
+        outfifo_empty: true,
+        outfifo_cnt: 0,
+        out_remain_under_1b: true,
+        out_remain_under_2b: true,
+        out_remain_under_3b: true,
+        out_remain_under_4b: true,
+    },
+    out_push_ch1: OUT_PUSH_CH1 {
+        outfifo_wdata: 0,
+        outfifo_push: false,
+    },
+    _reserved45: [
+        0,
+        0,
+        128,
+        0,
+    ],
+    out_state_ch1: OUT_STATE_CH1 {
+        outlink_dscr_addr: 0,
+        out_dscr_state: 0,
+        out_state: 0,
+    },
+    _reserved46: [
+        0,
+        0,
+        0,
+        0,
+    ],
+    out_eof_bfr_des_addr_ch1: OUT_EOF_BFR_DES_ADDR_CH1 {
+        out_eof_bfr_des_addr: 0,
+    },
+    out_dscr_ch1: OUT_DSCR_CH1 {
+        outlink_dscr: 0,
+    },
+    out_dscr_bf0_ch1: OUT_DSCR_BF0_CH1 {
+        outlink_dscr_bf0: 0,
+    },
+    out_dscr_bf1_ch1: OUT_DSCR_BF1_CH1 {
+        outlink_dscr_bf1: 0,
+    },
+    _reserved50: [
+        0,
+        0,
+        0,
+        0,
+        63,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    in_conf1_ch2: IN_CONF1_CH2 {
+        in_check_owner: false,
+    },
+    infifo_status_ch2: INFIFO_STATUS_CH2 {
+        infifo_full: true,
+        infifo_empty: true,
+        infifo_cnt: 0,
+        in_remain_under_1b: true,
+        in_remain_under_2b: true,
+        in_remain_under_3b: true,
+        in_remain_under_4b: true,
+        in_buf_hungry: false,
+    },
+    in_pop_ch2: IN_POP_CH2 {
+        infifo_rdata: 2048,
+        infifo_pop: false,
+    },
+    _reserved53: [
+        0,
+        0,
+        16,
+        1,
+    ],
+    in_state_ch2: IN_STATE_CH2 {
+        inlink_dscr_addr: 0,
+        in_dscr_state: 0,
+        in_state: 0,
+    },
+    in_suc_eof_des_addr_ch2: IN_SUC_EOF_DES_ADDR_CH2 {
+        in_suc_eof_des_addr: 0,
+    },
+    in_err_eof_des_addr_ch2: IN_ERR_EOF_DES_ADDR_CH2 {
+        in_err_eof_des_addr: 0,
+    },
+    in_dscr_ch2: IN_DSCR_CH2 {
+        inlink_dscr: 0,
+    },
+    _reserved57: [
+        0,
+        0,
+        0,
+        0,
+    ],
+    in_dscr_bf1_ch2: IN_DSCR_BF1_CH2 {
+        inlink_dscr_bf1: 0,
+    },
+    _reserved58: [
+        0,
+        0,
+        0,
+        0,
+        63,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        8,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    outfifo_status_ch2: OUTFIFO_STATUS_CH2 {
+        outfifo_full: false,
+        outfifo_empty: true,
+        outfifo_cnt: 0,
+        out_remain_under_1b: true,
+        out_remain_under_2b: true,
+        out_remain_under_3b: true,
+        out_remain_under_4b: true,
+    },
+    out_push_ch2: OUT_PUSH_CH2 {
+        outfifo_wdata: 0,
+        outfifo_push: false,
+    },
+    _reserved60: [
+        0,
+        0,
+        128,
+        0,
+    ],
+    out_state_ch2: OUT_STATE_CH2 {
+        outlink_dscr_addr: 0,
+        out_dscr_state: 0,
+        out_state: 0,
+    },
+    _reserved61: [
+        0,
+        0,
+        0,
+        0,
+    ],
+    out_eof_bfr_des_addr_ch2: OUT_EOF_BFR_DES_ADDR_CH2 {
+        out_eof_bfr_des_addr: 0,
+    },
+    out_dscr_ch2: OUT_DSCR_CH2 {
+        outlink_dscr: 0,
+    },
+    out_dscr_bf0_ch2: OUT_DSCR_BF0_CH2 {
+        outlink_dscr_bf0: 0,
+    },
+    out_dscr_bf1_ch2: OUT_DSCR_BF1_CH2 {
+        outlink_dscr_bf1: 0,
+    },
+}; 
+saradc: RegisterBlock {
+    ctrl: CTRL {
+        saradc_start_force: false,
+        saradc_start: false,
+        saradc_sar_clk_gated: true,
+        saradc_sar_clk_div: 1,
+        saradc_sar_patt_len: 0,
+        saradc_sar_patt_p_clear: false,
+        saradc_xpd_sar_force: 3,
+        saradc_wait_arb_cycle: 1,
+    },
+    ctrl2: CTRL2 {
+        saradc_meas_num_limit: false,
+        saradc_max_meas_num: 10,
+        saradc_sar1_inv: false,
+        saradc_sar2_inv: false,
+        saradc_timer_target: 4091,
+        saradc_timer_en: true,
+    },
+    filter_ctrl1: FILTER_CTRL1 {
+        apb_saradc_filter_factor1: 0,
+        apb_saradc_filter_factor0: 0,
+    },
+    fsm_wait: FSM_WAIT {
+        saradc_xpd_wait: 5,
+        saradc_rstb_wait: 8,
+        saradc_standby_wait: 100,
+    },
+    sar1_status: SAR1_STATUS {
+        saradc_sar1_status: 539459584,
+    },
+    sar2_status: SAR2_STATUS {
+        saradc_sar2_status: 0,
+    },
+    sar_patt_tab1: SAR_PATT_TAB1 {
+        saradc_sar_patt_tab1: 1048575,
+    },
+    sar_patt_tab2: SAR_PATT_TAB2 {
+        saradc_sar_patt_tab2: 16777215,
+    },
+    onetime_sample: ONETIME_SAMPLE {
+        saradc_onetime_atten: 0,
+        saradc_onetime_channel: 13,
+        saradc_onetime_start: false,
+        saradc2_onetime_sample: false,
+        saradc1_onetime_sample: false,
+    },
+    arb_ctrl: ARB_CTRL {
+        adc_arb_apb_force: false,
+        adc_arb_rtc_force: false,
+        adc_arb_wifi_force: false,
+        adc_arb_grant_force: false,
+        adc_arb_apb_priority: 0,
+        adc_arb_rtc_priority: 1,
+        adc_arb_wifi_priority: 2,
+        adc_arb_fix_priority: false,
+    },
+    filter_ctrl0: FILTER_CTRL0 {
+        apb_saradc_filter_channel1: 13,
+        apb_saradc_filter_channel0: 13,
+        apb_saradc_filter_reset: false,
+    },
+    sar1data_status: SAR1DATA_STATUS {
+        apb_saradc1_data: 345,
+    },
+    sar2data_status: SAR2DATA_STATUS {
+        apb_saradc2_data: 124636,
+    },
+    thres0_ctrl: THRES0_CTRL {
+        apb_saradc_thres0_channel: 13,
+        apb_saradc_thres0_high: 8191,
+        apb_saradc_thres0_low: 0,
+    },
+    thres1_ctrl: THRES1_CTRL {
+        apb_saradc_thres1_channel: 13,
+        apb_saradc_thres1_high: 8191,
+        apb_saradc_thres1_low: 0,
+    },
+    thres_ctrl: THRES_CTRL {
+        apb_saradc_thres_all_en: false,
+        apb_saradc_thres1_en: false,
+        apb_saradc_thres0_en: false,
+    },
+    int_ena: INT_ENA {
+        apb_saradc_thres1_low_int_ena: false,
+        apb_saradc_thres0_low_int_ena: false,
+        apb_saradc_thres1_high_int_ena: false,
+        apb_saradc_thres0_high_int_ena: false,
+        apb_saradc2_done_int_ena: false,
+        apb_saradc1_done_int_ena: false,
+    },
+    int_raw: INT_RAW {
+        apb_saradc_thres1_low_int_raw: false,
+        apb_saradc_thres0_low_int_raw: false,
+        apb_saradc_thres1_high_int_raw: false,
+        apb_saradc_thres0_high_int_raw: false,
+        apb_saradc2_done_int_raw: true,
+        apb_saradc1_done_int_raw: true,
+    },
+    int_st: INT_ST {
+        apb_saradc_thres1_low_int_st: false,
+        apb_saradc_thres0_low_int_st: false,
+        apb_saradc_thres1_high_int_st: false,
+        apb_saradc_thres0_high_int_st: false,
+        apb_saradc2_done_int_st: false,
+        apb_saradc1_done_int_st: false,
+    },
+    int_clr: (not readable),
+    dma_conf: DMA_CONF {
+        apb_adc_eof_num: 64,
+        apb_adc_reset_fsm: false,
+        apb_adc_trans: true,
+    },
+    clkm_conf: CLKM_CONF {
+        clkm_div_num: 15,
+        clkm_div_b: 1,
+        clkm_div_a: 0,
+        clk_en: true,
+        clk_sel: 2,
+    },
+    apb_tsens_ctrl: APB_TSENS_CTRL {
+        tsens_out: 0,
+        tsens_in_inv: false,
+        tsens_clk_div: 6,
+        tsens_pu: false,
+    },
+    tsens_ctrl2: TSENS_CTRL2 {
+        tsens_xpd_wait: 2,
+        tsens_xpd_force: 0,
+        tsens_clk_inv: true,
+        tsens_clk_sel: false,
+    },
+    cali: CALI {
+        apb_saradc_cali_cfg: 32768,
+    },
+    _reserved25: [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    ctrl_date: CTRL_DATE {
+        date: 33583473,
+    },
+}
+in_link_ch0: IN_LINK_CH {
+    inlink_addr: 851588,
+    inlink_auto_ret: true,
+    inlink_stop: false,
+    inlink_start: false,
+    inlink_restart: false,
+    inlink_park: true,
+}
+[38;5;10m[INFO] - waiting... available = 0, buffer[0] is 7d
+[39m[38;5;10m[INFO] - DMA done
+[39m[38;5;10m[INFO] - rx_buffer[0] = 7d
+[39m[38;5;10m[INFO] - rx_buffer[1] = 01
+[39m[38;5;10m[INFO] - rx_buffer[2] = 00
+[39m[38;5;10m[INFO] - rx_buffer[3] = 00
+[39m[38;5;10m[INFO] - rx_buffer[4] = 7a
+[39m[38;5;10m[INFO] - rx_buffer[5] = 01
+[39m[38;5;10m[INFO] - rx_buffer[6] = 00
+[39m[38;5;10m[INFO] - rx_buffer[7] = 00
+[39m[38;5;10m[INFO] - rx_buffer[8] = 9c
+[39m[38;5;10m[INFO] - rx_buffer[9] = 01
+[39m[38;5;10m[INFO] - rx_buffer[10] = 00
+[39m[38;5;10m[INFO] - rx_buffer[11] = 00
+[39m[38;5;10m[INFO] - rx_buffer[12] = 99
+[39m[38;5;10m[INFO] - rx_buffer[13] = 01
+[39m[38;5;10m[INFO] - rx_buffer[14] = 00
+[39m[38;5;10m[INFO] - rx_buffer[15] = 00
+[39m[38;5;10m[INFO] - rx_buffer[16] = 88
+[39m[38;5;10m[INFO] - rx_buffer[17] = 01
+[39m[38;5;10m[INFO] - rx_buffer[18] = 00
+[39m[38;5;10m[INFO] - rx_buffer[19] = 00
+[39m[38;5;10m[INFO] - rx_buffer[20] = 4a
+[39m[38;5;10m[INFO] - rx_buffer[21] = 01
+[39m[38;5;10m[INFO] - rx_buffer[22] = 00
+[39m[38;5;10m[INFO] - rx_buffer[23] = 00
+[39m[38;5;10m[INFO] - rx_buffer[24] = 3a
+[39m[38;5;10m[INFO] - rx_buffer[25] = 01
+[39m[38;5;10m[INFO] - rx_buffer[26] = 00
+[39m[38;5;10m[INFO] - rx_buffer[27] = 00
+[39m[38;5;10m[INFO] - rx_buffer[28] = 06
+[39m[38;5;10m[INFO] - rx_buffer[29] = 01
+[39m[38;5;10m[INFO] - rx_buffer[30] = 00
+[39m[38;5;10m[INFO] - rx_buffer[31] = 00
+[39m[38;5;10m[INFO] - rx_buffer[32] = 4c
+[39m[38;5;10m[INFO] - rx_buffer[33] = 01
+[39m[38;5;10m[INFO] - rx_buffer[34] = 00
+[39m[38;5;10m[INFO] - rx_buffer[35] = 00
+[39m[38;5;10m[INFO] - rx_buffer[36] = 4f
+[39m[38;5;10m[INFO] - rx_buffer[37] = 01
+[39m[38;5;10m[INFO] - rx_buffer[38] = 00
+[39m[38;5;10m[INFO] - rx_buffer[39] = 00
+[39m[38;5;10m[INFO] - rx_buffer[40] = 4e
+[39m[38;5;10m[INFO] - rx_buffer[41] = 01
+[39m[38;5;10m[INFO] - rx_buffer[42] = 00
+[39m[38;5;10m[INFO] - rx_buffer[43] = 00
+[39m[38;5;10m[INFO] - rx_buffer[44] = 5b
+[39m[38;5;10m[INFO] - rx_buffer[45] = 01
+[39m[38;5;10m[INFO] - rx_buffer[46] = 00
+[39m[38;5;10m[INFO] - rx_buffer[47] = 00
+[39m[38;5;10m[INFO] - rx_buffer[48] = 70
+[39m[38;5;10m[INFO] - rx_buffer[49] = 01
+[39m[38;5;10m[INFO] - rx_buffer[50] = 00
+[39m[38;5;10m[INFO] - rx_buffer[51] = 00
+[39m[38;5;10m[INFO] - rx_buffer[52] = 8a
+[39m[38;5;10m[INFO] - rx_buffer[53] = 01
+[39m[38;5;10m[INFO] - rx_buffer[54] = 00
+[39m[38;5;10m[INFO] - rx_buffer[55] = 00
+[39m[38;5;10m[INFO] - rx_buffer[56] = ab
+[39m[38;5;10m[INFO] - rx_buffer[57] = 01
+[39m[38;5;10m[INFO] - rx_buffer[58] = 00
+[39m[38;5;10m[INFO] - rx_buffer[59] = 00
+[39m[38;5;10m[INFO] - rx_buffer[60] = aa
+[39m[38;5;10m[INFO] - rx_buffer[61] = 01
+[39m[38;5;10m[INFO] - rx_buffer[62] = 00
+[39m[38;5;10m[INFO] - rx_buffer[63] = 00
+[39m[38;5;10m[INFO] - rx_buffer[64] = 8c
+[39m[38;5;10m[INFO] - rx_buffer[65] = 01
+[39m[38;5;10m[INFO] - rx_buffer[66] = 00
+[39m[38;5;10m[INFO] - rx_buffer[67] = 00
+[39m[38;5;10m[INFO] - rx_buffer[68] = 5a
+[39m[38;5;10m[INFO] - rx_buffer[69] = 01
+[39m[38;5;10m[INFO] - rx_buffer[70] = 00
+[39m[38;5;10m[INFO] - rx_buffer[71] = 00
+[39m[38;5;10m[INFO] - rx_buffer[72] = 37
+[39m[38;5;10m[INFO] - rx_buffer[73] = 01
+[39m[38;5;10m[INFO] - rx_buffer[74] = 00
+[39m[38;5;10m[INFO] - rx_buffer[75] = 00
+[39m[38;5;10m[INFO] - rx_buffer[76] = 39
+[39m[38;5;10m[INFO] - rx_buffer[77] = 01
+[39m[38;5;10m[INFO] - rx_buffer[78] = 00
+[39m[38;5;10m[INFO] - rx_buffer[79] = 00
+[39m[38;5;10m[INFO] - rx_buffer[80] = 4c
+[39m[38;5;10m[INFO] - rx_buffer[81] = 01
+[39m[38;5;10m[INFO] - rx_buffer[82] = 00
+[39m[38;5;10m[INFO] - rx_buffer[83] = 00
+[39m[38;5;10m[INFO] - rx_buffer[84] = 4c
+[39m[38;5;10m[INFO] - rx_buffer[85] = 01
+[39m[38;5;10m[INFO] - rx_buffer[86] = 00
+[39m[38;5;10m[INFO] - rx_buffer[87] = 00
+[39m[38;5;10m[INFO] - rx_buffer[88] = 57
+[39m[38;5;10m[INFO] - rx_buffer[89] = 01
+[39m[38;5;10m[INFO] - rx_buffer[90] = 00
+[39m[38;5;10m[INFO] - rx_buffer[91] = 00
+[39m[38;5;10m[INFO] - rx_buffer[92] = 5c
+[39m[38;5;10m[INFO] - rx_buffer[93] = 01
+[39m[38;5;10m[INFO] - rx_buffer[94] = 00
+[39m[38;5;10m[INFO] - rx_buffer[95] = 00
+[39m[38;5;10m[INFO] - rx_buffer[96] = 68
+[39m[38;5;10m[INFO] - rx_buffer[97] = 01
+[39m[38;5;10m[INFO] - rx_buffer[98] = 00
+[39m[38;5;10m[INFO] - rx_buffer[99] = 00
+[39m[38;5;10m[INFO] - rx_buffer[100] = 89
+[39m[38;5;10m[INFO] - rx_buffer[101] = 01
+[39m[38;5;10m[INFO] - rx_buffer[102] = 00
+[39m[38;5;10m[INFO] - rx_buffer[103] = 00
+[39m[38;5;10m[INFO] - rx_buffer[104] = aa
+[39m[38;5;10m[INFO] - rx_buffer[105] = 01
+[39m[38;5;10m[INFO] - rx_buffer[106] = 00
+[39m[38;5;10m[INFO] - rx_buffer[107] = 00
+[39m[38;5;10m[INFO] - rx_buffer[108] = ab
+[39m[38;5;10m[INFO] - rx_buffer[109] = 01
+[39m[38;5;10m[INFO] - rx_buffer[110] = 00
+[39m[38;5;10m[INFO] - rx_buffer[111] = 00
+[39m[38;5;10m[INFO] - rx_buffer[112] = 9a
+[39m[38;5;10m[INFO] - rx_buffer[113] = 01
+[39m[38;5;10m[INFO] - rx_buffer[114] = 00
+[39m[38;5;10m[INFO] - rx_buffer[115] = 00
+[39m[38;5;10m[INFO] - rx_buffer[116] = 5a
+[39m[38;5;10m[INFO] - rx_buffer[117] = 01
+[39m[38;5;10m[INFO] - rx_buffer[118] = 00
+[39m[38;5;10m[INFO] - rx_buffer[119] = 00
+[39m[38;5;10m[INFO] - rx_buffer[120] = 3c
+[39m[38;5;10m[INFO] - rx_buffer[121] = 01
+[39m[38;5;10m[INFO] - rx_buffer[122] = 00
+[39m[38;5;10m[INFO] - rx_buffer[123] = 00
+[39m[38;5;10m[INFO] - rx_buffer[124] = 39
+[39m[38;5;10m[INFO] - rx_buffer[125] = 01
+[39m[38;5;10m[INFO] - rx_buffer[126] = 00
+[39m[38;5;10m[INFO] - rx_buffer[127] = 00
+[39m[38;5;10m[INFO] - rx_buffer[128] = 49
+[39m[38;5;10m[INFO] - rx_buffer[129] = 01
+[39m[38;5;10m[INFO] - rx_buffer[130] = 00
+[39m[38;5;10m[INFO] - rx_buffer[131] = 00
+[39m[38;5;10m[INFO] - rx_buffer[132] = 49
+[39m[38;5;10m[INFO] - rx_buffer[133] = 01
+[39m[38;5;10m[INFO] - rx_buffer[134] = 00
+[39m[38;5;10m[INFO] - rx_buffer[135] = 00
+[39m[38;5;10m[INFO] - rx_buffer[136] = 4f
+[39m[38;5;10m[INFO] - rx_buffer[137] = 01
+[39m[38;5;10m[INFO] - rx_buffer[138] = 00
+[39m[38;5;10m[INFO] - rx_buffer[139] = 00
+[39m[38;5;10m[INFO] - rx_buffer[140] = 5c
+[39m[38;5;10m[INFO] - rx_buffer[141] = 01
+[39m[38;5;10m[INFO] - rx_buffer[142] = 00
+[39m[38;5;10m[INFO] - rx_buffer[143] = 00
+[39m[38;5;10m[INFO] - rx_buffer[144] = 5e
+[39m[38;5;10m[INFO] - rx_buffer[145] = 01
+[39m[38;5;10m[INFO] - rx_buffer[146] = 00
+[39m[38;5;10m[INFO] - rx_buffer[147] = 00
+[39m[38;5;10m[INFO] - rx_buffer[148] = 7e
+[39m[38;5;10m[INFO] - rx_buffer[149] = 01
+[39m[38;5;10m[INFO] - rx_buffer[150] = 00
+[39m[38;5;10m[INFO] - rx_buffer[151] = 00
+[39m[38;5;10m[INFO] - rx_buffer[152] = 9e
+[39m[38;5;10m[INFO] - rx_buffer[153] = 01
+[39m[38;5;10m[INFO] - rx_buffer[154] = 00
+[39m[38;5;10m[INFO] - rx_buffer[155] = 00
+[39m[38;5;10m[INFO] - rx_buffer[156] = ad
+[39m[38;5;10m[INFO] - rx_buffer[157] = 01
+[39m[38;5;10m[INFO] - rx_buffer[158] = 00
+[39m[38;5;10m[INFO] - rx_buffer[159] = 00
+[39m[38;5;10m[INFO] - rx_buffer[160] = 9c
+[39m[38;5;10m[INFO] - rx_buffer[161] = 01
+[39m[38;5;10m[INFO] - rx_buffer[162] = 00
+[39m[38;5;10m[INFO] - rx_buffer[163] = 00
+[39m[38;5;10m[INFO] - rx_buffer[164] = 7e
+[39m[38;5;10m[INFO] - rx_buffer[165] = 01
+[39m[38;5;10m[INFO] - rx_buffer[166] = 00
+[39m[38;5;10m[INFO] - rx_buffer[167] = 00
+[39m[38;5;10m[INFO] - rx_buffer[168] = 3b
+[39m[38;5;10m[INFO] - rx_buffer[169] = 01
+[39m[38;5;10m[INFO] - rx_buffer[170] = 00
+[39m[38;5;10m[INFO] - rx_buffer[171] = 00
+[39m[38;5;10m[INFO] - rx_buffer[172] = 3e
+[39m[38;5;10m[INFO] - rx_buffer[173] = 01
+[39m[38;5;10m[INFO] - rx_buffer[174] = 00
+[39m[38;5;10m[INFO] - rx_buffer[175] = 00
+[39m[38;5;10m[INFO] - rx_buffer[176] = 28
+[39m[38;5;10m[INFO] - rx_buffer[177] = 01
+[39m[38;5;10m[INFO] - rx_buffer[178] = 00
+[39m[38;5;10m[INFO] - rx_buffer[179] = 00
+[39m[38;5;10m[INFO] - rx_buffer[180] = 4a
+[39m[38;5;10m[INFO] - rx_buffer[181] = 01
+[39m[38;5;10m[INFO] - rx_buffer[182] = 00
+[39m[38;5;10m[INFO] - rx_buffer[183] = 00
+[39m[38;5;10m[INFO] - rx_buffer[184] = 58
+[39m[38;5;10m[INFO] - rx_buffer[185] = 01
+[39m[38;5;10m[INFO] - rx_buffer[186] = 00
+[39m[38;5;10m[INFO] - rx_buffer[187] = 00
+[39m[38;5;10m[INFO] - rx_buffer[188] = 5c
+[39m[38;5;10m[INFO] - rx_buffer[189] = 01
+[39m[38;5;10m[INFO] - rx_buffer[190] = 00
+[39m[38;5;10m[INFO] - rx_buffer[191] = 00
+[39m[38;5;10m[INFO] - rx_buffer[192] = 5b
+[39m[38;5;10m[INFO] - rx_buffer[193] = 01
+[39m[38;5;10m[INFO] - rx_buffer[194] = 00
+[39m[38;5;10m[INFO] - rx_buffer[195] = 00
+[39m[38;5;10m[INFO] - rx_buffer[196] = 88
+[39m[38;5;10m[INFO] - rx_buffer[197] = 01
+[39m[38;5;10m[INFO] - rx_buffer[198] = 00
+[39m[38;5;10m[INFO] - rx_buffer[199] = 00
+[39m[38;5;10m[INFO] - rx_buffer[200] = 7a
+[39m[38;5;10m[INFO] - rx_buffer[201] = 01
+[39m[38;5;10m[INFO] - rx_buffer[202] = 00
+[39m[38;5;10m[INFO] - rx_buffer[203] = 00
+[39m[38;5;10m[INFO] - rx_buffer[204] = ae
+[39m[38;5;10m[INFO] - rx_buffer[205] = 01
+[39m[38;5;10m[INFO] - rx_buffer[206] = 00
+[39m[38;5;10m[INFO] - rx_buffer[207] = 00
+[39m[38;5;10m[INFO] - rx_buffer[208] = a8
+[39m[38;5;10m[INFO] - rx_buffer[209] = 01
+[39m[38;5;10m[INFO] - rx_buffer[210] = 00
+[39m[38;5;10m[INFO] - rx_buffer[211] = 00
+[39m[38;5;10m[INFO] - rx_buffer[212] = 7f
+[39m[38;5;10m[INFO] - rx_buffer[213] = 01
+[39m[38;5;10m[INFO] - rx_buffer[214] = 00
+[39m[38;5;10m[INFO] - rx_buffer[215] = 00
+[39m[38;5;10m[INFO] - rx_buffer[216] = 4d
+[39m[38;5;10m[INFO] - rx_buffer[217] = 01
+[39m[38;5;10m[INFO] - rx_buffer[218] = 00
+[39m[38;5;10m[INFO] - rx_buffer[219] = 00
+[39m[38;5;10m[INFO] - rx_buffer[220] = 39
+[39m[38;5;10m[INFO] - rx_buffer[221] = 01
+[39m[38;5;10m[INFO] - rx_buffer[222] = 00
+[39m[38;5;10m[INFO] - rx_buffer[223] = 00
+[39m[38;5;10m[INFO] - rx_buffer[224] = fa
+[39m[38;5;10m[INFO] - rx_buffer[225] = 00
+[39m[38;5;10m[INFO] - rx_buffer[226] = 00
+[39m[38;5;10m[INFO] - rx_buffer[227] = 00
+[39m[38;5;10m[INFO] - rx_buffer[228] = 4c
+[39m[38;5;10m[INFO] - rx_buffer[229] = 01
+[39m[38;5;10m[INFO] - rx_buffer[230] = 00
+[39m[38;5;10m[INFO] - rx_buffer[231] = 00
+[39m[38;5;10m[INFO] - rx_buffer[232] = 4d
+[39m[38;5;10m[INFO] - rx_buffer[233] = 01
+[39m[38;5;10m[INFO] - rx_buffer[234] = 00
+[39m[38;5;10m[INFO] - rx_buffer[235] = 00
+[39m[38;5;10m[INFO] - rx_buffer[236] = 58
+[39m[38;5;10m[INFO] - rx_buffer[237] = 01
+[39m[38;5;10m[INFO] - rx_buffer[238] = 00
+[39m[38;5;10m[INFO] - rx_buffer[239] = 00
+[39m[38;5;10m[INFO] - rx_buffer[240] = 5e
+[39m[38;5;10m[INFO] - rx_buffer[241] = 01
+[39m[38;5;10m[INFO] - rx_buffer[242] = 00
+[39m[38;5;10m[INFO] - rx_buffer[243] = 00
+[39m[38;5;10m[INFO] - rx_buffer[244] = 6d
+[39m[38;5;10m[INFO] - rx_buffer[245] = 01
+[39m[38;5;10m[INFO] - rx_buffer[246] = 00
+[39m[38;5;10m[INFO] - rx_buffer[247] = 00
+[39m[38;5;10m[INFO] - rx_buffer[248] = 7f
+[39m[38;5;10m[INFO] - rx_buffer[249] = 01
+[39m[38;5;10m[INFO] - rx_buffer[250] = 00
+[39m[38;5;10m[INFO] - rx_buffer[251] = 00
+[39m[38;5;10m[INFO] - rx_buffer[252] = a8
+[39m[38;5;10m[INFO] - rx_buffer[253] = 01
+[39m[38;5;10m[INFO] - rx_buffer[254] = 00
+[39m[38;5;10m[INFO] - rx_buffer[255] = 00
+[39m[38;5;10m[INFO] - rx_buffer[256] = 00
+[39m[38;5;10m[INFO] - rx_buffer[257] = 00
+[39m[38;5;10m[INFO] - rx_buffer[258] = 00
+[39m[38;5;10m[INFO] - rx_buffer[259] = 00
+[39m[38;5;10m[INFO] - rx_buffer[260] = 00
+[39m[38;5;10m[INFO] - rx_buffer[261] = 00
+[39m[38;5;10m[INFO] - rx_buffer[262] = 00
+[39m[38;5;10m[INFO] - rx_buffer[263] = 00
+[39m[38;5;10m[INFO] - rx_buffer[264] = 00
+[39m[38;5;10m[INFO] - rx_buffer[265] = 00
+[39m[38;5;10m[INFO] - rx_buffer[266] = 00
+[39m[38;5;10m[INFO] - rx_buffer[267] = 00
+[39m[38;5;10m[INFO] - rx_buffer[268] = 00
+[39m[38;5;10m[INFO] - rx_buffer[269] = 00
+[39m[38;5;10m[INFO] - rx_buffer[270] = 00
+[39m[38;5;10m[INFO] - rx_buffer[271] = 00
+[39m[38;5;10m[INFO] - rx_buffer[272] = 00
+[39m[38;5;10m[INFO] - rx_buffer[273] = 00
+[39m[38;5;10m[INFO] - rx_buffer[274] = 00
+[39m[38;5;10m[INFO] - rx_buffer[275] = 00
+[39m[38;5;10m[INFO] - rx_buffer[276] = 00
+[39m[38;5;10m[INFO] - rx_buffer[277] = 00
+[39m[38;5;10m[INFO] - rx_buffer[278] = 00
+[39m[38;5;10m[INFO] - rx_buffer[279] = 00
+[39m[38;5;10m[INFO] - rx_buffer[280] = 00
+[39m[38;5;10m[INFO] - rx_buffer[281] = 00
+[39m[38;5;10m[INFO] - rx_buffer[282] = 00
+[39m[38;5;10m[INFO] - rx_buffer[283] = 00
+[39m[38;5;10m[INFO] - rx_buffer[284] = 00
+[39m[38;5;10m[INFO] - rx_buffer[285] = 00
+[39m[38;5;10m[INFO] - rx_buffer[286] = 00
+[39m[38;5;10m[INFO] - rx_buffer[287] = 00
+[39m[38;5;10m[INFO] - rx_buffer[288] = 00
+[39m[38;5;10m[INFO] - rx_buffer[289] = 00
+[39m[38;5;10m[INFO] - rx_buffer[290] = 00
+[39m[38;5;10m[INFO] - rx_buffer[291] = 00
+[39m[38;5;10m[INFO] - rx_buffer[292] = 00
+[39m[38;5;10m[INFO] - rx_buffer[293] = 00
+[39m[38;5;10m[INFO] - rx_buffer[294] = 00
+[39m[38;5;10m[INFO] - rx_buffer[295] = 00
+[39m[38;5;10m[INFO] - rx_buffer[296] = 00
+[39m[38;5;10m[INFO] - rx_buffer[297] = 00
+[39m[38;5;10m[INFO] - rx_buffer[298] = 00
+[39m[38;5;10m[INFO] - rx_buffer[299] = 00
+[39m[38;5;10m[INFO] - rx_buffer[300] = 00
+[39m[38;5;10m[INFO] - rx_buffer[301] = 00
+[39m[38;5;10m[INFO] - rx_buffer[302] = 00
+[39m[38;5;10m[INFO] - rx_buffer[303] = 00
+[39m[38;5;10m[INFO] - rx_buffer[304] = 00
+[39m[38;5;10m[INFO] - rx_buffer[305] = 00
+[39m[38;5;10m[INFO] - rx_buffer[306] = 00
+[39m[38;5;10m[INFO] - rx_buffer[307] = 00
+[39m[38;5;10m[INFO] - rx_buffer[308] = 00
+[39m[38;5;10m[INFO] - rx_buffer[309] = 00
+[39m[38;5;10m[INFO] - rx_buffer[310] = 00
+[39m[38;5;10m[INFO] - rx_buffer[311] = 00
+[39m[38;5;10m[INFO] - rx_buffer[312] = 00
+[39m[38;5;10m[INFO] - rx_buffer[313] = 00
+[39m[38;5;10m[INFO] - rx_buffer[314] = 00
+[39m[38;5;10m[INFO] - rx_buffer[315] = 00
+[39m[38;5;10m[INFO] - rx_buffer[316] = 00
+[39m[38;5;10m[INFO] - rx_buffer[317] = 00
+[39m[38;5;10m[INFO] - rx_buffer[318] = 00
+[39m[38;5;10m[INFO] - rx_buffer[319] = 00
+[39m[38;5;10m[INFO] - rx_buffer[320] = 00
+[39m[38;5;10m[INFO] - rx_buffer[321] = 00
+[39m[38;5;10m[INFO] - rx_buffer[322] = 00
+[39m[38;5;10m[INFO] - rx_buffer[323] = 00
+[39m[38;5;10m[INFO] - rx_buffer[324] = 00
+[39m[38;5;10m[INFO] - rx_buffer[325] = 00
+[39m[38;5;10m[INFO] - rx_buffer[326] = 00
+[39m[38;5;10m[INFO] - rx_buffer[327] = 00
+[39m[38;5;10m[INFO] - rx_buffer[328] = 00
+[39m[38;5;10m[INFO] - rx_buffer[329] = 00
+[39m[38;5;10m[INFO] - rx_buffer[330] = 00
+[39m[38;5;10m[INFO] - rx_buffer[331] = 00
+[39m[38;5;10m[INFO] - rx_buffer[332] = 00
+[39m[38;5;10m[INFO] - rx_buffer[333] = 00
+[39m[38;5;10m[INFO] - rx_buffer[334] = 00
+[39m[38;5;10m[INFO] - rx_buffer[335] = 00
+[39m[38;5;10m[INFO] - rx_buffer[336] = 00
+[39m[38;5;10m[INFO] - rx_buffer[337] = 00
+[39m[38;5;10m[INFO] - rx_buffer[338] = 00
+[39m[38;5;10m[INFO] - rx_buffer[339] = 00
+[39m[38;5;10m[INFO] - rx_buffer[340] = 00
+[39m[38;5;10m[INFO] - rx_buffer[341] = 00
+[39m[38;5;10m[INFO] - rx_buffer[342] = 00
+[39m[38;5;10m[INFO] - rx_buffer[343] = 00
+[39m[38;5;10m[INFO] - rx_buffer[344] = 00
+[39m[38;5;10m[INFO] - rx_buffer[345] = 00
+[39m[38;5;10m[INFO] - rx_buffer[346] = 00
+[39m[38;5;10m[INFO] - rx_buffer[347] = 00
+[39m[38;5;10m[INFO] - rx_buffer[348] = 00
+[39m[38;5;10m[INFO] - rx_buffer[349] = 00
+[39m[38;5;10m[INFO] - rx_buffer[350] = 00
+[39m[38;5;10m[INFO] - rx_buffer[351] = 00
+[39m[38;5;10m[INFO] - rx_buffer[352] = 00
+[39m[38;5;10m[INFO] - rx_buffer[353] = 00
+[39m[38;5;10m[INFO] - rx_buffer[354] = 00
+[39m[38;5;10m[INFO] - rx_buffer[355] = 00
+[39m[38;5;10m[INFO] - rx_buffer[356] = 00
+[39m[38;5;10m[INFO] - rx_buffer[357] = 00
+[39m[38;5;10m[INFO] - rx_buffer[358] = 00
+[39m[38;5;10m[INFO] - rx_buffer[359] = 00
+[39m[38;5;10m[INFO] - rx_buffer[360] = 00
+[39m[38;5;10m[INFO] - rx_buffer[361] = 00
+[39m[38;5;10m[INFO] - rx_buffer[362] = 00
+[39m[38;5;10m[INFO] - rx_buffer[363] = 00
+[39m[38;5;10m[INFO] - rx_buffer[364] = 00
+[39m[38;5;10m[INFO] - rx_buffer[365] = 00
+[39m[38;5;10m[INFO] - rx_buffer[366] = 00
+[39m[38;5;10m[INFO] - rx_buffer[367] = 00
+[39m[38;5;10m[INFO] - rx_buffer[368] = 00
+[39m[38;5;10m[INFO] - rx_buffer[369] = 00
+[39m[38;5;10m[INFO] - rx_buffer[370] = 00
+[39m[38;5;10m[INFO] - rx_buffer[371] = 00
+[39m[38;5;10m[INFO] - rx_buffer[372] = 00
+[39m[38;5;10m[INFO] - rx_buffer[373] = 00
+[39m[38;5;10m[INFO] - rx_buffer[374] = 00
+[39m[38;5;10m[INFO] - rx_buffer[375] = 00
+[39m[38;5;10m[INFO] - rx_buffer[376] = 00
+[39m[38;5;10m[INFO] - rx_buffer[377] = 00
+[39m[38;5;10m[INFO] - rx_buffer[378] = 00
+[39m[38;5;10m[INFO] - rx_buffer[379] = 00
+[39m[38;5;10m[INFO] - rx_buffer[380] = 00
+[39m[38;5;10m[INFO] - rx_buffer[381] = 00
+[39m[38;5;10m[INFO] - rx_buffer[382] = 00
+[39m[38;5;10m[INFO] - rx_buffer[383] = 00
+[39m[38;5;10m[INFO] - rx_buffer[384] = 00
+[39m[38;5;10m[INFO] - rx_buffer[385] = 00
+[39m[38;5;10m[INFO] - rx_buffer[386] = 00
+[39m[38;5;10m[INFO] - rx_buffer[387] = 00
+[39m[38;5;10m[INFO] - rx_buffer[388] = 00
+[39m[38;5;10m[INFO] - rx_buffer[389] = 00
+[39m[38;5;10m[INFO] - rx_buffer[390] = 00
+[39m[38;5;10m[INFO] - rx_buffer[391] = 00
+[39m[38;5;10m[INFO] - rx_buffer[392] = 00
+[39m[38;5;10m[INFO] - rx_buffer[393] = 00
+[39m[38;5;10m[INFO] - rx_buffer[394] = 00
+[39m[38;5;10m[INFO] - rx_buffer[395] = 00
+[39m[38;5;10m[INFO] - rx_buffer[396] = 00
+[39m[38;5;10m[INFO] - rx_buffer[397] = 00
+[39m[38;5;10m[INFO] - rx_buffer[398] = 00
+[39m[38;5;10m[INFO] - rx_buffer[399] = 00
+[39m[38;5;10m[INFO] - rx_buffer[400] = 00
+[39m[38;5;10m[INFO] - rx_buffer[401] = 00
+[39m[38;5;10m[INFO] - rx_buffer[402] = 00
+[39m[38;5;10m[INFO] - rx_buffer[403] = 00
+[39m[38;5;10m[INFO] - rx_buffer[404] = 00
+[39m[38;5;10m[INFO] - rx_buffer[405] = 00
+[39m[38;5;10m[INFO] - rx_buffer[406] = 00
+[39m[38;5;10m[INFO] - rx_buffer[407] = 00
+[39m[38;5;10m[INFO] - rx_buffer[408] = 00
+[39m[38;5;10m[INFO] - rx_buffer[409] = 00
+[39m[38;5;10m[INFO] - rx_buffer[410] = 00
+[39m[38;5;10m[INFO] - rx_buffer[411] = 00
+[39m[38;5;10m[INFO] - rx_buffer[412] = 00
+[39m[38;5;10m[INFO] - rx_buffer[413] = 00
+[39m[38;5;10m[INFO] - rx_buffer[414] = 00
+[39m[38;5;10m[INFO] - rx_buffer[415] = 00
+[39m[38;5;10m[INFO] - rx_buffer[416] = 00
+[39m[38;5;10m[INFO] - rx_buffer[417] = 00
+[39m[38;5;10m[INFO] - rx_buffer[418] = 00
+[39m[38;5;10m[INFO] - rx_buffer[419] = 00
+[39m[38;5;10m[INFO] - rx_buffer[420] = 00
+[39m[38;5;10m[INFO] - rx_buffer[421] = 00
+[39m[38;5;10m[INFO] - rx_buffer[422] = 00
+[39m[38;5;10m[INFO] - rx_buffer[423] = 00
+[39m[38;5;10m[INFO] - rx_buffer[424] = 00
+[39m[38;5;10m[INFO] - rx_buffer[425] = 00
+[39m[38;5;10m[INFO] - rx_buffer[426] = 00
+[39m[38;5;10m[INFO] - rx_buffer[427] = 00
+[39m[38;5;10m[INFO] - rx_buffer[428] = 00
+[39m[38;5;10m[INFO] - rx_buffer[429] = 00
+[39m[38;5;10m[INFO] - rx_buffer[430] = 00
+[39m[38;5;10m[INFO] - rx_buffer[431] = 00
+[39m[38;5;10m[INFO] - rx_buffer[432] = 00
+[39m[38;5;10m[INFO] - rx_buffer[433] = 00
+[39m[38;5;10m[INFO] - rx_buffer[434] = 00
+[39m[38;5;10m[INFO] - rx_buffer[435] = 00
+[39m[38;5;10m[INFO] - rx_buffer[436] = 00
+[39m[38;5;10m[INFO] - rx_buffer[437] = 00
+[39m[38;5;10m[INFO] - rx_buffer[438] = 00
+[39m[38;5;10m[INFO] - rx_buffer[439] = 00
+[39m[38;5;10m[INFO] - rx_buffer[440] = 00
+[39m[38;5;10m[INFO] - rx_buffer[441] = 00
+[39m[38;5;10m[INFO] - rx_buffer[442] = 00
+[39m[38;5;10m[INFO] - rx_buffer[443] = 00
+[39m[38;5;10m[INFO] - rx_buffer[444] = 00
+[39m[38;5;10m[INFO] - rx_buffer[445] = 00
+[39m[38;5;10m[INFO] - rx_buffer[446] = 00
+[39m[38;5;10m[INFO] - rx_buffer[447] = 00
+[39m[38;5;10m[INFO] - rx_buffer[448] = 00
+[39m[38;5;10m[INFO] - rx_buffer[449] = 00
+[39m[38;5;10m[INFO] - rx_buffer[450] = 00
+[39m[38;5;10m[INFO] - rx_buffer[451] = 00
+[39m[38;5;10m[INFO] - rx_buffer[452] = 00
+[39m[38;5;10m[INFO] - rx_buffer[453] = 00
+[39m[38;5;10m[INFO] - rx_buffer[454] = 00
+[39m[38;5;10m[INFO] - rx_buffer[455] = 00
+[39m[38;5;10m[INFO] - rx_buffer[456] = 00
+[39m[38;5;10m[INFO] - rx_buffer[457] = 00
+[39m[38;5;10m[INFO] - rx_buffer[458] = 00
+[39m[38;5;10m[INFO] - rx_buffer[459] = 00
+[39m[38;5;10m[INFO] - rx_buffer[460] = 00
+[39m[38;5;10m[INFO] - rx_buffer[461] = 00
+[39m[38;5;10m[INFO] - rx_buffer[462] = 00
+[39m[38;5;10m[INFO] - rx_buffer[463] = 00
+[39m[38;5;10m[INFO] - rx_buffer[464] = 00
+[39m[38;5;10m[INFO] - rx_buffer[465] = 00
+[39m[38;5;10m[INFO] - rx_buffer[466] = 00
+[39m[38;5;10m[INFO] - rx_buffer[467] = 00
+[39m[38;5;10m[INFO] - rx_buffer[468] = 00
+[39m[38;5;10m[INFO] - rx_buffer[469] = 00
+[39m[38;5;10m[INFO] - rx_buffer[470] = 00
+[39m[38;5;10m[INFO] - rx_buffer[471] = 00
+[39m[38;5;10m[INFO] - rx_buffer[472] = 00
+[39m[38;5;10m[INFO] - rx_buffer[473] = 00
+[39m[38;5;10m[INFO] - rx_buffer[474] = 00
+[39m[38;5;10m[INFO] - rx_buffer[475] = 00
+[39m[38;5;10m[INFO] - rx_buffer[476] = 00
+[39m[38;5;10m[INFO] - rx_buffer[477] = 00
+[39m[38;5;10m[INFO] - rx_buffer[478] = 00
+[39m[38;5;10m[INFO] - rx_buffer[479] = 00
+[39m[38;5;10m[INFO] - rx_buffer[480] = 00
+[39m[38;5;10m[INFO] - rx_buffer[481] = 00
+[39m[38;5;10m[INFO] - rx_buffer[482] = 00
+[39m[38;5;10m[INFO] - rx_buffer[483] = 00
+[39m[38;5;10m[INFO] - rx_buffer[484] = 00
+[39m[38;5;10m[INFO] - rx_buffer[485] = 00
+[39m[38;5;10m[INFO] - rx_buffer[486] = 00
+[39m[38;5;10m[INFO] - rx_buffer[487] = 00
+[39m[38;5;10m[INFO] - rx_buffer[488] = 00
+[39m[38;5;10m[INFO] - rx_buffer[489] = 00
+[39m[38;5;10m[INFO] - rx_buffer[490] = 00
+[39m[38;5;10m[INFO] - rx_buffer[491] = 00
+[39m[38;5;10m[INFO] - rx_buffer[492] = 00
+[39m[38;5;10m[INFO] - rx_buffer[493] = 00
+[39m[38;5;10m[INFO] - rx_buffer[494] = 00
+[39m[38;5;10m[INFO] - rx_buffer[495] = 00
+[39m[38;5;10m[INFO] - rx_buffer[496] = 00
+[39m[38;5;10m[INFO] - rx_buffer[497] = 00
+[39m[38;5;10m[INFO] - rx_buffer[498] = 00
+[39m[38;5;10m[INFO] - rx_buffer[499] = 00
+[39m[38;5;10m[INFO] - rx_buffer[500] = 00
+[39m[38;5;10m[INFO] - rx_buffer[501] = 00
+[39m[38;5;10m[INFO] - rx_buffer[502] = 00
+[39m[38;5;10m[INFO] - rx_buffer[503] = 00
+[39m[38;5;10m[INFO] - rx_buffer[504] = 00
+[39m[38;5;10m[INFO] - rx_buffer[505] = 00
+[39m[38;5;10m[INFO] - rx_buffer[506] = 00
+[39m[38;5;10m[INFO] - rx_buffer[507] = 00
+[39m[38;5;10m[INFO] - rx_buffer[508] = 00
+[39m[38;5;10m[INFO] - rx_buffer[509] = 00
+[39m[38;5;10m[INFO] - rx_buffer[510] = 00
+[39m[38;5;10m[INFO] - rx_buffer[511] = 00
+[39m[38;5;10m[INFO] - rx_buffer[512] = 00
+[39m[38;5;10m[INFO] - rx_buffer[513] = 00
+[39m[38;5;10m[INFO] - rx_buffer[514] = 00
+[39m[38;5;10m[INFO] - rx_buffer[515] = 00
+[39m[38;5;10m[INFO] - rx_buffer[516] = 00
+[39m[38;5;10m[INFO] - rx_buffer[517] = 00
+[39m[38;5;10m[INFO] - rx_buffer[518] = 00
+[39m[38;5;10m[INFO] - rx_buffer[519] = 00
+[39m[38;5;10m[INFO] - rx_buffer[520] = 00
+[39m[38;5;10m[INFO] - rx_buffer[521] = 00
+[39m[38;5;10m[INFO] - rx_buffer[522] = 00
+[39m[38;5;10m[INFO] - rx_buffer[523] = 00
+[39m[38;5;10m[INFO] - rx_buffer[524] = 00
+[39m[38;5;10m[INFO] - rx_buffer[525] = 00
+[39m[38;5;10m[INFO] - rx_buffer[526] = 00
+[39m[38;5;10m[INFO] - rx_buffer[527] = 00
+[39m[38;5;10m[INFO] - rx_buffer[528] = 00
+[39m[38;5;10m[INFO] - rx_buffer[529] = 00
+[39m[38;5;10m[INFO] - rx_buffer[530] = 00
+[39m[38;5;10m[INFO] - rx_buffer[531] = 00
+[39m[38;5;10m[INFO] - rx_buffer[532] = 00
+[39m[38;5;10m[INFO] - rx_buffer[533] = 00
+[39m[38;5;10m[INFO] - rx_buffer[534] = 00
+[39m[38;5;10m[INFO] - rx_buffer[535] = 00
+[39m[38;5;10m[INFO] - rx_buffer[536] = 00
+[39m[38;5;10m[INFO] - rx_buffer[537] = 00
+[39m[38;5;10m[INFO] - rx_buffer[538] = 00
+[39m[38;5;10m[INFO] - rx_buffer[539] = 00
+[39m[38;5;10m[INFO] - rx_buffer[540] = 00
+[39m[38;5;10m[INFO] - rx_buffer[541] = 00
+[39m[38;5;10m[INFO] - rx_buffer[542] = 00
+[39m[38;5;10m[INFO] - rx_buffer[543] = 00
+[39m[38;5;10m[INFO] - rx_buffer[544] = 00
+[39m[38;5;10m[INFO] - rx_buffer[545] = 00
+[39m[38;5;10m[INFO] - rx_buffer[546] = 00
+[39m[38;5;10m[INFO] - rx_buffer[547] = 00
+[39m[38;5;10m[INFO] - rx_buffer[548] = 00
+[39m[38;5;10m[INFO] - rx_buffer[549] = 00
+[39m[38;5;10m[INFO] - rx_buffer[550] = 00
+[39m[38;5;10m[INFO] - rx_buffer[551] = 00
+[39m[38;5;10m[INFO] - rx_buffer[552] = 00
+[39m[38;5;10m[INFO] - rx_buffer[553] = 00
+[39m[38;5;10m[INFO] - rx_buffer[554] = 00
+[39m[38;5;10m[INFO] - rx_buffer[555] = 00
+[39m[38;5;10m[INFO] - rx_buffer[556] = 00
+[39m[38;5;10m[INFO] - rx_buffer[557] = 00
+[39m[38;5;10m[INFO] - rx_buffer[558] = 00
+[39m[38;5;10m[INFO] - rx_buffer[559] = 00
+[39m[38;5;10m[INFO] - rx_buffer[560] = 00
+[39m[38;5;10m[INFO] - rx_buffer[561] = 00
+[39m[38;5;10m[INFO] - rx_buffer[562] = 00
+[39m[38;5;10m[INFO] - rx_buffer[563] = 00
+[39m[38;5;10m[INFO] - rx_buffer[564] = 00
+[39m[38;5;10m[INFO] - rx_buffer[565] = 00
+[39m[38;5;10m[INFO] - rx_buffer[566] = 00
+[39m[38;5;10m[INFO] - rx_buffer[567] = 00
+[39m[38;5;10m[INFO] - rx_buffer[568] = 00
+[39m[38;5;10m[INFO] - rx_buffer[569] = 00
+[39m[38;5;10m[INFO] - rx_buffer[570] = 00
+[39m[38;5;10m[INFO] - rx_buffer[571] = 00
+[39m[38;5;10m[INFO] - rx_buffer[572] = 00
+[39m[38;5;10m[INFO] - rx_buffer[573] = 00
+[39m[38;5;10m[INFO] - rx_buffer[574] = 00
+[39m[38;5;10m[INFO] - rx_buffer[575] = 00
+[39m[38;5;10m[INFO] - rx_buffer[576] = 00
+[39m[38;5;10m[INFO] - rx_buffer[577] = 00
+[39m[38;5;10m[INFO] - rx_buffer[578] = 00
+[39m[38;5;10m[INFO] - rx_buffer[579] = 00
+[39m[38;5;10m[INFO] - rx_buffer[580] = 00
+[39m[38;5;10m[INFO] - rx_buffer[581] = 00
+[39m[38;5;10m[INFO] - rx_buffer[582] = 00
+[39m[38;5;10m[INFO] - rx_buffer[583] = 00
+[39m[38;5;10m[INFO] - rx_buffer[584] = 00
+[39m[38;5;10m[INFO] - rx_buffer[585] = 00
+[39m[38;5;10m[INFO] - rx_buffer[586] = 00
+[39m[38;5;10m[INFO] - rx_buffer[587] = 00
+[39m[38;5;10m[INFO] - rx_buffer[588] = 00
+[39m[38;5;10m[INFO] - rx_buffer[589] = 00
+[39m[38;5;10m[INFO] - rx_buffer[590] = 00
+[39m[38;5;10m[INFO] - rx_buffer[591] = 00
+[39m[38;5;10m[INFO] - rx_buffer[592] = 00
+[39m[38;5;10m[INFO] - rx_buffer[593] = 00
+[39m[38;5;10m[INFO] - rx_buffer[594] = 00
+[39m[38;5;10m[INFO] - rx_buffer[595] = 00
+[39m[38;5;10m[INFO] - rx_buffer[596] = 00
+[39m[38;5;10m[INFO] - rx_buffer[597] = 00
+[39m[38;5;10m[INFO] - rx_buffer[598] = 00
+[39m[38;5;10m[INFO] - rx_buffer[599] = 00
+[39m[38;5;10m[INFO] - rx_buffer[600] = 00
+[39m[38;5;10m[INFO] - rx_buffer[601] = 00
+[39m[38;5;10m[INFO] - rx_buffer[602] = 00
+[39m[38;5;10m[INFO] - rx_buffer[603] = 00
+[39m[38;5;10m[INFO] - rx_buffer[604] = 00
+[39m[38;5;10m[INFO] - rx_buffer[605] = 00
+[39m[38;5;10m[INFO] - rx_buffer[606] = 00
+[39m[38;5;10m[INFO] - rx_buffer[607] = 00
+[39m[38;5;10m[INFO] - rx_buffer[608] = 00
+[39m[38;5;10m[INFO] - rx_buffer[609] = 00
+[39m[38;5;10m[INFO] - rx_buffer[610] = 00
+[39m[38;5;10m[INFO] - rx_buffer[611] = 00
+[39m[38;5;10m[INFO] - rx_buffer[612] = 00
+[39m[38;5;10m[INFO] - rx_buffer[613] = 00
+[39m[38;5;10m[INFO] - rx_buffer[614] = 00
+[39m[38;5;10m[INFO] - rx_buffer[615] = 00
+[39m[38;5;10m[INFO] - rx_buffer[616] = 00
+[39m[38;5;10m[INFO] - rx_buffer[617] = 00
+[39m[38;5;10m[INFO] - rx_buffer[618] = 00
+[39m[38;5;10m[INFO] - rx_buffer[619] = 00
+[39m[38;5;10m[INFO] - rx_buffer[620] = 00
+[39m[38;5;10m[INFO] - rx_buffer[621] = 00
+[39m[38;5;10m[INFO] - rx_buffer[622] = 00
+[39m[38;5;10m[INFO] - rx_buffer[623] = 00
+[39m[38;5;10m[INFO] - rx_buffer[624] = 00
+[39m[38;5;10m[INFO] - rx_buffer[625] = 00
+[39m[38;5;10m[INFO] - rx_buffer[626] = 00
+[39m[38;5;10m[INFO] - rx_buffer[627] = 00
+[39m[38;5;10m[INFO] - rx_buffer[628] = 00
+[39m[38;5;10m[INFO] - rx_buffer[629] = 00
+[39m[38;5;10m[INFO] - rx_buffer[630] = 00
+[39m[38;5;10m[INFO] - rx_buffer[631] = 00
+[39m[38;5;10m[INFO] - rx_buffer[632] = 00
+[39m[38;5;10m[INFO] - rx_buffer[633] = 00
+[39m[38;5;10m[INFO] - rx_buffer[634] = 00
+[39m[38;5;10m[INFO] - rx_buffer[635] = 00
+[39m[38;5;10m[INFO] - rx_buffer[636] = 00
+[39m[38;5;10m[INFO] - rx_buffer[637] = 00
+[39m[38;5;10m[INFO] - rx_buffer[638] = 00
+[39m[38;5;10m[INFO] - rx_buffer[639] = 00
+[39m[38;5;10m[INFO] - rx_buffer[640] = 00
+[39m[38;5;10m[INFO] - rx_buffer[641] = 00
+[39m[38;5;10m[INFO] - rx_buffer[642] = 00
+[39m[38;5;10m[INFO] - rx_buffer[643] = 00
+[39m[38;5;10m[INFO] - rx_buffer[644] = 00
+[39m[38;5;10m[INFO] - rx_buffer[645] = 00
+[39m[38;5;10m[INFO] - rx_buffer[646] = 00
+[39m[38;5;10m[INFO] - rx_buffer[647] = 00
+[39m[38;5;10m[INFO] - rx_buffer[648] = 00
+[39m[38;5;10m[INFO] - rx_buffer[649] = 00
+[39m[38;5;10m[INFO] - rx_buffer[650] = 00
+[39m[38;5;10m[INFO] - rx_buffer[651] = 00
+[39m[38;5;10m[INFO] - rx_buffer[652] = 00
+[39m[38;5;10m[INFO] - rx_buffer[653] = 00
+[39m[38;5;10m[INFO] - rx_buffer[654] = 00
+[39m[38;5;10m[INFO] - rx_buffer[655] = 00
+[39m[38;5;10m[INFO] - rx_buffer[656] = 00
+[39m[38;5;10m[INFO] - rx_buffer[657] = 00
+[39m[38;5;10m[INFO] - rx_buffer[658] = 00
+[39m[38;5;10m[INFO] - rx_buffer[659] = 00
+[39m[38;5;10m[INFO] - rx_buffer[660] = 00
+[39m[38;5;10m[INFO] - rx_buffer[661] = 00
+[39m[38;5;10m[INFO] - rx_buffer[662] = 00
+[39m[38;5;10m[INFO] - rx_buffer[663] = 00
+[39m[38;5;10m[INFO] - rx_buffer[664] = 00
+[39m[38;5;10m[INFO] - rx_buffer[665] = 00
+[39m[38;5;10m[INFO] - rx_buffer[666] = 00
+[39m[38;5;10m[INFO] - rx_buffer[667] = 00
+[39m[38;5;10m[INFO] - rx_buffer[668] = 00
+[39m[38;5;10m[INFO] - rx_buffer[669] = 00
+[39m[38;5;10m[INFO] - rx_buffer[670] = 00
+[39m[38;5;10m[INFO] - rx_buffer[671] = 00
+[39m[38;5;10m[INFO] - rx_buffer[672] = 00
+[39m[38;5;10m[INFO] - rx_buffer[673] = 00
+[39m[38;5;10m[INFO] - rx_buffer[674] = 00
+[39m[38;5;10m[INFO] - rx_buffer[675] = 00
+[39m[38;5;10m[INFO] - rx_buffer[676] = 00
+[39m[38;5;10m[INFO] - rx_buffer[677] = 00
+[39m[38;5;10m[INFO] - rx_buffer[678] = 00
+[39m[38;5;10m[INFO] - rx_buffer[679] = 00
+[39m[38;5;10m[INFO] - rx_buffer[680] = 00
+[39m[38;5;10m[INFO] - rx_buffer[681] = 00
+[39m[38;5;10m[INFO] - rx_buffer[682] = 00
+[39m[38;5;10m[INFO] - rx_buffer[683] = 00
+[39m[38;5;10m[INFO] - rx_buffer[684] = 00
+[39m[38;5;10m[INFO] - rx_buffer[685] = 00
+[39m[38;5;10m[INFO] - rx_buffer[686] = 00
+[39m[38;5;10m[INFO] - rx_buffer[687] = 00
+[39m[38;5;10m[INFO] - rx_buffer[688] = 00
+[39m[38;5;10m[INFO] - rx_buffer[689] = 00
+[39m[38;5;10m[INFO] - rx_buffer[690] = 00
+[39m[38;5;10m[INFO] - rx_buffer[691] = 00
+[39m[38;5;10m[INFO] - rx_buffer[692] = 00
+[39m[38;5;10m[INFO] - rx_buffer[693] = 00
+[39m[38;5;10m[INFO] - rx_buffer[694] = 00
+[39m[38;5;10m[INFO] - rx_buffer[695] = 00
+[39m[38;5;10m[INFO] - rx_buffer[696] = 00
+[39m[38;5;10m[INFO] - rx_buffer[697] = 00
+[39m[38;5;10m[INFO] - rx_buffer[698] = 00
+[39m[38;5;10m[INFO] - rx_buffer[699] = 00
+[39m[38;5;10m[INFO] - rx_buffer[700] = 00
+[39m[38;5;10m[INFO] - rx_buffer[701] = 00
+[39m[38;5;10m[INFO] - rx_buffer[702] = 00
+[39m[38;5;10m[INFO] - rx_buffer[703] = 00
+[39m[38;5;10m[INFO] - rx_buffer[704] = 00
+[39m[38;5;10m[INFO] - rx_buffer[705] = 00
+[39m[38;5;10m[INFO] - rx_buffer[706] = 00
+[39m[38;5;10m[INFO] - rx_buffer[707] = 00
+[39m[38;5;10m[INFO] - rx_buffer[708] = 00
+[39m[38;5;10m[INFO] - rx_buffer[709] = 00
+[39m[38;5;10m[INFO] - rx_buffer[710] = 00
+[39m[38;5;10m[INFO] - rx_buffer[711] = 00
+[39m[38;5;10m[INFO] - rx_buffer[712] = 00
+[39m[38;5;10m[INFO] - rx_buffer[713] = 00
+[39m[38;5;10m[INFO] - rx_buffer[714] = 00
+[39m[38;5;10m[INFO] - rx_buffer[715] = 00
+[39m[38;5;10m[INFO] - rx_buffer[716] = 00
+[39m[38;5;10m[INFO] - rx_buffer[717] = 00
+[39m[38;5;10m[INFO] - rx_buffer[718] = 00
+[39m[38;5;10m[INFO] - rx_buffer[719] = 00
+[39m[38;5;10m[INFO] - rx_buffer[720] = 00
+[39m[38;5;10m[INFO] - rx_buffer[721] = 00
+[39m[38;5;10m[INFO] - rx_buffer[722] = 00
+[39m[38;5;10m[INFO] - rx_buffer[723] = 00
+[39m[38;5;10m[INFO] - rx_buffer[724] = 00
+[39m[38;5;10m[INFO] - rx_buffer[725] = 00
+[39m[38;5;10m[INFO] - rx_buffer[726] = 00
+[39m[38;5;10m[INFO] - rx_buffer[727] = 00
+[39m[38;5;10m[INFO] - rx_buffer[728] = 00
+[39m[38;5;10m[INFO] - rx_buffer[729] = 00
+[39m[38;5;10m[INFO] - rx_buffer[730] = 00
+[39m[38;5;10m[INFO] - rx_buffer[731] = 00
+[39m[38;5;10m[INFO] - rx_buffer[732] = 00
+[39m[38;5;10m[INFO] - rx_buffer[733] = 00
+[39m[38;5;10m[INFO] - rx_buffer[734] = 00
+[39m[38;5;10m[INFO] - rx_buffer[735] = 00
+[39m[38;5;10m[INFO] - rx_buffer[736] = 00
+[39m[38;5;10m[INFO] - rx_buffer[737] = 00
+[39m[38;5;10m[INFO] - rx_buffer[738] = 00
+[39m[38;5;10m[INFO] - rx_buffer[739] = 00
+[39m[38;5;10m[INFO] - rx_buffer[740] = 00
+[39m[38;5;10m[INFO] - rx_buffer[741] = 00
+[39m[38;5;10m[INFO] - rx_buffer[742] = 00
+[39m[38;5;10m[INFO] - rx_buffer[743] = 00
+[39m[38;5;10m[INFO] - rx_buffer[744] = 00
+[39m[38;5;10m[INFO] - rx_buffer[745] = 00
+[39m[38;5;10m[INFO] - rx_buffer[746] = 00
+[39m[38;5;10m[INFO] - rx_buffer[747] = 00
+[39m[38;5;10m[INFO] - rx_buffer[748] = 00
+[39m[38;5;10m[INFO] - rx_buffer[749] = 00
+[39m[38;5;10m[INFO] - rx_buffer[750] = 00
+[39m[38;5;10m[INFO] - rx_buffer[751] = 00
+[39m[38;5;10m[INFO] - rx_buffer[752] = 00
+[39m[38;5;10m[INFO] - rx_buffer[753] = 00
+[39m[38;5;10m[INFO] - rx_buffer[754] = 00
+[39m[38;5;10m[INFO] - rx_buffer[755] = 00
+[39m[38;5;10m[INFO] - rx_buffer[756] = 00
+[39m[38;5;10m[INFO] - rx_buffer[757] = 00
+[39m[38;5;10m[INFO] - rx_buffer[758] = 00
+[39m[38;5;10m[INFO] - rx_buffer[759] = 00
+[39m[38;5;10m[INFO] - rx_buffer[760] = 00
+[39m[38;5;10m[INFO] - rx_buffer[761] = 00
+[39m[38;5;10m[INFO] - rx_buffer[762] = 00
+[39m[38;5;10m[INFO] - rx_buffer[763] = 00
+[39m[38;5;10m[INFO] - rx_buffer[764] = 00
+[39m[38;5;10m[INFO] - rx_buffer[765] = 00
+[39m[38;5;10m[INFO] - rx_buffer[766] = 00
+[39m[38;5;10m[INFO] - rx_buffer[767] = 00
+[39m[38;5;10m[INFO] - rx_buffer[768] = 00
+[39m[38;5;10m[INFO] - rx_buffer[769] = 00
+[39m[38;5;10m[INFO] - rx_buffer[770] = 00
+[39m[38;5;10m[INFO] - rx_buffer[771] = 00
+[39m[38;5;10m[INFO] - rx_buffer[772] = 00
+[39m[38;5;10m[INFO] - rx_buffer[773] = 00
+[39m[38;5;10m[INFO] - rx_buffer[774] = 00
+[39m[38;5;10m[INFO] - rx_buffer[775] = 00
+[39m[38;5;10m[INFO] - rx_buffer[776] = 00
+[39m[38;5;10m[INFO] - rx_buffer[777] = 00
+[39m[38;5;10m[INFO] - rx_buffer[778] = 00
+[39m[38;5;10m[INFO] - rx_buffer[779] = 00
+[39m[38;5;10m[INFO] - rx_buffer[780] = 00
+[39m[38;5;10m[INFO] - rx_buffer[781] = 00
+[39m[38;5;10m[INFO] - rx_buffer[782] = 00
+[39m[38;5;10m[INFO] - rx_buffer[783] = 00
+[39m[38;5;10m[INFO] - rx_buffer[784] = 00
+[39m[38;5;10m[INFO] - rx_buffer[785] = 00
+[39m[38;5;10m[INFO] - rx_buffer[786] = 00
+[39m[38;5;10m[INFO] - rx_buffer[787] = 00
+[39m[38;5;10m[INFO] - rx_buffer[788] = 00
+[39m[38;5;10m[INFO] - rx_buffer[789] = 00
+[39m[38;5;10m[INFO] - rx_buffer[790] = 00
+[39m[38;5;10m[INFO] - rx_buffer[791] = 00
+[39m[38;5;10m[INFO] - rx_buffer[792] = 00
+[39m[38;5;10m[INFO] - rx_buffer[793] = 00
+[39m[38;5;10m[INFO] - rx_buffer[794] = 00
+[39m[38;5;10m[INFO] - rx_buffer[795] = 00
+[39m[38;5;10m[INFO] - rx_buffer[796] = 00
+[39m[38;5;10m[INFO] - rx_buffer[797] = 00
+[39m[38;5;10m[INFO] - rx_buffer[798] = 00
+[39m[38;5;10m[INFO] - rx_buffer[799] = 00
+[39m[38;5;10m[INFO] - rx_buffer[800] = 00
+[39m[38;5;10m[INFO] - rx_buffer[801] = 00
+[39m[38;5;10m[INFO] - rx_buffer[802] = 00
+[39m[38;5;10m[INFO] - rx_buffer[803] = 00
+[39m[38;5;10m[INFO] - rx_buffer[804] = 00
+[39m[38;5;10m[INFO] - rx_buffer[805] = 00
+[39m[38;5;10m[INFO] - rx_buffer[806] = 00
+[39m[38;5;10m[INFO] - rx_buffer[807] = 00
+[39m[38;5;10m[INFO] - rx_buffer[808] = 00
+[39m[38;5;10m[INFO] - rx_buffer[809] = 00
+[39m[38;5;10m[INFO] - rx_buffer[810] = 00
+[39m[38;5;10m[INFO] - rx_buffer[811] = 00
+[39m[38;5;10m[INFO] - rx_buffer[812] = 00
+[39m[38;5;10m[INFO] - rx_buffer[813] = 00
+[39m[38;5;10m[INFO] - rx_buffer[814] = 00
+[39m[38;5;10m[INFO] - rx_buffer[815] = 00
+[39m[38;5;10m[INFO] - rx_buffer[816] = 00
+[39m[38;5;10m[INFO] - rx_buffer[817] = 00
+[39m[38;5;10m[INFO] - rx_buffer[818] = 00
+[39m[38;5;10m[INFO] - rx_buffer[819] = 00
+[39m[38;5;10m[INFO] - rx_buffer[820] = 00
+[39m[38;5;10m[INFO] - rx_buffer[821] = 00
+[39m[38;5;10m[INFO] - rx_buffer[822] = 00
+[39m[38;5;10m[INFO] - rx_buffer[823] = 00
+[39m[38;5;10m[INFO] - rx_buffer[824] = 00
+[39m[38;5;10m[INFO] - rx_buffer[825] = 00
+[39m[38;5;10m[INFO] - rx_buffer[826] = 00
+[39m[38;5;10m[INFO] - rx_buffer[827] = 00
+[39m[38;5;10m[INFO] - rx_buffer[828] = 00
+[39m[38;5;10m[INFO] - rx_buffer[829] = 00
+[39m[38;5;10m[INFO] - rx_buffer[830] = 00
+[39m[38;5;10m[INFO] - rx_buffer[831] = 00
+[39m[38;5;10m[INFO] - rx_buffer[832] = 00
+[39m[38;5;10m[INFO] - rx_buffer[833] = 00
+[39m[38;5;10m[INFO] - rx_buffer[834] = 00
+[39m[38;5;10m[INFO] - rx_buffer[835] = 00
+[39m[38;5;10m[INFO] - rx_buffer[836] = 00
+[39m[38;5;10m[INFO] - rx_buffer[837] = 00
+[39m[38;5;10m[INFO] - rx_buffer[838] = 00
+[39m[38;5;10m[INFO] - rx_buffer[839] = 00
+[39m[38;5;10m[INFO] - rx_buffer[840] = 00
+[39m[38;5;10m[INFO] - rx_buffer[841] = 00
+[39m[38;5;10m[INFO] - rx_buffer[842] = 00
+[39m[38;5;10m[INFO] - rx_buffer[843] = 00
+[39m[38;5;10m[INFO] - rx_buffer[844] = 00
+[39m[38;5;10m[INFO] - rx_buffer[845] = 00
+[39m[38;5;10m[INFO] - rx_buffer[846] = 00
+[39m[38;5;10m[INFO] - rx_buffer[847] = 00
+[39m[38;5;10m[INFO] - rx_buffer[848] = 00
+[39m[38;5;10m[INFO] - rx_buffer[849] = 00
+[39m[38;5;10m[INFO] - rx_buffer[850] = 00
+[39m[38;5;10m[INFO] - rx_buffer[851] = 00
+[39m[38;5;10m[INFO] - rx_buffer[852] = 00
+[39m[38;5;10m[INFO] - rx_buffer[853] = 00
+[39m[38;5;10m[INFO] - rx_buffer[854] = 00
+[39m[38;5;10m[INFO] - rx_buffer[855] = 00
+[39m[38;5;10m[INFO] - rx_buffer[856] = 00
+[39m[38;5;10m[INFO] - rx_buffer[857] = 00
+[39m[38;5;10m[INFO] - rx_buffer[858] = 00
+[39m[38;5;10m[INFO] - rx_buffer[859] = 00
+[39m[38;5;10m[INFO] - rx_buffer[860] = 00
+[39m[38;5;10m[INFO] - rx_buffer[861] = 00
+[39m[38;5;10m[INFO] - rx_buffer[862] = 00
+[39m[38;5;10m[INFO] - rx_buffer[863] = 00
+[39m[38;5;10m[INFO] - rx_buffer[864] = 00
+[39m[38;5;10m[INFO] - rx_buffer[865] = 00
+[39m[38;5;10m[INFO] - rx_buffer[866] = 00
+[39m[38;5;10m[INFO] - rx_buffer[867] = 00
+[39m[38;5;10m[INFO] - rx_buffer[868] = 00
+[39m[38;5;10m[INFO] - rx_buffer[869] = 00
+[39m[38;5;10m[INFO] - rx_buffer[870] = 00
+[39m[38;5;10m[INFO] - rx_buffer[871] = 00
+[39m[38;5;10m[INFO] - rx_buffer[872] = 00
+[39m[38;5;10m[INFO] - rx_buffer[873] = 00
+[39m[38;5;10m[INFO] - rx_buffer[874] = 00
+[39m[38;5;10m[INFO] - rx_buffer[875] = 00
+[39m[38;5;10m[INFO] - rx_buffer[876] = 00
+[39m[38;5;10m[INFO] - rx_buffer[877] = 00
+[39m[38;5;10m[INFO] - rx_buffer[878] = 00
+[39m[38;5;10m[INFO] - rx_buffer[879] = 00
+[39m[38;5;10m[INFO] - rx_buffer[880] = 00
+[39m[38;5;10m[INFO] - rx_buffer[881] = 00
+[39m[38;5;10m[INFO] - rx_buffer[882] = 00
+[39m[38;5;10m[INFO] - rx_buffer[883] = 00
+[39m[38;5;10m[INFO] - rx_buffer[884] = 00
+[39m[38;5;10m[INFO] - rx_buffer[885] = 00
+[39m[38;5;10m[INFO] - rx_buffer[886] = 00
+[39m[38;5;10m[INFO] - rx_buffer[887] = 00
+[39m[38;5;10m[INFO] - rx_buffer[888] = 00
+[39m[38;5;10m[INFO] - rx_buffer[889] = 00
+[39m[38;5;10m[INFO] - rx_buffer[890] = 00
+[39m[38;5;10m[INFO] - rx_buffer[891] = 00
+[39m[38;5;10m[INFO] - rx_buffer[892] = 00
+[39m[38;5;10m[INFO] - rx_buffer[893] = 00
+[39m[38;5;10m[INFO] - rx_buffer[894] = 00
+[39m[38;5;10m[INFO] - rx_buffer[895] = 00
+[39m[38;5;10m[INFO] - rx_buffer[896] = 00
+[39m[38;5;10m[INFO] - rx_buffer[897] = 00
+[39m[38;5;10m[INFO] - rx_buffer[898] = 00
+[39m[38;5;10m[INFO] - rx_buffer[899] = 00
+[39m[38;5;10m[INFO] - rx_buffer[900] = 00
+[39m[38;5;10m[INFO] - rx_buffer[901] = 00
+[39m[38;5;10m[INFO] - rx_buffer[902] = 00
+[39m[38;5;10m[INFO] - rx_buffer[903] = 00
+[39m[38;5;10m[INFO] - rx_buffer[904] = 00
+[39m[38;5;10m[INFO] - rx_buffer[905] = 00
+[39m[38;5;10m[INFO] - rx_buffer[906] = 00
+[39m[38;5;10m[INFO] - rx_buffer[907] = 00
+[39m[38;5;10m[INFO] - rx_buffer[908] = 00
+[39m[38;5;10m[INFO] - rx_buffer[909] = 00
+[39m[38;5;10m[INFO] - rx_buffer[910] = 00
+[39m[38;5;10m[INFO] - rx_buffer[911] = 00
+[39m[38;5;10m[INFO] - rx_buffer[912] = 00
+[39m[38;5;10m[INFO] - rx_buffer[913] = 00
+[39m[38;5;10m[INFO] - rx_buffer[914] = 00
+[39m[38;5;10m[INFO] - rx_buffer[915] = 00
+[39m[38;5;10m[INFO] - rx_buffer[916] = 00
+[39m[38;5;10m[INFO] - rx_buffer[917] = 00
+[39m[38;5;10m[INFO] - rx_buffer[918] = 00
+[39m[38;5;10m[INFO] - rx_buffer[919] = 00
+[39m[38;5;10m[INFO] - rx_buffer[920] = 00
+[39m[38;5;10m[INFO] - rx_buffer[921] = 00
+[39m[38;5;10m[INFO] - rx_buffer[922] = 00
+[39m[38;5;10m[INFO] - rx_buffer[923] = 00
+[39m[38;5;10m[INFO] - rx_buffer[924] = 00
+[39m[38;5;10m[INFO] - rx_buffer[925] = 00
+[39m[38;5;10m[INFO] - rx_buffer[926] = 00
+[39m[38;5;10m[INFO] - rx_buffer[927] = 00
+[39m[38;5;10m[INFO] - rx_buffer[928] = 00
+[39m[38;5;10m[INFO] - rx_buffer[929] = 00
+[39m[38;5;10m[INFO] - rx_buffer[930] = 00
+[39m[38;5;10m[INFO] - rx_buffer[931] = 00
+[39m[38;5;10m[INFO] - rx_buffer[932] = 00
+[39m[38;5;10m[INFO] - rx_buffer[933] = 00
+[39m[38;5;10m[INFO] - rx_buffer[934] = 00
+[39m[38;5;10m[INFO] - rx_buffer[935] = 00
+[39m[38;5;10m[INFO] - rx_buffer[936] = 00
+[39m[38;5;10m[INFO] - rx_buffer[937] = 00
+[39m[38;5;10m[INFO] - rx_buffer[938] = 00
+[39m[38;5;10m[INFO] - rx_buffer[939] = 00
+[39m[38;5;10m[INFO] - rx_buffer[940] = 00
+[39m[38;5;10m[INFO] - rx_buffer[941] = 00
+[39m[38;5;10m[INFO] - rx_buffer[942] = 00
+[39m[38;5;10m[INFO] - rx_buffer[943] = 00
+[39m[38;5;10m[INFO] - rx_buffer[944] = 00
+[39m[38;5;10m[INFO] - rx_buffer[945] = 00
+[39m[38;5;10m[INFO] - rx_buffer[946] = 00
+[39m[38;5;10m[INFO] - rx_buffer[947] = 00
+[39m[38;5;10m[INFO] - rx_buffer[948] = 00
+[39m[38;5;10m[INFO] - rx_buffer[949] = 00
+[39m[38;5;10m[INFO] - rx_buffer[950] = 00
+[39m[38;5;10m[INFO] - rx_buffer[951] = 00
+[39m[38;5;10m[INFO] - rx_buffer[952] = 00
+[39m[38;5;10m[INFO] - rx_buffer[953] = 00
+[39m[38;5;10m[INFO] - rx_buffer[954] = 00
+[39m[38;5;10m[INFO] - rx_buffer[955] = 00
+[39m[38;5;10m[INFO] - rx_buffer[956] = 00
+[39m[38;5;10m[INFO] - rx_buffer[957] = 00
+[39m[38;5;10m[INFO] - rx_buffer[958] = 00
+[39m[38;5;10m[INFO] - rx_buffer[959] = 00
+[39m[38;5;10m[INFO] - rx_buffer[960] = 00
+[39m[38;5;10m[INFO] - rx_buffer[961] = 00
+[39m[38;5;10m[INFO] - rx_buffer[962] = 00
+[39m[38;5;10m[INFO] - rx_buffer[963] = 00
+[39m[38;5;10m[INFO] - rx_buffer[964] = 00
+[39m[38;5;10m[INFO] - rx_buffer[965] = 00
+[39m[38;5;10m[INFO] - rx_buffer[966] = 00
+[39m[38;5;10m[INFO] - rx_buffer[967] = 00
+[39m[38;5;10m[INFO] - rx_buffer[968] = 00
+[39m[38;5;10m[INFO] - rx_buffer[969] = 00
+[39m[38;5;10m[INFO] - rx_buffer[970] = 00
+[39m[38;5;10m[INFO] - rx_buffer[971] = 00
+[39m[38;5;10m[INFO] - rx_buffer[972] = 00
+[39m[38;5;10m[INFO] - rx_buffer[973] = 00
+[39m[38;5;10m[INFO] - rx_buffer[974] = 00
+[39m[38;5;10m[INFO] - rx_buffer[975] = 00
+[39m[38;5;10m[INFO] - rx_buffer[976] = 00
+[39m[38;5;10m[INFO] - rx_buffer[977] = 00
+[39m[38;5;10m[INFO] - rx_buffer[978] = 00
+[39m[38;5;10m[INFO] - rx_buffer[979] = 00
+[39m[38;5;10m[INFO] - rx_buffer[980] = 00
+[39m[38;5;10m[INFO] - rx_buffer[981] = 00
+[39m[38;5;10m[INFO] - rx_buffer[982] = 00
+[39m[38;5;10m[INFO] - rx_buffer[983] = 00
+[39m[38;5;10m[INFO] - rx_buffer[984] = 00
+[39m[38;5;10m[INFO] - rx_buffer[985] = 00
+[39m[38;5;10m[INFO] - rx_buffer[986] = 00
+[39m[38;5;10m[INFO] - rx_buffer[987] = 00
+[39m[38;5;10m[INFO] - rx_buffer[988] = 00
+[39m[38;5;10m[INFO] - rx_buffer[989] = 00
+[39m[38;5;10m[INFO] - rx_buffer[990] = 00
+[39m[38;5;10m[INFO] - rx_buffer[991] = 00
+[39m[38;5;10m[INFO] - rx_buffer[992] = 00
+[39m[38;5;10m[INFO] - rx_buffer[993] = 00
+[39m[38;5;10m[INFO] - rx_buffer[994] = 00
+[39m[38;5;10m[INFO] - rx_buffer[995] = 00
+[39m[38;5;10m[INFO] - rx_buffer[996] = 00
+[39m[38;5;10m[INFO] - rx_buffer[997] = 00
+[39m[38;5;10m[INFO] - rx_buffer[998] = 00
+[39m[38;5;10m[INFO] - rx_buffer[999] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1000] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1001] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1002] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1003] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1004] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1005] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1006] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1007] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1008] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1009] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1010] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1011] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1012] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1013] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1014] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1015] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1016] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1017] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1018] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1019] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1020] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1021] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1022] = 00
+[39m[38;5;10m[INFO] - rx_buffer[1023] = 00
+[39m
