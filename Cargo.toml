@@ -65,11 +65,13 @@ esp-hal = { version = "0.16.1", features = [
     "embassy-executor-thread",
     "async",
     "debug",
-], path = "/home/chiro/projects/esp-vfd-clock/esp-hal/esp-hal" }
+    "embedded-hal-02",
+], path = "esp-hal/esp-hal" }
 esp-println = { version = "0.9.1" }
 rtt-target = "0.5.0"
-esp32c3 = { version = "0.21.0", features = [
+esp32c3 = { git = "https://github.com/esp-rs/esp-pacs", rev = "f6b5e6b", features = [
     "critical-section",
+    "rt",
 ], optional = true }
 
 [target.'cfg(not(target_arch = "x86_64"))'.dependencies]

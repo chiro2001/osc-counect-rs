@@ -15,7 +15,7 @@ use embedded_graphics::prelude::Primitive;
 use embedded_graphics::primitives::Rectangle;
 use embedded_graphics::Drawable;
 use embedded_graphics::{geometry::Point, pixelcolor::RgbColor};
-use embedded_hal::digital::InputPin;
+use embedded_hal::{delay::DelayNs, digital::InputPin};
 use esp_backtrace as _;
 use esp_hal::dma::{RegisterAccess, TxPrivate};
 use esp_hal::gpio::OutputPin;
@@ -74,7 +74,7 @@ async fn main(spawner: Spawner) {
     let system = peripherals.SYSTEM.split();
     let clocks = &*make_static!(ClockControl::max(system.clock_control).freeze());
 
-    let timg0 = TimerGroup::new(peripherals.TIMG0, clocks);
+    let timg0 = TimerGroup::new_async(peripherals.TIMG0, clocks);
     embassy::init(clocks, timg0);
 
     rtt_init_print!();
@@ -142,17 +142,20 @@ async fn main(spawner: Spawner) {
     // return raw readings in some unspecified scale.
     //
     // type AdcCal = ();
-    // type AdcCal = esp_hal::adc::AdcCalBasic<ADC1>;
-    type AdcCal = esp_hal::adc::AdcCalLine<esp_hal::peripherals::ADC1>;
-    // type AdcCal = esp_hal::adc::AdcCalCurve<esp_hal::peripherals::ADC1>;
+    // type AdcCal = esp_hal::analog::adc::AdcCalBasic<ADC1>;
+    type AdcCal = esp_hal::analog::adc::AdcCalLine<esp_hal::peripherals::ADC1>;
+    // type AdcCal = esp_hal::analog::adc::AdcCalCurve<esp_hal::peripherals::ADC1>;
 
     let analog_pin = io.pins.gpio0.into_analog();
 
-    let mut adc1_config = esp_hal::adc::AdcConfig::new();
-    let _adc1_pin = adc1_config
-        .enable_pin_with_cal::<_, AdcCal>(analog_pin, esp_hal::adc::Attenuation::Attenuation11dB);
+    let mut adc1_config = esp_hal::analog::adc::AdcConfig::new();
+    let _adc1_pin = adc1_config.enable_pin_with_cal::<_, AdcCal>(
+        analog_pin,
+        esp_hal::analog::adc::Attenuation::Attenuation11dB,
+    );
     // to enable clocks
-    let _adc1 = esp_hal::adc::ADC::<esp_hal::peripherals::ADC1>::new(peripherals.ADC1, adc1_config);
+    let _adc1 =
+        esp_hal::analog::adc::ADC::<esp_hal::peripherals::ADC1>::new(peripherals.ADC1, adc1_config);
 
     const ADC_LL_CLKM_DIV_NUM_DEFAULT: u8 = 15;
     const ADC_LL_CLKM_DIV_B_DEFAULT: u8 = 1;
@@ -179,13 +182,13 @@ async fn main(spawner: Spawner) {
             .clear_bit()
     });
     // setup clocks
-    saradc.clkm_conf().modify(|_, w| {
+    saradc.clkm_conf().modify(|_, w| unsafe {
         w.clkm_div_a()
-            .variant(ADC_LL_CLKM_DIV_A_DEFAULT)
+            .bits(ADC_LL_CLKM_DIV_A_DEFAULT)
             .clkm_div_b()
-            .variant(ADC_LL_CLKM_DIV_B_DEFAULT)
+            .bits(ADC_LL_CLKM_DIV_B_DEFAULT)
             .clkm_div_num()
-            .variant(ADC_LL_CLKM_DIV_NUM_DEFAULT)
+            .bits(ADC_LL_CLKM_DIV_NUM_DEFAULT)
             .clk_en()
             .set_bit()
     });
@@ -204,7 +207,7 @@ async fn main(spawner: Spawner) {
     let pattern_len = 1;
     saradc
         .ctrl()
-        .modify(|_, w| w.saradc_sar_patt_len().variant(pattern_len as u8 - 1));
+        .modify(|_, w| unsafe { w.saradc_sar_patt_len().bits(pattern_len as u8 - 1) });
     {
         // setup patterns
         // typedef struct {
@@ -240,12 +243,12 @@ async fn main(spawner: Spawner) {
             .write(|w| unsafe { w.saradc_sar_patt_tab1().bits(tab) });
         defmt::info!("set tab to {:x}", tab);
     }
-    saradc.ctrl2().modify(|_, w| {
+    saradc.ctrl2().modify(|_, w| unsafe {
         // w.saradc_meas_num_limit().set_bit();
         w.saradc_meas_num_limit().clear_bit();
-        w.saradc_max_meas_num().variant(10);
+        w.saradc_max_meas_num().bits(10);
         // dump
-        w.saradc_timer_target().variant(0b111111111011);
+        w.saradc_timer_target().bits(0b111111111011);
         w
     });
     // // set sample cycle
@@ -288,9 +291,9 @@ async fn main(spawner: Spawner) {
     // set adc eof
     const SOC_ADC_DIGI_DATA_BYTES_PER_CONV: u16 = 4;
     let eof: u16 = BUFFER_LEN as u16;
-    saradc.dma_conf().modify(|_, w| {
+    saradc.dma_conf().modify(|_, w| unsafe {
         w.apb_adc_eof_num()
-            .variant(eof / SOC_ADC_DIGI_DATA_BYTES_PER_CONV)
+            .bits(eof / SOC_ADC_DIGI_DATA_BYTES_PER_CONV)
     });
     // start dma
     rx.prepare_transfer_without_start(
@@ -433,20 +436,24 @@ impl AdcDigiOutputData {
 }
 
 struct AdcDriver<'d, A, P, C> {
-    adc: esp_hal::adc::ADC<'d, A>,
-    pin: esp_hal::adc::AdcPin<P, A, C>,
+    adc: esp_hal::analog::adc::ADC<'d, A>,
+    pin: esp_hal::analog::adc::AdcPin<P, A, C>,
 }
 impl<'d, A, P, C> AdcDriver<'d, A, P, C> {
-    pub fn new(adc: esp_hal::adc::ADC<'d, A>, pin: esp_hal::adc::AdcPin<P, A, C>) -> Self {
+    pub fn new(
+        adc: esp_hal::analog::adc::ADC<'d, A>,
+        pin: esp_hal::analog::adc::AdcPin<P, A, C>,
+    ) -> Self {
         Self { adc, pin }
     }
 }
 impl<'d, A, P, C> AdcDevice for AdcDriver<'d, A, P, C>
 where
-    A: esp_hal::adc::RegisterAccess,
-    P: embedded_hal_02::adc::Channel<A, ID = u8>,
-    C: esp_hal::adc::AdcCalScheme<A>,
-    esp_hal::adc::ADC<'d, A>: embedded_hal_02::adc::OneShot<A, u16, esp_hal::adc::AdcPin<P, A, C>>,
+    A: esp_hal::analog::adc::RegisterAccess,
+    P: embedded_hal_02::adc::Channel<A, ID = u8> + esp_hal::analog::adc::AdcChannel,
+    C: esp_hal::analog::adc::AdcCalScheme<A>,
+    esp_hal::analog::adc::ADC<'d, A>:
+        embedded_hal_02::adc::OneShot<A, u16, esp_hal::analog::adc::AdcPin<P, A, C>>,
 {
     async fn read(
         &mut self,
@@ -456,7 +463,7 @@ where
         let mut count = 0;
         let mut it = buf.iter_mut();
         while let Some(data) = it.next() {
-            let mv = nb::block!(self.adc.read(&mut self.pin))
+            let mv = nb::block!(self.adc.read_oneshot(&mut self.pin))
                 .map_err(|_| app::AppError::AdcReadError)?;
             // defmt::info!("ADC: {} mv", mv);
             *data = mv as f32 / 1000.0;
@@ -466,17 +473,20 @@ where
     }
 }
 struct AdcDmaDriver<'d, A, P, C> {
-    adc: esp_hal::adc::ADC<'d, A>,
-    pin: esp_hal::adc::AdcPin<P, A, C>,
+    adc: esp_hal::analog::adc::ADC<'d, A>,
+    pin: esp_hal::analog::adc::AdcPin<P, A, C>,
 }
 impl<'d, A, P, C> AdcDmaDriver<'d, A, P, C> {
-    pub fn new(adc: esp_hal::adc::ADC<'d, A>, pin: esp_hal::adc::AdcPin<P, A, C>) -> Self {
+    pub fn new(
+        adc: esp_hal::analog::adc::ADC<'d, A>,
+        pin: esp_hal::analog::adc::AdcPin<P, A, C>,
+    ) -> Self {
         Self { adc, pin }
     }
 }
 impl<'d, A, P, C> AdcDevice for AdcDmaDriver<'d, A, P, C>
 where
-    A: esp_hal::adc::RegisterAccess,
+    A: esp_hal::analog::adc::RegisterAccess,
     P: embedded_hal_02::adc::Channel<A, ID = u8>,
 {
     async fn read(
