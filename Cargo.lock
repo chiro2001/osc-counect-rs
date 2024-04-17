@@ -2112,6 +2112,7 @@ dependencies = [
  "esp-backtrace",
  "esp-hal",
  "esp-println",
+ "esp32c3",
  "format_no_std",
  "fugit",
  "futures",
