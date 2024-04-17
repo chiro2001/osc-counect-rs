@@ -169,7 +169,6 @@ async fn main(spawner: Spawner) {
         &mut rx_descriptors,
         esp_hal::dma::DmaPriority::Priority0,
     );
-    use esp_hal::dma::RxPrivate;
 
     let mut adc1 = adc1.with_dma(dma_channel);
     for _ in 0..2 {
@@ -177,7 +176,9 @@ async fn main(spawner: Spawner) {
             .dma_read(&adc1_pin, 80.kHz(), &mut rx_buffer, clocks)
             .unwrap();
 
-        transfer.wait().unwrap();
+        // transfer.wait().unwrap();
+        info!("waiting for DMA transfer to complete");
+        transfer.await.unwrap();
 
         info!("DMA done");
         rx_buffer
