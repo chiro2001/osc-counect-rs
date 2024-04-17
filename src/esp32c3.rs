@@ -154,48 +154,6 @@ async fn main(spawner: Spawner) {
     // to enable clocks
     let _adc1 = esp_hal::adc::ADC::<esp_hal::peripherals::ADC1>::new(peripherals.ADC1, adc1_config);
 
-    // const DR_REG_SYSTEM_BASE: u32 = 0x600c0000;
-    // const SYSTEM_PERIP_CLK_EN0_REG: u32 = DR_REG_SYSTEM_BASE + 0x10;
-    // const SYSTEM_PERIP_RST_EN0_REG: u32 = DR_REG_SYSTEM_BASE + 0x18;
-    // const APB_SARADC_CLK_EN_M: u32 = 0x00000001 << 28;
-    // const DR_REG_APB_SARADC_BASE: u32 = 0x60040000;
-    // const APB_SARADC_APB_ADC_CLKM_CONF_REG: u32 = DR_REG_APB_SARADC_BASE + 0x54;
-    // const APB_SARADC_REG_CLK_SEL_V: u32 = 0x00000003;
-    // const APB_SARADC_REG_CLK_SEL_S: u32 = 21;
-    // const APB_SARADC_CTRL_REG: u32 = DR_REG_APB_SARADC_BASE;
-    // const APB_SARADC_SAR_PATT_P_CLEAR_M: u32 = 0x00000001 << 23;
-    // const APB_SARADC_SAR_PATT_LEN_V: u32 = 0x00000007;
-    // const APB_SARADC_SAR_PATT_LEN_S: u32 = 15;
-    // const APB_SARADC_SAR_CLK_GATED_M: u32 = 0x00000001 << 6;
-    // const APB_SARADC_XPD_SAR_FORCE_V: u32 = 0x00000003;
-    // const APB_SARADC_XPD_SAR_FORCE_S: u32 = 27;
-    // const APB_SARADC_SAR_CLK_DIV_V: u32 = 0x000000FF;
-    // const APB_SARADC_SAR_CLK_DIV_S: u32 = 7;
-    // const APB_SARADC_SAR_PATT_TAB1_REG: u32 = DR_REG_APB_SARADC_BASE + 0x18;
-    // const APB_SARADC_SAR_PATT_TAB2_REG: u32 = DR_REG_APB_SARADC_BASE + 0x1c;
-    // const APB_SARADC_SAR_PATT_TAB1_V: u32 = 0x00FFFFFF;
-    // const APB_SARADC_SAR_PATT_TAB1_S: u32 = 0;
-    // const APB_SARADC_SAR_PATT_TAB2_V: u32 = 0x00FFFFFF;
-    // const APB_SARADC_SAR_PATT_TAB2_S: u32 = 0;
-    // const APB_SARADC_CTRL2_REG: u32 = DR_REG_APB_SARADC_BASE + 0x4;
-    // const APB_SARADC_TIMER_TARGET_V: u32 = 0x00000FFF;
-    // const APB_SARADC_TIMER_TARGET_S: u32 = 12;
-    // const APB_SARADC_REG_CLKM_DIV_NUM_V: u32 = 0x000000FF;
-    // const APB_SARADC_REG_CLKM_DIV_NUM_S: u32 = 0;
-    // const APB_SARADC_MEAS_NUM_LIMIT: u32 = 1 << 0;
-    // const APB_SARADC_DMA_CONF_REG: u32 = DR_REG_APB_SARADC_BASE + 0x50;
-    // const APB_SARADC_APB_ADC_TRANS_M: u32 = 0x00000001 << 31;
-    // const APB_SARADC_TIMER_EN: u32 = 1 << 24;
-    // const APB_SARADC_FSM_WAIT_REG: u32 = DR_REG_APB_SARADC_BASE + 0xc;
-    // const APB_SARADC_RSTB_WAIT_V: u32 = 0x000000FF;
-    // const APB_SARADC_RSTB_WAIT_S: u32 = 8;
-    // const APB_SARADC_XPD_WAIT_V: u32 = 0x000000FF;
-    // const APB_SARADC_XPD_WAIT_S: u32 = 0;
-    // const APB_SARADC_STANDBY_WAIT_V: u32 = 0x000000FF;
-    // const APB_SARADC_STANDBY_WAIT_S: u32 = 16;
-    // const SYSTEM_APB_SARADC_RST_M: u32 = 0x00000001 << 28;
-    // const SYSTEM_APB_SARADC_CLK_EN_M: u32 = 0x00000001 << 28;
-
     const ADC_LL_CLKM_DIV_NUM_DEFAULT: u8 = 15;
     const ADC_LL_CLKM_DIV_B_DEFAULT: u8 = 1;
     const ADC_LL_CLKM_DIV_A_DEFAULT: u8 = 0;
@@ -208,19 +166,6 @@ async fn main(spawner: Spawner) {
     //     / sample_freq_hz;
 
     // info!("interval: {}", interval);
-
-    // reg_set_field(
-    //     APB_SARADC_CTRL2_REG,
-    //     APB_SARADC_TIMER_TARGET_V,
-    //     APB_SARADC_TIMER_TARGET_S,
-    //     interval,
-    // );
-    // reg_set_field(
-    //     APB_SARADC_APB_ADC_CLKM_CONF_REG,
-    //     APB_SARADC_REG_CLKM_DIV_NUM_V,
-    //     APB_SARADC_REG_CLKM_DIV_NUM_S,
-    //     1,
-    // );
 
     let saradc = &*unsafe { pac::APB_SARADC::steal() };
     // stop adc
@@ -279,20 +224,10 @@ async fn main(spawner: Spawner) {
         //         uint8_t val;
         //     };
         // } __attribute__((packed)) adc_ll_digi_pattern_table_t;
-        let pattern = [0u32, 0, 0, 12];
-        // pattern.val = (table.atten & 0x3) | ((table.channel & 0x7) << 2) | ((table.unit & 0x1) << 5);
+        let pattern = [3u32, 0, 0, 12];
         let pattern_val =
             (pattern[0] & 0x3) | ((pattern[1] & 0x7) << 2) | ((pattern[2] & 0x1) << 5);
         let pattern_index = 0;
-        // uint32_t tab;
-        // uint8_t index = pattern_index / 4;
-        // uint8_t offset = (pattern_index % 4) * 6;
-        // adc_ll_digi_pattern_table_t pattern = {0};
-        // pattern.val = (table.atten & 0x3) | ((table.channel & 0x7) << 2) | ((table.unit & 0x1) << 5);
-        // tab = APB_SARADC.sar_patt_tab[index].sar_patt_tab1;         // Read old register value
-        // tab &= (~(0xFC0000 >> offset));                             // Clear old data
-        // tab |= ((uint32_t)(pattern.val & 0x3F) << 18) >> offset;    // Fill in the new data
-        // APB_SARADC.sar_patt_tab[index].sar_patt_tab1 = tab;         // Write back
         let tab = saradc.sar_patt_tab1().read().bits();
         defmt::info!("read tab {:x}", tab);
         let _index = pattern_index / 4;
@@ -300,8 +235,6 @@ async fn main(spawner: Spawner) {
         let mut tab = tab;
         tab &= !(0xFC0000 >> offset);
         tab |= ((pattern_val & 0x3F) << 18) >> offset;
-        // dump
-        tab = 0x000FFFFF;
         saradc
             .sar_patt_tab1()
             .write(|w| unsafe { w.saradc_sar_patt_tab1().bits(tab) });
@@ -315,30 +248,25 @@ async fn main(spawner: Spawner) {
         w.saradc_timer_target().variant(0b111111111011);
         w
     });
-    // set sample cycle
-    const I2C_SAR_ADC: u8 = 0x69;
-    const I2C_SAR_ADC_HOSTID: u8 = 0;
-    const ADC_SAR1_SAMPLE_CYCLE_ADDR: u8 = 0x2;
-    const ADC_SAR1_SAMPLE_CYCLE_ADDR_MSB: u8 = 0x2;
-    const ADC_SAR1_SAMPLE_CYCLE_ADDR_LSB: u8 = 0x0;
-    const ADC_LL_SAMPLE_CYCLE_DEFAULT: u8 = 2;
-    regi2c_write_mask(
-        I2C_SAR_ADC,
-        I2C_SAR_ADC_HOSTID,
-        ADC_SAR1_SAMPLE_CYCLE_ADDR,
-        ADC_SAR1_SAMPLE_CYCLE_ADDR_MSB,
-        ADC_SAR1_SAMPLE_CYCLE_ADDR_LSB,
-        ADC_LL_SAMPLE_CYCLE_DEFAULT,
-    );
-    // saradc.arb_ctrl().modify(|_, w| w.adc_arb_apb_priority());
+    // // set sample cycle
+    // const I2C_SAR_ADC: u8 = 0x69;
+    // const I2C_SAR_ADC_HOSTID: u8 = 0;
+    // const ADC_SAR1_SAMPLE_CYCLE_ADDR: u8 = 0x2;
+    // const ADC_SAR1_SAMPLE_CYCLE_ADDR_MSB: u8 = 0x2;
+    // const ADC_SAR1_SAMPLE_CYCLE_ADDR_LSB: u8 = 0x0;
+    // const ADC_LL_SAMPLE_CYCLE_DEFAULT: u8 = 2;
+    // regi2c_write_mask(
+    //     I2C_SAR_ADC,
+    //     I2C_SAR_ADC_HOSTID,
+    //     ADC_SAR1_SAMPLE_CYCLE_ADDR,
+    //     ADC_SAR1_SAMPLE_CYCLE_ADDR_MSB,
+    //     ADC_SAR1_SAMPLE_CYCLE_ADDR_LSB,
+    //     ADC_LL_SAMPLE_CYCLE_DEFAULT,
+    // );
     const BUFFER_LEN: usize = 1024;
     let (_tx_buffer, mut tx_descriptors, rx_buffer, mut rx_descriptors) =
         esp_hal::dma_buffers!(BUFFER_LEN);
-    defmt::info!("rx_descriptors at {}", rx_descriptors.as_ptr());
     rx_buffer.iter_mut().for_each(|x| *x = 0);
-    // let dma_channel = esp_hal::dma::Channel0 {};
-    // let dma = esp_hal::dma::ChannelRx::new(rx_descriptors, dma_channel, false);
-    // esp_hal::dma::ChannelCreator0::configure(self, burst_mode, tx_descriptors, rx_descriptors, priority)
     let dma = esp_hal::dma::Dma::new(peripherals.DMA);
     let dma_channel = dma.channel0.configure(
         false,
@@ -346,14 +274,10 @@ async fn main(spawner: Spawner) {
         &mut rx_descriptors,
         esp_hal::dma::DmaPriority::Priority0,
     );
-    // dma_channel.tx.is_done();
     use esp_hal::dma::RxPrivate;
     let mut rx = dma_channel.rx;
-    rx.is_done();
-    let dma_reg = &*unsafe { pac::DMA::steal() };
-    // reset dma
-    // dma_reg.in_conf0_ch(0).modify(|_, w| w.in_rst().set_bit());
-    // dma_reg.in_conf0_ch(0).modify(|_, w| w.in_rst().clear_bit());
+    // rx.is_done();
+    // let dma_reg = &*unsafe { pac::DMA::steal() };
     // reset adc digital controller
     saradc
         .dma_conf()
@@ -363,16 +287,12 @@ async fn main(spawner: Spawner) {
         .modify(|_, w| w.apb_adc_reset_fsm().clear_bit());
     // set adc eof
     const SOC_ADC_DIGI_DATA_BYTES_PER_CONV: u16 = 4;
-    let eof: u16 = 256;
+    let eof: u16 = BUFFER_LEN as u16;
     saradc.dma_conf().modify(|_, w| {
         w.apb_adc_eof_num()
             .variant(eof / SOC_ADC_DIGI_DATA_BYTES_PER_CONV)
     });
     // start dma
-    // set descr addr
-    // use esp_hal::dma::Channel0;
-    // Channel0::set_in_descriptors(address)
-    // dma_reg.in_link_ch(0).modify(|_, w| w.inlink_addr().variant());
     rx.prepare_transfer_without_start(
         false,
         esp_hal::dma::DmaPeripheral::Adc,
@@ -381,30 +301,42 @@ async fn main(spawner: Spawner) {
     )
     .unwrap();
     rx.listen_eof();
-    // saradc
-    //     .int_ena()
-    //     .modify(|_, w| w.apb_saradc1_done_int_ena().set_bit());
     rx.start_transfer().unwrap();
     // connect DMA and peripheral
     saradc.dma_conf().modify(|_, w| w.apb_adc_trans().set_bit());
     // start ADC
     saradc.ctrl2().modify(|_, w| w.saradc_timer_en().set_bit());
 
-    esp_println::println!("after config, dma: {:#?}; \nsaradc: {:#?}", dma_reg, saradc);
+    // esp_println::println!("after config, dma: {:#?}; \nsaradc: {:#?}", dma_reg, saradc);
     esp_hal::dma::Channel0::start_in();
-    esp_println::println!("in_link_ch0: {:#?}", dma_reg.in_link_ch(0).read());
+    // esp_println::println!("in_link_ch0: {:#?}", dma_reg.in_link_ch(0).read());
 
     while !rx.is_done() {
-        let available = rx.available();
-        info!(
-            "waiting... available = {}, buffer[0] is {:02x}",
-            available, rx_buffer[0]
-        );
-        delay.delay_ms(1000u32);
+        // let available = rx.available();
+        // info!(
+        //     "waiting... available = {}, buffer[0] is {:02x}",
+        //     available, rx_buffer[0]
+        // );
+        delay.delay_ms(1u32);
     }
     info!("DMA done");
-    for i in 0..BUFFER_LEN {
-        info!("rx_buffer[{}] = {:02x}", i, rx_buffer[i]);
+    // for i in 0..BUFFER_LEN {
+    //     info!("rx_buffer[{}] = {:02x}", i, rx_buffer[i]);
+    // }
+    for i in 0..(BUFFER_LEN / 4) {
+        let t = AdcDigiOutputData(u32::from_le_bytes([
+            rx_buffer[i * 4],
+            rx_buffer[i * 4 + 1],
+            rx_buffer[i * 4 + 2],
+            rx_buffer[i * 4 + 3],
+        ]));
+        info!(
+            "data[{}]: data = {}, channel = {}, unit = {}",
+            i / 4,
+            t.data(),
+            t.channel(),
+            t.unit()
+        );
     }
 
     loop {}
@@ -469,6 +401,34 @@ fn regi2c_write_mask(block: u8, host_id: u8, reg_add: u8, msb: u8, lsb: u8, data
             lsb as _,
             data as _,
         );
+    }
+}
+
+// typedef struct {
+//     union {
+//         struct {
+//             uint32_t data:          12; /*!<ADC real output data info. Resolution: 12 bit. */
+//             uint32_t reserved12:    1;  /*!<Reserved12. */
+//             uint32_t channel:       3;  /*!<ADC channel index info.
+//                                             If (channel < ADC_CHANNEL_MAX), The data is valid.
+//                                             If (channel > ADC_CHANNEL_MAX), The data is invalid. */
+//             uint32_t unit:          1;  /*!<ADC unit index info. 0: ADC1; 1: ADC2.  */
+//             uint32_t reserved17_31: 15; /*!<Reserved17. */
+//         } type2;                        /*!<When the configured output format is 12bit. */
+//         uint32_t val;                   /*!<Raw data value */
+//     };
+// } adc_digi_output_data_t;
+#[derive(Clone, Copy)]
+pub struct AdcDigiOutputData(u32);
+impl AdcDigiOutputData {
+    pub fn data(&self) -> u16 {
+        (self.0 & 0xFFF) as u16
+    }
+    pub fn channel(&self) -> u8 {
+        ((self.0 >> 13) & 0x7) as u8
+    }
+    pub fn unit(&self) -> u8 {
+        ((self.0 >> 16) & 0x1) as u8
     }
 }
 
