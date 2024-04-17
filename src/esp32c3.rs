@@ -171,31 +171,26 @@ async fn main(spawner: Spawner) {
     );
     use esp_hal::dma::RxPrivate;
 
-    let mut dma = adc1.with_dma(dma_channel);
-    let mut transfer = dma.dma_read(&mut rx_buffer).unwrap();
+    let mut adc1 = adc1.with_dma(dma_channel);
+    for _ in 0..2 {
+        let mut transfer = adc1.dma_read(&mut rx_buffer).unwrap();
 
-    transfer.wait().unwrap();
+        transfer.wait().unwrap();
 
-    // while !rx.is_done() {
-    //     // let available = rx.available();
-    //     // info!(
-    //     //     "waiting... available = {}, buffer[0] is {:02x}",
-    //     //     available, rx_buffer[0]
-    //     // );
-    //     delay.delay_ms(1u32);
-    // }
-    info!("DMA done");
-    rx_buffer
-        .chunks(4)
-        .map(AdcDigiOutputData::from)
-        .for_each(|t| {
-            info!(
-                "data: data = {}, channel = {}, unit = {}",
-                t.data(),
-                t.channel(),
-                t.unit()
-            );
-        });
+        info!("DMA done");
+        rx_buffer
+            .chunks(4)
+            .take(4)
+            .map(AdcDigiOutputData::from)
+            .for_each(|t| {
+                info!(
+                    "data: data = {}, channel = {}, unit = {}",
+                    t.data(),
+                    t.channel(),
+                    t.unit()
+                );
+            });
+    }
 
     loop {}
 
