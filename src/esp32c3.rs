@@ -17,6 +17,7 @@ use embedded_graphics::Drawable;
 use embedded_graphics::{geometry::Point, pixelcolor::RgbColor};
 use embedded_hal::{delay::DelayNs, digital::InputPin};
 use esp_backtrace as _;
+use esp_hal::analog::adc::dma::{AdcDigiOutputData, WithDmaAdc};
 use esp_hal::dma::{RegisterAccess, TxPrivate};
 use esp_hal::gpio::OutputPin;
 use esp_hal::ledc::channel::Channel;
@@ -154,122 +155,13 @@ async fn main(spawner: Spawner) {
         esp_hal::analog::adc::Attenuation::Attenuation11dB,
     );
     // to enable clocks
-    let _adc1 =
+    let adc1 =
         esp_hal::analog::adc::ADC::<esp_hal::peripherals::ADC1>::new(peripherals.ADC1, adc1_config);
 
-    const ADC_LL_CLKM_DIV_NUM_DEFAULT: u8 = 15;
-    const ADC_LL_CLKM_DIV_B_DEFAULT: u8 = 1;
-    const ADC_LL_CLKM_DIV_A_DEFAULT: u8 = 0;
-
-    // let sample_freq_hz = 80_000;
-    // let clk_src_freq_hz = 5_000_000;
-    // let interval = clk_src_freq_hz
-    //     / (ADC_LL_CLKM_DIV_NUM_DEFAULT + ADC_LL_CLKM_DIV_A_DEFAULT / ADC_LL_CLKM_DIV_B_DEFAULT + 1)
-    //     / 2
-    //     / sample_freq_hz;
-
-    // info!("interval: {}", interval);
-
-    let saradc = &*unsafe { pac::APB_SARADC::steal() };
-    // stop adc
-    saradc
-        .ctrl2()
-        .modify(|_, w| w.saradc_timer_en().clear_bit());
-    saradc.ctrl().modify(|_, w| {
-        w.saradc_start_force()
-            .clear_bit()
-            .saradc_start()
-            .clear_bit()
-    });
-    // setup clocks
-    saradc.clkm_conf().modify(|_, w| unsafe {
-        w.clkm_div_a()
-            .bits(ADC_LL_CLKM_DIV_A_DEFAULT)
-            .clkm_div_b()
-            .bits(ADC_LL_CLKM_DIV_B_DEFAULT)
-            .clkm_div_num()
-            .bits(ADC_LL_CLKM_DIV_NUM_DEFAULT)
-            .clk_en()
-            .set_bit()
-    });
-    saradc.onetime_sample().modify(|_, w| {
-        w.saradc1_onetime_sample().clear_bit();
-        w.saradc2_onetime_sample().clear_bit();
-        w
-    });
-    // clear pattern
-    saradc
-        .ctrl()
-        .modify(|_, w| w.saradc_sar_patt_p_clear().set_bit());
-    saradc
-        .ctrl()
-        .modify(|_, w| w.saradc_sar_patt_p_clear().clear_bit());
-    let pattern_len = 1;
-    saradc
-        .ctrl()
-        .modify(|_, w| unsafe { w.saradc_sar_patt_len().bits(pattern_len as u8 - 1) });
-    {
-        // setup patterns
-        // typedef struct {
-        //     uint8_t atten;      ///< Attenuation of this ADC channel
-        //     uint8_t channel;    ///< ADC channel
-        //     uint8_t unit;       ///< ADC unit
-        //     uint8_t bit_width;  ///< ADC output bit width
-        // } adc_digi_pattern_config_t;
-        // typedef struct  {
-        //     union {
-        //         struct {
-        //             uint8_t atten:      2;
-        //             uint8_t channel:    3;
-        //             uint8_t unit:       1;
-        //             uint8_t reserved:   2;
-        //         };
-        //         uint8_t val;
-        //     };
-        // } __attribute__((packed)) adc_ll_digi_pattern_table_t;
-        let pattern = [3u32, 0, 0, 12];
-        let pattern_val =
-            (pattern[0] & 0x3) | ((pattern[1] & 0x7) << 2) | ((pattern[2] & 0x1) << 5);
-        let pattern_index = 0;
-        let tab = saradc.sar_patt_tab1().read().bits();
-        defmt::info!("read tab {:x}", tab);
-        let _index = pattern_index / 4;
-        let offset = (pattern_index % 4) * 6;
-        let mut tab = tab;
-        tab &= !(0xFC0000 >> offset);
-        tab |= ((pattern_val & 0x3F) << 18) >> offset;
-        saradc
-            .sar_patt_tab1()
-            .write(|w| unsafe { w.saradc_sar_patt_tab1().bits(tab) });
-        defmt::info!("set tab to {:x}", tab);
-    }
-    saradc.ctrl2().modify(|_, w| unsafe {
-        // w.saradc_meas_num_limit().set_bit();
-        w.saradc_meas_num_limit().clear_bit();
-        w.saradc_max_meas_num().bits(10);
-        // dump
-        w.saradc_timer_target().bits(0b111111111011);
-        w
-    });
-    // // set sample cycle
-    // const I2C_SAR_ADC: u8 = 0x69;
-    // const I2C_SAR_ADC_HOSTID: u8 = 0;
-    // const ADC_SAR1_SAMPLE_CYCLE_ADDR: u8 = 0x2;
-    // const ADC_SAR1_SAMPLE_CYCLE_ADDR_MSB: u8 = 0x2;
-    // const ADC_SAR1_SAMPLE_CYCLE_ADDR_LSB: u8 = 0x0;
-    // const ADC_LL_SAMPLE_CYCLE_DEFAULT: u8 = 2;
-    // regi2c_write_mask(
-    //     I2C_SAR_ADC,
-    //     I2C_SAR_ADC_HOSTID,
-    //     ADC_SAR1_SAMPLE_CYCLE_ADDR,
-    //     ADC_SAR1_SAMPLE_CYCLE_ADDR_MSB,
-    //     ADC_SAR1_SAMPLE_CYCLE_ADDR_LSB,
-    //     ADC_LL_SAMPLE_CYCLE_DEFAULT,
-    // );
     const BUFFER_LEN: usize = 1024;
-    let (_tx_buffer, mut tx_descriptors, rx_buffer, mut rx_descriptors) =
+    let (_tx_buffer, mut tx_descriptors, mut rx_buffer, mut rx_descriptors) =
         esp_hal::dma_buffers!(BUFFER_LEN);
-    rx_buffer.iter_mut().for_each(|x| *x = 0);
+    rx_buffer.iter_mut().for_each(|x| *x = 0xcc);
     let dma = esp_hal::dma::Dma::new(peripherals.DMA);
     let dma_channel = dma.channel0.configure(
         false,
@@ -278,74 +170,38 @@ async fn main(spawner: Spawner) {
         esp_hal::dma::DmaPriority::Priority0,
     );
     use esp_hal::dma::RxPrivate;
-    let mut rx = dma_channel.rx;
-    // rx.is_done();
-    // let dma_reg = &*unsafe { pac::DMA::steal() };
-    // reset adc digital controller
-    saradc
-        .dma_conf()
-        .modify(|_, w| w.apb_adc_reset_fsm().set_bit());
-    saradc
-        .dma_conf()
-        .modify(|_, w| w.apb_adc_reset_fsm().clear_bit());
-    // set adc eof
-    const SOC_ADC_DIGI_DATA_BYTES_PER_CONV: u16 = 4;
-    let eof: u16 = BUFFER_LEN as u16;
-    saradc.dma_conf().modify(|_, w| unsafe {
-        w.apb_adc_eof_num()
-            .bits(eof / SOC_ADC_DIGI_DATA_BYTES_PER_CONV)
-    });
-    // start dma
-    rx.prepare_transfer_without_start(
-        false,
-        esp_hal::dma::DmaPeripheral::Adc,
-        rx_buffer.as_mut_ptr(),
-        BUFFER_LEN,
-    )
-    .unwrap();
-    rx.listen_eof();
-    rx.start_transfer().unwrap();
-    // connect DMA and peripheral
-    saradc.dma_conf().modify(|_, w| w.apb_adc_trans().set_bit());
-    // start ADC
-    saradc.ctrl2().modify(|_, w| w.saradc_timer_en().set_bit());
 
-    // esp_println::println!("after config, dma: {:#?}; \nsaradc: {:#?}", dma_reg, saradc);
-    esp_hal::dma::Channel0::start_in();
-    // esp_println::println!("in_link_ch0: {:#?}", dma_reg.in_link_ch(0).read());
+    let mut dma = adc1.with_dma(dma_channel);
+    let mut transfer = dma.dma_read(&mut rx_buffer).unwrap();
 
-    while !rx.is_done() {
-        // let available = rx.available();
-        // info!(
-        //     "waiting... available = {}, buffer[0] is {:02x}",
-        //     available, rx_buffer[0]
-        // );
-        delay.delay_ms(1u32);
-    }
-    info!("DMA done");
-    // for i in 0..BUFFER_LEN {
-    //     info!("rx_buffer[{}] = {:02x}", i, rx_buffer[i]);
+    transfer.wait().unwrap();
+
+    // while !rx.is_done() {
+    //     // let available = rx.available();
+    //     // info!(
+    //     //     "waiting... available = {}, buffer[0] is {:02x}",
+    //     //     available, rx_buffer[0]
+    //     // );
+    //     delay.delay_ms(1u32);
     // }
-    for i in 0..(BUFFER_LEN / 4) {
-        let t = AdcDigiOutputData(u32::from_le_bytes([
-            rx_buffer[i * 4],
-            rx_buffer[i * 4 + 1],
-            rx_buffer[i * 4 + 2],
-            rx_buffer[i * 4 + 3],
-        ]));
-        info!(
-            "data[{}]: data = {}, channel = {}, unit = {}",
-            i / 4,
-            t.data(),
-            t.channel(),
-            t.unit()
-        );
-    }
+    info!("DMA done");
+    rx_buffer
+        .chunks(4)
+        .map(AdcDigiOutputData::from)
+        .for_each(|t| {
+            info!(
+                "data: data = {}, channel = {}, unit = {}",
+                t.data(),
+                t.channel(),
+                t.unit()
+            );
+        });
 
     loop {}
 
+    let adc_device = app::devices::DummyAdcDevice {};
     // let adc_device = AdcDriver::new(adc1, adc1_pin);
-    let adc_device = AdcDmaDriver::new(_adc1, _adc1_pin);
+    // let adc_device = AdcDmaDriver::new(adc1, _adc1_pin);
 
     let left = io.pins.gpio5.into_pull_up_input();
     let right = io.pins.gpio9.into_pull_up_input();
@@ -404,34 +260,6 @@ fn regi2c_write_mask(block: u8, host_id: u8, reg_add: u8, msb: u8, lsb: u8, data
             lsb as _,
             data as _,
         );
-    }
-}
-
-// typedef struct {
-//     union {
-//         struct {
-//             uint32_t data:          12; /*!<ADC real output data info. Resolution: 12 bit. */
-//             uint32_t reserved12:    1;  /*!<Reserved12. */
-//             uint32_t channel:       3;  /*!<ADC channel index info.
-//                                             If (channel < ADC_CHANNEL_MAX), The data is valid.
-//                                             If (channel > ADC_CHANNEL_MAX), The data is invalid. */
-//             uint32_t unit:          1;  /*!<ADC unit index info. 0: ADC1; 1: ADC2.  */
-//             uint32_t reserved17_31: 15; /*!<Reserved17. */
-//         } type2;                        /*!<When the configured output format is 12bit. */
-//         uint32_t val;                   /*!<Raw data value */
-//     };
-// } adc_digi_output_data_t;
-#[derive(Clone, Copy)]
-pub struct AdcDigiOutputData(u32);
-impl AdcDigiOutputData {
-    pub fn data(&self) -> u16 {
-        (self.0 & 0xFFF) as u16
-    }
-    pub fn channel(&self) -> u8 {
-        ((self.0 >> 13) & 0x7) as u8
-    }
-    pub fn unit(&self) -> u8 {
-        ((self.0 >> 16) & 0x1) as u8
     }
 }
 
